@@ -1,0 +1,17 @@
+Raspberry Pi Zero (včetně Zero 2W) má na svém SoC (BCM2835) I2S/PCM rozhraní, které je hardwarově určeno primárně pro stereo (2kanálový) I2S provoz. Co se týče podpory TDM8 (tj. 8kanálového Time Division Multiplexed signálu) na této sběrnici:
+
+Hardwarová omezení
+Podle dokumentace BCM2835 (a diskuzí na fórech) je možné nastavit větší délku rámce (až 1024 bitů), což je pro TDM potřebné, ale aktivně lze zpracovávat pouze 2 kanály současně. To znamená, že i když na sběrnici poběží TDM8 signál, Raspberry Pi Zero umí zpracovat (přečíst/zapsat) pouze dva sloty (kanály) z celého rámce. Ostatní kanály ignoruje, nebo je nelze jednoduše softwarově vybrat1.
+
+Linux/ALSA ovladače
+V kernelu existuje patch pro TDM podporu na BCM2835/2837, ale stále platí omezení na 2 aktivní kanály. Tedy, lze si vybrat, které dva sloty z TDM rámce budou použity, ale plné dekódování všech 8 kanálů není možné pouze pomocí standardního I2S/PCM hardwaru na Pi Zero1.
+
+Praktické využití
+Existují device tree overlaye (např. v projektu ADAU1701-I2S-Audio-Driver-for-Raspberry-Pi), které umožňují nastavit TDM8 režim na Pi, ale i zde je využito pouze dvou kanálů z osmi (ostatní jsou ignorovány)2.
+Pokud potřebujete zpracovat všech 8 kanálů TDM8 signálu, je nutné použít externí hardware (např. specializovaný TDM dekodér, FPGA, nebo jiný mikrokontrolér s lepší TDM podporou).
+
+Shrnutí
+Raspberry Pi Zero neumí na svém I2S/PCM rozhraní plně dekódovat TDM8 signál. Umí pouze vybrat a zpracovat dva kanály z TDM rámce.
+Pro plné zpracování všech 8 kanálů je potřeba externí řešení.
+
+Rovnák na vohybák: https://www.robertsonics.com/blog/2021/11/17/multi-channel-audio-for-the-raspberry-pi-part-1
