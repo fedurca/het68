@@ -1,4 +1,6 @@
 zapojení ICS-43434 breakout boardu
+https://www.aliexpress.com/item/1005008956861273.html
+
 
 černý (SEL): společný výběr kanálu  v našem případě:
 1,3,5 na GND (levý kanál)
@@ -25,3 +27,4 @@ INA219 - jednokanálový I2C napětí, proud
 INA3221 - tříkanálový
 
 HITPOINT PT-2038WQ - piezo bez budiče  
+https://www.gme.cz/v/1496869/hitpoint-pt-2038wq-piezomenic
