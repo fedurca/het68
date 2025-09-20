@@ -14,5 +14,10 @@ hnědý (SCLK): společný hodinový signál který synchronizuje přenos dat
 
 oranžový (3V): společné napájení.
 
+BME280 - teplota, tlak, vlhkost
 
+INA219 - jednokanálový I2C napětí, proud
 
+INA3221 - tříkanálový
+
+HITPOINT PT-2038WQ - piezo bez budiče  
