@@ -6,7 +6,11 @@ zapojení ICS-43434 breakout boardu
 
 modrý (LRCL/WS): společný hodinový signál, který určuje, jestli se přenáší data pro levý nebo pravý kanál
 
-zelený (DOUT): samostatný datový výstup - 3 zelené vodiče, každý pro jeden pár mikrofonů
+zelený (DOUT): samostatný datový výstup
+3 zelené vodiče, každý pro jeden pár mikrofonů
+1+2
+3+4
+5+6
 
 hnědý (SCLK): společný hodinový signál který synchronizuje přenos dat
 
