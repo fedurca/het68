@@ -1,5 +1,40 @@
 # 6-kanálová I2S USB Zvuková karta pro Raspberry Pi Pico
 
+Tento projekt promění Raspberry Pi Pico v 6-kanálové USB audio zařízení.
+
+## Předpoklady (Jednorázová instalace)
+
+Ujistěte se, že máte nainstalovanou sadu nástrojů **ARM GNU Toolchain**.
+
+1.  Jděte na stránku [Arm GNU Toolchain Downloads](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads).
+2.  Stáhněte a nainstalujte nejnovější `.pkg` soubor pro macOS (`arm-gnu-toolchain-...-darwin-arm64-arm-none-eabi.pkg`).
+
+## Finální postup spuštění
+
+1.  **Úplně zavřete Visual Studio Code** (`Cmd + Q`).
+
+2.  V Terminálu, ve složce projektu, **smažte adresář `build`**:
+    ```bash
+    rm -rf build
+    ```
+
+3.  **Spusťte VS Code z Terminálu** příkazem:
+    ```bash
+    code .
+    ```
+
+4.  Počkejte, až se VS Code otevře. Projekt by se měl nyní **automaticky a správně nakonfigurovat**.
+
+5.  Stiskněte `F7` nebo klikněte na tlačítko **Build**. Projekt se musí sestavit.
+
+
+
+
+
+
+
+# 6-kanálová I2S USB Zvuková karta pro Raspberry Pi Pico
+
 Tento projekt promění Raspberry Pi Pico v 6-kanálové USB audio zařízení (mikrofon), které přijímá data ze tří stereo I2S datových linek. Je navržen pro použití se šesti mikrofony ICS43434, zapojenými v párech.
 
 Projekt využívá PIO k implementaci I2S přijímačů a DMA k přenosu dat z PIO do paměti bez zatížení procesoru. Následně jsou data odesílána přes USB do hostitelského počítače pomocí knihovny TinyUSB.

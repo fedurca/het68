@@ -1,55 +1,53 @@
 #!/bin/bash
 
-# Tento skript připraví prostředí pro vývoj a spustí VS Code.
-# Může být spuštěn dvěma způsoby:
-#
-# 1. `./setenv.sh` (doporučeno pro běžnou práci)
-#    - Nastaví PICO_SDK_PATH pouze pro VS Code a spustí ho.
-#    - Proměnná NEZŮSTANE nastavena ve vašem terminálu po skončení skriptu.
-#
-# 2. `source setenv.sh` (pokud potřebujete proměnnou i v terminálu)
-#    - Nastaví PICO_SDK_PATH pro vaši AKTUÁLNÍ session v terminálu.
-#    - Spustí VS Code. Proměnná PICO_SDK_PATH zůstane dostupná v terminálu.
+echo "--- Kontrola prostředí ---"
 
-echo "--- Nastavuji prostředí pro Pico vývoj ---"
+# Pokusí se najít adresář s kompilátorem ARM GCC
+TOOLCHAIN_BIN_DIR=""
 
-# 1. Získání absolutní cesty k adresáři, kde se skript nachází
-# Toto je robustní způsob, jak zajistit, že cesta je vždy správná,
-# bez ohledu na to, odkud skript spouštíte.
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-PICO_SDK_DIR="$SCRIPT_DIR/pico-sdk"
-
-# 2. Kontrola, zda existuje adresář pico-sdk
-if [ ! -d "$PICO_SDK_DIR" ]; then
-    echo "Chyba: Adresář 'pico-sdk' nebyl nalezen v adresáři projektu."
-    echo "Prosím, ujistěte se, že jste naklonovali pico-sdk sem: $SCRIPT_DIR"
-    # Pokud je skript "sourcován", nemůžeme použít exit, použijeme return.
-    (return 2>/dev/null) && return 1 || exit 1
+# 1. Zkusí standardní systémovou cestu (PATH), která by nyní měla fungovat
+if command -v arm-none-eabi-gcc &> /dev/null; then
+    TOOLCHAIN_BIN_DIR=$(dirname "$(command -v arm-none-eabi-gcc)")
+    echo "Kompilátor nalezen v systémové cestě (PATH)."
+# 2. Pokud selže, zkusí novou standardní cestu pro macOS instalátor, kterou jsme objevili
+elif [ -f "/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc" ]; then
+    TOOLCHAIN_BIN_DIR="/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin"
+    echo "Kompilátor nalezen ve standardní složce /Applications."
+    # Dočasně přidá cestu do PATH, aby ji našly i podprocesy
+    export PATH="$TOOLCHAIN_BIN_DIR:$PATH"
 fi
 
-# 3. Nastavení cesty k Pico SDK
-export PICO_SDK_PATH="$PICO_SDK_DIR"
-echo "PICO_SDK_PATH nastaveno na: $PICO_SDK_PATH"
+# Pokud nebyl nalezen ani na jednom místě, skončí s chybou
+if [ -z "$TOOLCHAIN_BIN_DIR" ]; then
+    echo "--- CHYBA: Kompilátor 'arm-none-eabi-gcc' nebyl nalezen. ---"
+    echo "Prosím, ujistěte se, že je ARM GNU Toolchain správně nainstalován."
+    echo "Odkaz ke stažení: https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads"
+    exit 1
+fi
 
-# 4. Inicializace/aktualizace submodulů v SDK (důležité pro TinyUSB atd.)
+# --- Nastavení prostředí ---
+echo "--- Nastavuji prostředí pro Pico vývoj ---"
+
+# 1. Nastavení cesty k Pico SDK relativně ke skriptu
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
+export PICO_SDK_PATH="${SCRIPT_DIR}/pico-sdk"
+echo "PICO_SDK_PATH nastaveno na: ${PICO_SDK_PATH}"
+
+# 2. Nastavení cesty ke kompilátoru, kterou CMake použije
+export PICO_TOOLCHAIN_PATH="$TOOLCHAIN_BIN_DIR"
+echo "PICO_TOOLCHAIN_PATH nastaveno na: ${PICO_TOOLCHAIN_PATH}"
+
+# Aktualizace submodulů v SDK
 echo "Aktualizuji submoduly v pico-sdk (může chvíli trvat)..."
-cd "$PICO_SDK_PATH"
-# Přesměrování výstupu, aby se nezobrazovaly zbytečné informace
-git submodule update --init > /dev/null 2>&1
-cd "$SCRIPT_DIR"
+cd "${PICO_SDK_PATH}"
+git submodule update --init --force > /dev/null 2>&1
+cd "${SCRIPT_DIR}"
 echo "Submoduly jsou aktuální."
 
-# 5. Spuštění VS Code
+# Spuštění VS Code v aktuálním adresáři
 echo "Spouštím Visual Studio Code..."
 code .
 
-# 6. Informační zpráva
-# Zjištění, zda byl skript spuštěn pomocí 'source'
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    echo "--- Prostředí je připraveno pro VS Code. ---"
-    echo "Poznámka: Proměnná PICO_SDK_PATH není nastavena ve vašem terminálu."
-    echo "           Pro nastavení i v terminálu spusťte skript pomocí: source setenv.sh"
-else
-    echo "--- Prostředí je připraveno pro VS Code a váš terminál. ---"
-fi
+echo "--- Prostředí je připraveno. ---"
+
 

@@ -38,3 +38,21 @@ INA3221 - tříkanálový
 
 HITPOINT PT-2038WQ - piezo bez budiče  
 https://www.gme.cz/v/1496869/hitpoint-pt-2038wq-piezomenic
+
+
+
+Sekce: macOS (Apple silicon) hosted cross toolchains
+Podsekce: AArch32 bare-metal target (arm-none-eabi)
+Soubor ke stažení: arm-gnu-toolchain-14.3.rel1-darwin-arm64-arm-none-eabi.pkg
+https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads
+
+filename:
+arm-gnu-toolchain-14.3.rel1-darwin-arm64-arm-none-eabi.pkg
+size: 
+271.3MB
+sha256sum:
+b93712026cec9f98a5d98dfec84e8096d32be3759642381e1982c4a5d2aa020b 
+md5sum: 
+d2f3017bbf1e644b8a41b0bf499c0617  
+URL:
+https://developer.arm.com/-/media/Files/downloads/gnu/14.3.rel1/binrel/arm-gnu-toolchain-14.3.rel1-darwin-arm64-arm-none-eabi.pkg

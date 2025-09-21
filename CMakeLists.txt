@@ -1,43 +1,47 @@
 cmake_minimum_required(VERSION 3.13)
 
-# Inicializace Pico SDK
-# Cesta k SDK musí být nastavena v proměnné prostředí PICO_SDK_PATH
-include(pico_sdk_import.cmake)
+# Soubor .vscode/settings.json specifikuje CMAKE_TOOLCHAIN_FILE.
+# Tento soubor automaticky najde a zahrne Pico SDK.
+# Můžeme tedy rovnou definovat náš projekt a poté SDK inicializovat.
 
 project(pico_6mic_soundcard C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
+# Inicializace Pico SDK.
+# Tato funkce je zpřístupněna souborem toolchain z SDK.
 pico_sdk_init()
 
-# Přidání podadresáře s PIO programem
-add_subdirectory(pio)
+# Informace o projektu
+message(STATUS "Project pico_6mic_soundcard")
+message(STATUS "Build type is ${CMAKE_BUILD_TYPE}")
+
+# Přidání PIO souboru jako zdroje
+pico_generate_pio_header(pico_6mic_soundcard ${CMAKE_CURRENT_LIST_DIR}/pio/i2s_rx.pio)
 
 # Definice spustitelného souboru
-add_executable(${CMAKE_PROJECT_NAME}
+add_executable(pico_6mic_soundcard
     main.c
-    tusb_config.h
 )
 
-# Povolení USB a logování přes sériový port (pro ladění)
-pico_enable_stdio_usb(${CMAKE_PROJECT_NAME} 1)
-pico_enable_stdio_uart(${CMAKE_PROJECT_NAME} 0)
-
-# Propojení s potřebnými knihovnami SDK
-target_link_libraries(${CMAKE_PROJECT_NAME}
+# Propojení s potřebnými knihovnami z SDK
+target_link_libraries(pico_6mic_soundcard PRIVATE
     pico_stdlib
-    hardware_pio
+    pico_multicore
     hardware_dma
+    hardware_pio
+    hardware_irq
     # TinyUSB pro USB audio
     tinyusb_device
     tinyusb_board
 )
 
-# Zahrnutí adresáře s PIO programem
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}/pio
-)
+# Zapnutí USB a výstupu na sériový port (pro ladění)
+pico_enable_stdio_usb(pico_6mic_soundcard 1)
+pico_enable_stdio_uart(pico_6mic_soundcard 0)
 
 # Vytvoření .uf2 souboru pro nahrání
-pico_add_extra_outputs(${CMAKE_PROJECT_NAME})
+pico_add_extra_outputs(pico_6mic_soundcard)
+
+message(STATUS "Build configuration complete.")
 
