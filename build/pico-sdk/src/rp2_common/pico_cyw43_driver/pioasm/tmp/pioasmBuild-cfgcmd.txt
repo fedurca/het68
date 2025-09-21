@@ -1,0 +1,1 @@
+cmd='/opt/local/bin/cmake;--no-warn-unused-cli;-DCMAKE_MAKE_PROGRAM:FILEPATH=/usr/bin/make;-DPIOASM_FLAT_INSTALL=1;-DCMAKE_INSTALL_PREFIX=/Users/fedurca/het68/het68/build/pioasm-install;-DCMAKE_RULE_MESSAGES=OFF;-DCMAKE_INSTALL_MESSAGE=NEVER;-GUnix Makefiles;-C<TMP_DIR>/pioasmBuild-cache-$<CONFIG>.cmake;<SOURCE_DIR><SOURCE_SUBDIR>'

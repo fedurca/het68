@@ -1,141 +1,181 @@
-#include <stdio.h>
+// main.c — RP2040 + TinyUSB: 6ch test mic callback + minimální USB deskriptory
+#include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 #include "pico/stdlib.h"
-#include "hardware/pio.h"
-#include "hardware/dma.h"
-#include "hardware/clocks.h"
 #include "tusb.h"
 
-// Zkompilovaný PIO program
-#include "i2s_rx.pio.h"
+// ---------------------------------------------------------------------------
+// Parametry audio streamu (musí korespondovat s tvým záměrem)
+// ---------------------------------------------------------------------------
+enum {
+  AUDIO_SAMPLE_RATE = 16000,   // Hz
+  AUDIO_CHANNELS_TX = 6,       // počet kanálů do hosta (mikrofon)
+  BYTES_PER_SAMPLE  = 2        // 16-bit
+};
 
-// --- Konfigurace ---
-#define SAMPLE_RATE 16000
-#define NUM_CHANNELS 6
-#define SAMPLE_DEPTH 16 // 16 bitů
+enum {
+  USB_PKT_LEN = (AUDIO_SAMPLE_RATE/1000) * AUDIO_CHANNELS_TX * BYTES_PER_SAMPLE
+};
 
-// GPIO piny podle zapojení
-#define PIN_I2S_SCLK 1
-#define PIN_I2S_WS   0
-#define PIN_I2S_DATA_1 2 // Kanály 1, 2
-#define PIN_I2S_DATA_2 3 // Kanály 3, 4
-#define PIN_I2S_DATA_3 4 // Kanály 5, 6
+static uint8_t usb_buf[USB_PKT_LEN];
 
-// Velikost bufferu - musí být dostatečně velká
-// TinyUSB odesílá 1ms audio paketů najednou
-#define SAMPLES_PER_PACKET (SAMPLE_RATE / 1000)
-#define CAPTURE_BUFFER_SIZE (SAMPLES_PER_PACKET * 2) // Dvojitý buffer
+// ---------------------------------------------------------------------------
+// Jednoduchý generátor testovacích dat (6 kanálů, sinus s fázemi)
+// ---------------------------------------------------------------------------
+static const int16_t s_sine_lut[64] = {
+  0, 3211, 6392, 9512, 12539, 15446, 18204, 20787,
+  23170, 25329, 27244, 28898, 30273, 31356, 32137, 32609,
+  32767, 32609, 32137, 31356, 30273, 28898, 27244, 25329,
+  23170, 20787, 18204, 15446, 12539, 9512, 6392, 3211,
+  0, -3211, -6392, -9512, -12539, -15446, -18204, -20787,
+  -23170, -25329, -27244, -28898, -30273, -31356, -32137, -32609,
+  -32767, -32609, -32137, -31356, -30273, -28898, -27244, -25329,
+  -23170, -20787, -18204, -15446, -12539, -9512, -6392, -3211
+};
+static uint8_t s_phase[AUDIO_CHANNELS_TX] = {0};
 
-// Buffery pro zachytávání dat z DMA
-// Data z I2S jsou 32-bitová (i když používáme jen 16), proto int32_t
-int32_t capture_buf_ch12[CAPTURE_BUFFER_SIZE];
-int32_t capture_buf_ch34[CAPTURE_BUFFER_SIZE];
-int32_t capture_buf_ch56[CAPTURE_BUFFER_SIZE];
+static void fill_usb_buf_from_source(void)
+{
+  const uint32_t n_per_ms = AUDIO_SAMPLE_RATE/1000; // 16 vzorků/kanál/ms
+  int16_t *out = (int16_t *)usb_buf;
 
-// Buffer pro odeslání přes USB (prokládaná data)
-int16_t usb_buf[SAMPLES_PER_PACKET * NUM_CHANNELS];
-
-// DMA kanály
-int dma_chan_12, dma_chan_34, dma_chan_56;
-
-// Funkce pro inicializaci jednoho I2S přijímače pomocí PIO
-void init_i2s_pio(PIO pio, uint sm, uint pio_program_offset, uint data_pin, uint sclk_pin) {
-    i2s_rx_program_init(pio, sm, pio_program_offset, data_pin, sclk_pin);
-}
-
-// Funkce pro inicializaci DMA pro jeden PIO přijímač
-void init_dma_channel(int* dma_channel, PIO pio, uint sm, int32_t* buffer, size_t buffer_size) {
-    *dma_channel = dma_claim_unused_channel(true);
-    dma_channel_config c = dma_channel_get_default_config(*dma_channel);
-
-    channel_config_set_transfer_data_size(&c, DMA_SIZE_32);
-    channel_config_set_read_increment(&c, false);
-    channel_config_set_write_increment(&c, true);
-    channel_config_set_dreq(&c, pio_get_dreq(pio, sm, false));
-
-    dma_channel_configure(
-        *dma_channel,
-        &c,
-        buffer,                 // Cílová adresa (náš buffer)
-        &pio->rxf[sm],          // Zdrojová adresa (PIO RX FIFO)
-        buffer_size,
-        true                    // Spustit okamžitě
-    );
-}
-
-// Callback volaný, když TinyUSB potřebuje další audio data
-void tud_audio_tx_done_pre_load_cb(uint8_t rhport, uint8_t itf, uint8_t ep_in, uint8_t cur_alt_setting) {
-    (void)rhport;
-    (void)itf;
-    (void)ep_in;
-    (void)cur_alt_setting;
-
-    // Prokládání dat z jednotlivých bufferů do jednoho USB bufferu
-    for (int i = 0; i < SAMPLES_PER_PACKET; i++) {
-        // I2S data jsou MSB zarovnaná, takže pro 16-bit vzorek stačí posunout
-        // a vzít horních 16 bitů z 32-bitového PIO slova.
-        int16_t sample1 = (int16_t)(capture_buf_ch12[i] >> (32 - SAMPLE_DEPTH));
-        int16_t sample2 = (int16_t)(capture_buf_ch12[i+SAMPLES_PER_PACKET] >> (32 - SAMPLE_DEPTH)); // Data z druhého kanálu
-        
-        int16_t sample3 = (int16_t)(capture_buf_ch34[i] >> (32 - SAMPLE_DEPTH));
-        int16_t sample4 = (int16_t)(capture_buf_ch34[i+SAMPLES_PER_PACKET] >> (32 - SAMPLE_DEPTH));
-
-        int16_t sample5 = (int16_t)(capture_buf_ch56[i] >> (32 - SAMPLE_DEPTH));
-        int16_t sample6 = (int16_t)(capture_buf_ch56[i+SAMPLES_PER_PACKET] >> (32 - SAMPLE_DEPTH));
-
-        int base_idx = i * NUM_CHANNELS;
-        usb_buf[base_idx + 0] = sample1;
-        usb_buf[base_idx + 1] = sample2;
-        usb_buf[base_idx + 2] = sample3;
-        usb_buf[base_idx + 3] = sample4;
-        usb_buf[base_idx + 4] = sample5;
-        usb_buf[base_idx + 5] = sample6;
+  for (uint32_t n = 0; n < n_per_ms; ++n) {
+    for (uint32_t ch = 0; ch < AUDIO_CHANNELS_TX; ++ch) {
+      uint8_t idx = (uint8_t)((s_phase[ch] + ch*4) & 63);
+      *out++ = s_sine_lut[idx];
+      s_phase[ch] = (uint8_t)((s_phase[ch] + 1) & 63);
     }
+  }
 
-    tud_audio_write(usb_buf, sizeof(usb_buf));
+  // Sem později napojíš čtení z I2S/DMA ring-bufferu (interleaved ch0..ch5).
 }
 
+// ---------------------------------------------------------------------------
+// TinyUSB AUDIO callback – správný podpis (viz audio_device.h)
+// ---------------------------------------------------------------------------
+bool tud_audio_tx_done_pre_load_cb(uint8_t rhport, uint8_t func_id,
+                                   uint8_t ep_in, uint8_t cur_alt_setting)
+{
+  (void)rhport; (void)func_id; (void)ep_in; (void)cur_alt_setting;
 
-int main() {
-    stdio_init_all();
+  fill_usb_buf_from_source();
+  (void)tud_audio_write(usb_buf, sizeof(usb_buf)); // pošleme 1ms rámec
+  return true;
+}
 
-    // Nastavení systémového taktu pro přesné audio frekvence
-    // 16000 Hz * 2 (stereo) * 32 bitů * 2 (PIO instrukce na bit) = 2.048 MHz
-    // Použijeme systémový PLL
-    uint32_t sys_clk = clock_get_hz(clk_sys);
-    uint32_t pio_clk_div = sys_clk * 2 / (SAMPLE_RATE * 32 * 2); 
-    // Poznámka: Tato kalkulace je zjednodušená. Pro production-grade
-    // audio je potřeba přesnější nastavení PLL.
+// Volitelné „device“ callbacky (stav)
+void tud_mount_cb(void)         { }
+void tud_umount_cb(void)        { }
+void tud_suspend_cb(bool en)    { (void)en; }
+void tud_resume_cb(void)        { }
 
-    // Inicializace TinyUSB
-    tusb_init();
+// ---------------------------------------------------------------------------
+// *** POVINNÉ DESKRIPTOR CALLBACKY ***
+// Tohle řeší linkovací chyby: tud_descriptor_device_cb / configuration_cb / string_cb
+// Následuje minimální composite „Misc/IAD“ zařízení s 1 vendor IF bez EP.
+// Enumerace projde; UAC2 rozhraní doplníme v další iteraci.
+// ---------------------------------------------------------------------------
 
-    // --- Konfigurace PIO ---
-    PIO pio = pio0;
-    uint pio_program_offset = pio_add_program(pio, &i2s_rx_program);
-    
-    // Inicializace tří PIO State Machines pro tři datové linky
-    // Sdílejí SCLK a WS, ale každá má svůj DATA pin
-    init_i2s_pio(pio, 0, pio_program_offset, PIN_I2S_DATA_1, PIN_I2S_SCLK);
-    init_i2s_pio(pio, 1, pio_program_offset, PIN_I2S_DATA_2, PIN_I2S_SCLK);
-    init_i2s_pio(pio, 2, pio_program_offset, PIN_I2S_DATA_3, PIN_I2S_SCLK);
+// Device descriptor
+tusb_desc_device_t const desc_device = {
+  .bLength            = sizeof(tusb_desc_device_t),
+  .bDescriptorType    = TUSB_DESC_DEVICE,
+  // Composite přes IAD (běžná volba pro vícetřídní zařízení)
+  .bcdUSB             = 0x0200,
+  .bDeviceClass       = TUSB_CLASS_MISC,
+  .bDeviceSubClass    = MISC_SUBCLASS_COMMON,
+  .bDeviceProtocol    = MISC_PROTOCOL_IAD,
+  .bMaxPacketSize0    = CFG_TUD_ENDPOINT0_SIZE,
 
-    // --- Konfigurace DMA ---
-    init_dma_channel(&dma_chan_12, pio, 0, capture_buf_ch12, CAPTURE_BUFFER_SIZE);
-    init_dma_channel(&dma_chan_34, pio, 1, capture_buf_ch34, CAPTURE_BUFFER_SIZE);
-    init_dma_channel(&dma_chan_56, pio, 2, capture_buf_ch56, CAPTURE_BUFFER_SIZE);
-    
-    // Spuštění všech PIO State Machines současně
-    pio_sm_set_enabled(pio, 0, true);
-    pio_sm_set_enabled(pio, 1, true);
-    pio_sm_set_enabled(pio, 2, true);
+  .idVendor           = 0xCafe,
+  .idProduct          = 0x4000,
+  .bcdDevice          = 0x0100,
 
-    printf("6-kanálová zvuková karta spuštěna.\n");
+  .iManufacturer      = 0x01,
+  .iProduct           = 0x02,
+  .iSerialNumber      = 0x03,
 
-    while (1) {
-        tud_task(); // TinyUSB task
+  .bNumConfigurations = 0x01
+};
+
+uint8_t const * tud_descriptor_device_cb(void)
+{
+  return (uint8_t const *) &desc_device;
+}
+
+// Jednoduchý config descriptor: Config + 1x Interface (vendor, bez EP).
+// (UAC2 rozhraní a ISO EP přidáme později.)
+enum {
+  ITF_NUM_VENDOR = 0,
+  ITF_COUNT      = 1
+};
+
+#define CONFIG_TOTAL_LEN   (TUD_CONFIG_DESC_LEN + TUD_INTERFACE_DESC_LEN)
+
+uint8_t const desc_configuration[] = {
+  // Config
+  TUD_CONFIG_DESCRIPTOR(1, ITF_COUNT, 0, CONFIG_TOTAL_LEN, 0x00, 100),
+
+  // Interface 0: vendor-specific, no EP (placeholder)
+  // bInterfaceNumber, bAlternateSetting, bNumEndpoints, bInterfaceClass, bInterfaceSubClass, bInterfaceProtocol, iInterface
+  TUD_INTERFACE_DESCRIPTOR(ITF_NUM_VENDOR, 0, 0, 0xFF, 0x00, 0x00, 0)
+};
+
+uint8_t const * tud_descriptor_configuration_cb(uint8_t index)
+{
+  (void)index;
+  return desc_configuration;
+}
+
+// String descriptor
+static char const *string_desc[] = {
+  (const char[]){ 0x09, 0x04 },     // 0: Jazyk (0x0409 = EN-US)
+  "het68",                           // 1: Manufacturer
+  "RP2040 6ch Mic (stub)",          // 2: Product
+  "123456",                         // 3: Serial
+};
+
+static uint16_t _desc_str[32];
+
+uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid)
+{
+  (void)langid;
+
+  uint8_t chr_count = 0;
+
+  if (index == 0) {
+    // návrat jazyka
+    _desc_str[1] = 0x0409;
+    _desc_str[0] = (TUSB_DESC_STRING << 8) | (2*2);
+    return _desc_str;
+  }
+
+  if (index < sizeof(string_desc)/sizeof(string_desc[0])) {
+    const char* str = string_desc[index];
+
+    // převod do UTF-16LE
+    while (str[chr_count] && chr_count < 31) {
+      _desc_str[1 + chr_count] = (uint8_t)str[chr_count];
+      chr_count++;
     }
+    _desc_str[0] = (TUSB_DESC_STRING << 8) | ((chr_count+1)*2);
+    return _desc_str;
+  }
 
-    return 0;
+  return NULL;
 }
 
+// ---------------------------------------------------------------------------
+// main()
+// ---------------------------------------------------------------------------
+int main(void)
+{
+  stdio_init_all();
+  tud_init(0);
+
+  while (true) {
+    tud_task();
+  }
+  return 0;
+}

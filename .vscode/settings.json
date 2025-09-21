@@ -1,12 +1,7 @@
+// .vscode/settings.json
 {
-    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
-    "cmake.configureOnOpen": true,
-    // Toto je finální a "neprůstřelné" nastavení.
-    // Přikazuje CMake, aby použil speciální konfigurační soubor z Pico SDK,
-    // který správně nastaví ARM kompilátor a všechny potřebné cesty.
-    // Tímto obejdeme všechny problémy s mezipamětí a chybným výběrem nástrojů.
-    "cmake.configureSettings": {
-        "CMAKE_TOOLCHAIN_FILE": "${workspaceFolder}/pico-sdk/cmake/pico_sdk_tools.cmake"
-    }
+  "cmake.generator": "Unix Makefiles",
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+  "cmake.exportCompileCommandsFile": true,
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json"
 }
-

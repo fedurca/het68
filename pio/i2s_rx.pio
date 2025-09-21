@@ -1,72 +1,67 @@
-; I2S Receiver PIO Program
-; Přijímá 32-bitová I2S stereo data a ukládá je do RX FIFO.
-;
-; Tento program je určen pro I2S master režim (Pico generuje hodiny).
-;
-; - Side-set se používá pro generování SCLK.
-; - WS (LRCK) je očekáván na 'jmp' pinu.
-; - DATA je čteno z 'in' pinů.
-
 .program i2s_rx
-
+; Non-optional sideset with 1 bit -> every instruction must specify 'side 0/1'.
 .side_set 1
 
-; Čeká na začátek rámce (WS = low), poté načte 32 bitů dat
-; Levý kanál
-wait 0 pin 0        ; Čekej, dokud WS (připojený na 'jmp' pin) není 0
-set x, 31           ; Nastav počítadlo na 32 bitů
-left_channel_loop:
-in pins, 1  side 0  ; Načti 1 bit dat a nastav SCLK na 0
-side 1  ; Nastav SCLK na 1
-jmp x-- left_channel_loop
+; Assumptions:
+; - Side-set pin = SCK (set from C via sm_config_set_sideset_pins)
+; - JMP pin = WS/LRCLK (set from C via sm_config_set_jmp_pin) — WS is INPUT here
+; - IN pin base = data pin (set from C via sm_config_set_in_pins)
+; - Samples 32 bits for Left when WS=0, then 32 bits for Right when WS=1
+; - Pushes two 32-bit words per audio frame: L then R (interleaved)
 
-; Pravý kanál
-wait 1 pin 0        ; Čekej, dokud WS není 1
-set x, 31           ; Znovu nastav počítadlo
-right_channel_loop:
-in pins, 1  side 0
-side 1
-jmp x-- right_channel_loop
+.wrap_target
+wait 0 pin 0            side 0   ; wait for WS==0 (left phase)
+set x, 31               side 0
 
-push                ; Ulož načtených 64 bitů (2x32) do RX FIFO.
-; V našem C kódu je ale čteme po 32 bitech.
+left_loop:
+in pins, 1              side 0   ; sample bit on SCK low->high
+nop                     side 1   ; toggle SCK high
+jmp x-- left_loop       side 0
+push                    side 0   ; push 32b left word
+
+wait 1 pin 0            side 0   ; wait for WS==1 (right phase)
+set x, 31               side 0
+
+right_loop:
+in pins, 1              side 0
+nop                     side 1
+jmp x-- right_loop      side 0
+push                    side 0   ; push 32b right word
+.wrap
 
 % c-sdk {
-#include "hardware/gpio.h"
+#include "hardware/pio.h"
+#include "hardware/clocks.h"
+static inline void i2s_rx_program_init(PIO pio, uint sm, uint offset,
+                                       uint data_pin, uint sck_pin, uint ws_pin,
+                                       float sample_rate_hz)
+{
+    pio_sm_config c = i2s_rx_program_get_default_config(offset);
 
-static inline void i2s_rx_program_init(PIO pio, uint sm, uint offset, uint data_pin, uint sclk_pin) {
-// Konfigurace pinů
-pio_gpio_init(pio, sclk_pin);
-pio_gpio_init(pio, sclk_pin + 1); // WS pin je hned vedle
-pio_gpio_init(pio, data_pin);
+    // pins wiring for this SM
+    sm_config_set_in_pins(&c, data_pin);     // data in base
+    sm_config_set_sideset_pins(&c, sck_pin); // SCK via sideset
+    sm_config_set_jmp_pin(&c, ws_pin);       // WS observed on JMP pin (as input)
 
-pio_sm_set_consecutive_pindirs(pio, sm, sclk_pin, 2, true); // SCLK a WS jsou výstupy
-pio_sm_set_consecutive_pindirs(pio, sm, data_pin, 1, false); // DATA je vstup
+    // shift & fifo
+    sm_config_set_in_shift(&c, false, true, 32);  // shift-left, autopush 32b
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
 
-// Načtení výchozí konfigurace
-pio_sm_config c = pio_get_default_sm_config();
-sm_config_set_wrap(&c, offset, offset + i2s_rx_program_instructions - 1);
+    // clock divider for bit clock: Fs * 32 * 2 edges
+    float div = (float)clock_get_hz(clk_sys) / (sample_rate_hz * 32.0f * 2.0f);
+    sm_config_set_clkdiv(&c, div);
 
-// Konfigurace side-set pro SCLK
-sm_config_set_sideset_pins(&c, sclk_pin);
+    // pin directions
+    pio_sm_set_consecutive_pindirs(pio, sm, sck_pin, 1, true);   // SCK out
+    pio_sm_set_consecutive_pindirs(pio, sm, ws_pin, 1, false);   // WS in (we 'wait pin')
+    pio_sm_set_consecutive_pindirs(pio, sm, data_pin, 1, false); // DATA in
 
-// Konfigurace pinů pro IN a JMP
-sm_config_set_in_pins(&c, data_pin);
-sm_config_set_jmp_pin(&c, sclk_pin + 1); // WS pin
+    // route pins to PIO
+    gpio_set_function(sck_pin, GPIO_FUNC_PIO0);
+    gpio_set_function(ws_pin,  GPIO_FUNC_PIO0);
+    gpio_set_function(data_pin,GPIO_FUNC_PIO0);
 
-// Konfigurace posuvných registrů
-sm_config_set_in_shift(&c, false, true, 32); // Posun doleva, automatické push po 32 bitech
-sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
-
-// Dělička taktu pro PIO
-// SCLK frekvence = system_clock / (clkdiv * 2 * (1+0))
-// Pro 16kHz, 32bit stereo: 16000 * 32 * 2 = 1.024 MHz
-// clock_get_hz(clk_sys) / (1.024e6)
-float div = (float)clock_get_hz(clk_sys) / (16000 * 32 * 2);
-sm_config_set_clkdiv(&c, div);
-
-// Načtení konfigurace do SM a spuštění
-pio_sm_init(pio, sm, offset, &c);
-
+    // start SM
+    pio_sm_init(pio, sm, offset, &c);
 }
 %}
