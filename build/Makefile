@@ -2012,6 +2012,30 @@ pico-sdk/src/rp2_common/pico_unique_id/unique_id.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/pico_6mic_soundcard.dir/build.make CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_unique_id/unique_id.c.s
 .PHONY : pico-sdk/src/rp2_common/pico_unique_id/unique_id.c.s
 
+usb_descriptors.o: usb_descriptors.c.o
+.PHONY : usb_descriptors.o
+
+# target to build an object file
+usb_descriptors.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pico_6mic_soundcard.dir/build.make CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.o
+.PHONY : usb_descriptors.c.o
+
+usb_descriptors.i: usb_descriptors.c.i
+.PHONY : usb_descriptors.i
+
+# target to preprocess a source file
+usb_descriptors.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pico_6mic_soundcard.dir/build.make CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.i
+.PHONY : usb_descriptors.c.i
+
+usb_descriptors.s: usb_descriptors.c.s
+.PHONY : usb_descriptors.s
+
+# target to generate assembly for a file
+usb_descriptors.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pico_6mic_soundcard.dir/build.make CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.s
+.PHONY : usb_descriptors.c.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -2252,6 +2276,9 @@ help:
 	@echo "... pico-sdk/src/rp2_common/pico_unique_id/unique_id.o"
 	@echo "... pico-sdk/src/rp2_common/pico_unique_id/unique_id.i"
 	@echo "... pico-sdk/src/rp2_common/pico_unique_id/unique_id.s"
+	@echo "... usb_descriptors.o"
+	@echo "... usb_descriptors.i"
+	@echo "... usb_descriptors.s"
 .PHONY : help
 
 

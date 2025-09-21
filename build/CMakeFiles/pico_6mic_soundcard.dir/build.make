@@ -83,10 +83,24 @@ CMakeFiles/pico_6mic_soundcard.dir/main.c.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling C source to assembly CMakeFiles/pico_6mic_soundcard.dir/main.c.s"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /Users/fedurca/het68/het68/main.c -o CMakeFiles/pico_6mic_soundcard.dir/main.c.s
 
+CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
+CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.o: /Users/fedurca/het68/het68/usb_descriptors.c
+CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building C object CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.o"
+	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.o -c /Users/fedurca/het68/het68/usb_descriptors.c
+
+CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing C source to CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.i"
+	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E /Users/fedurca/het68/het68/usb_descriptors.c > CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.i
+
+CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling C source to assembly CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.s"
+	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /Users/fedurca/het68/het68/usb_descriptors.c -o CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.s
+
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c.i: cmake_force
@@ -100,7 +114,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c.
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_gpio/gpio.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_gpio/gpio.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.i: cmake_force
@@ -114,7 +128,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2040/pico_platform/platform.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2040/pico_platform/platform.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2040/pico_platform/platform.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2040/pico_platform/platform.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2040/pico_platform/platform.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2040/pico_platform/platform.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2040/pico_platform/platform.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2040/pico_platform/platform.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2040/pico_platform/platform.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2040/pico_platform/platform.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2040/pico_platform/platform.c.i: cmake_force
@@ -128,7 +142,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2040/pico_platform/platform.c.
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_common/common.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_common/common.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_platform_common/common.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_common/common.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_common/common.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_common/common.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_common/common.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_common/common.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_common/common.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_platform_common/common.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_common/common.c.i: cmake_force
@@ -142,7 +156,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_common/
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_platform_panic/panic.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_platform_panic/panic.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.i: cmake_force
@@ -156,7 +170,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_panic/p
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/hardware_claim/claim.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/hardware_claim/claim.c.o: /Users/fedurca/het68/het68/pico-sdk/src/common/hardware_claim/claim.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/hardware_claim/claim.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/hardware_claim/claim.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/hardware_claim/claim.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/hardware_claim/claim.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/hardware_claim/claim.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/hardware_claim/claim.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/common/hardware_claim/claim.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/hardware_claim/claim.c.i: cmake_force
@@ -170,7 +184,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/hardware_claim/claim.c.s:
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync/sync.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync/sync.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_sync/sync.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync/sync.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync/sync.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync/sync.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync/sync.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync/sync.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync/sync.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_sync/sync.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync/sync.c.i: cmake_force
@@ -184,7 +198,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync/sync.c.
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.i: cmake_force
@@ -198,7 +212,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync_spin_lo
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_irq/irq.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_irq/irq.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq.c.i: cmake_force
@@ -211,7 +225,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq.c.s:
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq_handler_chain.S.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq_handler_chain.S.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_irq/irq_handler_chain.S
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq_handler_chain.S.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq_handler_chain.S.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(ASM_DEFINES) $(ASM_INCLUDES) $(ASM_FLAGS) -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq_handler_chain.S.o   -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_irq/irq_handler_chain.S
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq_handler_chain.S.i: cmake_force
@@ -225,7 +239,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq_hand
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/sem.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/sem.c.o: /Users/fedurca/het68/het68/pico-sdk/src/common/pico_sync/sem.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/sem.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/sem.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/sem.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/sem.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/sem.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/sem.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/common/pico_sync/sem.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/sem.c.i: cmake_force
@@ -239,7 +253,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/sem.c.s: cmake_
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/lock_core.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/lock_core.c.o: /Users/fedurca/het68/het68/pico-sdk/src/common/pico_sync/lock_core.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/lock_core.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/lock_core.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_14) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/lock_core.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/lock_core.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/lock_core.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/lock_core.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/common/pico_sync/lock_core.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/lock_core.c.i: cmake_force
@@ -253,7 +267,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/lock_core.c.s: 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/mutex.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/mutex.c.o: /Users/fedurca/het68/het68/pico-sdk/src/common/pico_sync/mutex.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/mutex.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_14) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/mutex.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_15) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/mutex.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/mutex.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/mutex.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/mutex.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/common/pico_sync/mutex.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/mutex.c.i: cmake_force
@@ -267,7 +281,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/mutex.c.s: cmak
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/critical_section.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/critical_section.c.o: /Users/fedurca/het68/het68/pico-sdk/src/common/pico_sync/critical_section.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/critical_section.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_15) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/critical_section.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_16) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/critical_section.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/critical_section.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/critical_section.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/critical_section.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/common/pico_sync/critical_section.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/critical_section.c.i: cmake_force
@@ -281,7 +295,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/critical_sectio
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/time.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/time.c.o: /Users/fedurca/het68/het68/pico-sdk/src/common/pico_time/time.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/time.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_16) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/time.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_17) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/time.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/time.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/time.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/time.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/common/pico_time/time.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/time.c.i: cmake_force
@@ -295,7 +309,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/time.c.s: cmake
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/timeout_helper.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/timeout_helper.c.o: /Users/fedurca/het68/het68/pico-sdk/src/common/pico_time/timeout_helper.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/timeout_helper.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_17) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/timeout_helper.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_18) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/timeout_helper.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/timeout_helper.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/timeout_helper.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/timeout_helper.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/common/pico_time/timeout_helper.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/timeout_helper.c.i: cmake_force
@@ -309,7 +323,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/timeout_helper.
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_timer/timer.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_timer/timer.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_timer/timer.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_timer/timer.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_18) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_timer/timer.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_19) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_timer/timer.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_timer/timer.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_timer/timer.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_timer/timer.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_timer/timer.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_timer/timer.c.i: cmake_force
@@ -323,7 +337,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_timer/timer.
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/datetime.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/datetime.c.o: /Users/fedurca/het68/het68/pico-sdk/src/common/pico_util/datetime.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/datetime.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_19) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/datetime.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_20) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/datetime.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/datetime.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/datetime.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/datetime.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/common/pico_util/datetime.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/datetime.c.i: cmake_force
@@ -337,7 +351,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/datetime.c.s: c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/pheap.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/pheap.c.o: /Users/fedurca/het68/het68/pico-sdk/src/common/pico_util/pheap.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/pheap.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_20) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/pheap.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_21) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/pheap.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/pheap.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/pheap.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/pheap.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/common/pico_util/pheap.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/pheap.c.i: cmake_force
@@ -351,7 +365,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/pheap.c.s: cmak
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/queue.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/queue.c.o: /Users/fedurca/het68/het68/pico-sdk/src/common/pico_util/queue.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/queue.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_21) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/queue.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_22) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/queue.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/queue.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/queue.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/queue.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/common/pico_util/queue.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/queue.c.i: cmake_force
@@ -365,7 +379,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/queue.c.s: cmak
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_uart/uart.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_uart/uart.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_uart/uart.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_uart/uart.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_22) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_uart/uart.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_23) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_uart/uart.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_uart/uart.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_uart/uart.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_uart/uart.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_uart/uart.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_uart/uart.c.i: cmake_force
@@ -379,7 +393,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_uart/uart.c.
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_clocks/clocks.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_23) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_24) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_clocks/clocks.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.i: cmake_force
@@ -393,7 +407,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_clocks/clock
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pll/pll.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pll/pll.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_pll/pll.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pll/pll.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_24) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pll/pll.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_25) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pll/pll.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pll/pll.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pll/pll.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pll/pll.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_pll/pll.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pll/pll.c.i: cmake_force
@@ -407,7 +421,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pll/pll.c.s:
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_vreg/vreg.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_vreg/vreg.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_vreg/vreg.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_vreg/vreg.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_25) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_vreg/vreg.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_26) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_vreg/vreg.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_vreg/vreg.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_vreg/vreg.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_vreg/vreg.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_vreg/vreg.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_vreg/vreg.c.i: cmake_force
@@ -421,7 +435,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_vreg/vreg.c.
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_watchdog/watchdog.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_watchdog/watchdog.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_watchdog/watchdog.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_watchdog/watchdog.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_26) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_watchdog/watchdog.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_27) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_watchdog/watchdog.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_watchdog/watchdog.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_watchdog/watchdog.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_watchdog/watchdog.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_watchdog/watchdog.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_watchdog/watchdog.c.i: cmake_force
@@ -435,7 +449,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_watchdog/wat
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_ticks/ticks.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_27) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_28) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_ticks/ticks.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.i: cmake_force
@@ -449,7 +463,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_ticks/ticks.
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_28) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_29) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.i: cmake_force
@@ -463,7 +477,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom.
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom_lock.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom_lock.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_bootrom/bootrom_lock.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom_lock.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_29) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom_lock.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_30) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom_lock.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom_lock.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom_lock.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom_lock.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_bootrom/bootrom_lock.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom_lock.c.i: cmake_force
@@ -477,7 +491,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom_
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_boot_lock/boot_lock.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_boot_lock/boot_lock.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_boot_lock/boot_lock.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_boot_lock/boot_lock.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_30) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_boot_lock/boot_lock.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_31) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_boot_lock/boot_lock.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_boot_lock/boot_lock.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_boot_lock/boot_lock.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_boot_lock/boot_lock.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_boot_lock/boot_lock.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_boot_lock/boot_lock.c.i: cmake_force
@@ -491,7 +505,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_boot_lock/bo
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_flash/flash.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_flash/flash.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_flash/flash.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_flash/flash.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_31) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_flash/flash.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_32) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_flash/flash.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_flash/flash.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_flash/flash.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_flash/flash.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_flash/flash.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_flash/flash.c.i: cmake_force
@@ -505,7 +519,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_flash/flash.c.s:
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_xosc/xosc.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_32) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_33) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_xosc/xosc.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.i: cmake_force
@@ -518,7 +532,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_divider/divider.S.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_divider/divider.S.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_divider/divider.S
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_33) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_divider/divider.S.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_34) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_divider/divider.S.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(ASM_DEFINES) $(ASM_INCLUDES) $(ASM_FLAGS) -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_divider/divider.S.o   -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_divider/divider.S
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_divider/divider.S.i: cmake_force
@@ -532,7 +546,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_divider/divi
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_runtime/runtime.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_34) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_35) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_runtime/runtime.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime/runtime.c.i: cmake_force
@@ -546,7 +560,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime/runtime.
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_35) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_36) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.i: cmake_force
@@ -560,7 +574,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/run
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_36) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_37) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.i: cmake_force
@@ -574,7 +588,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/run
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_stack_guard.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_stack_guard.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_stack_guard.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_stack_guard.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_37) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_stack_guard.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_38) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_stack_guard.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_stack_guard.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_stack_guard.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_stack_guard.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_stack_guard.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_stack_guard.c.i: cmake_force
@@ -587,7 +601,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/run
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_38) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_39) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(ASM_DEFINES) $(ASM_INCLUDES) $(ASM_FLAGS) -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o   -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.i: cmake_force
@@ -600,7 +614,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_39) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_40) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(ASM_DEFINES) $(ASM_INCLUDES) $(ASM_FLAGS) -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o   -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.i: cmake_force
@@ -613,7 +627,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_divider/divider_
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_40) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_41) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(ASM_DEFINES) $(ASM_INCLUDES) $(ASM_FLAGS) -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o   -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.i: cmake_force
@@ -627,7 +641,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_ae
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_41) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_42) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.i: cmake_force
@@ -641,7 +655,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_in
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_math.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_math.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_double/double_math.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_math.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_42) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_math.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_43) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_math.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_math.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_math.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_math.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_double/double_math.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_math.c.i: cmake_force
@@ -654,7 +668,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_ma
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_43) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_44) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(ASM_DEFINES) $(ASM_INCLUDES) $(ASM_FLAGS) -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S.o   -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S.i: cmake_force
@@ -667,7 +681,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_v1
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_44) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_45) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(ASM_DEFINES) $(ASM_INCLUDES) $(ASM_FLAGS) -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S.o   -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S.i: cmake_force
@@ -680,7 +694,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_int64_ops/pico_i
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_45) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_46) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(ASM_DEFINES) $(ASM_INCLUDES) $(ASM_FLAGS) -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o   -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.i: cmake_force
@@ -694,7 +708,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_aeab
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_46) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_47) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.i: cmake_force
@@ -708,7 +722,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_init
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_math.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_math.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_float/float_math.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_math.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_47) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_math.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_48) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_math.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_math.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_math.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_math.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_float/float_math.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_math.c.i: cmake_force
@@ -721,7 +735,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_math
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_v1_rom_shim_rp2040.S.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_v1_rom_shim_rp2040.S.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_float/float_v1_rom_shim_rp2040.S
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_48) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_v1_rom_shim_rp2040.S.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_49) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_v1_rom_shim_rp2040.S.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(ASM_DEFINES) $(ASM_INCLUDES) $(ASM_FLAGS) -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_v1_rom_shim_rp2040.S.o   -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_float/float_v1_rom_shim_rp2040.S
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_v1_rom_shim_rp2040.S.i: cmake_force
@@ -735,7 +749,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_v1_r
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_malloc/malloc.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_malloc/malloc.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_malloc/malloc.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_malloc/malloc.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_49) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_malloc/malloc.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_50) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_malloc/malloc.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_malloc/malloc.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_malloc/malloc.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_malloc/malloc.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_malloc/malloc.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_malloc/malloc.c.i: cmake_force
@@ -748,7 +762,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_malloc/malloc.c.
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_50) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_51) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(ASM_DEFINES) $(ASM_INCLUDES) $(ASM_FLAGS) -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o   -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.i: cmake_force
@@ -762,7 +776,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_atomic/atomic.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_atomic/atomic.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_atomic/atomic.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_atomic/atomic.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_51) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_atomic/atomic.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_52) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_atomic/atomic.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_atomic/atomic.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_atomic/atomic.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_atomic/atomic.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_atomic/atomic.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_atomic/atomic.c.i: cmake_force
@@ -776,7 +790,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_atomic/atomic.c.
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_cxx_options/new_delete.cpp.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_cxx_options/new_delete.cpp.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_cxx_options/new_delete.cpp
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_cxx_options/new_delete.cpp.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_52) "Building CXX object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_cxx_options/new_delete.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_53) "Building CXX object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_cxx_options/new_delete.cpp.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_cxx_options/new_delete.cpp.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_cxx_options/new_delete.cpp.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_cxx_options/new_delete.cpp.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_cxx_options/new_delete.cpp
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_cxx_options/new_delete.cpp.i: cmake_force
@@ -790,7 +804,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_cxx_options/new_
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_53) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_54) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.i: cmake_force
@@ -804,7 +818,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_standard_binary_
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_printf/printf.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_printf/printf.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_printf/printf.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_printf/printf.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_54) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_printf/printf.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_55) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_printf/printf.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_printf/printf.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_printf/printf.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_printf/printf.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_printf/printf.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_printf/printf.c.i: cmake_force
@@ -817,7 +831,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_printf/printf.c.
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_crt0/crt0.S
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_55) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_56) "Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(ASM_DEFINES) $(ASM_INCLUDES) $(ASM_FLAGS) -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o   -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_crt0/crt0.S
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_crt0/crt0.S.i: cmake_force
@@ -831,7 +845,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_crt0/crt0.S.s: c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_56) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_57) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.i: cmake_force
@@ -845,7 +859,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_clib_interface/n
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_stdio/stdio.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_57) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_58) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_stdio/stdio.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdio/stdio.c.i: cmake_force
@@ -859,7 +873,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdio/stdio.c.s:
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pio/pio.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pio/pio.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_pio/pio.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pio/pio.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_58) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pio/pio.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_59) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pio/pio.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pio/pio.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pio/pio.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pio/pio.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_pio/pio.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pio/pio.c.i: cmake_force
@@ -873,7 +887,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pio/pio.c.s:
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_dma/dma.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_dma/dma.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_dma/dma.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_dma/dma.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_59) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_dma/dma.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_60) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_dma/dma.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_dma/dma.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_dma/dma.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_dma/dma.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_dma/dma.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_dma/dma.c.i: cmake_force
@@ -887,7 +901,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_dma/dma.c.s:
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/dcd_rp2040.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/dcd_rp2040.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/dcd_rp2040.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/dcd_rp2040.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_60) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/dcd_rp2040.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_61) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/dcd_rp2040.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/dcd_rp2040.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/dcd_rp2040.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/dcd_rp2040.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/dcd_rp2040.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/dcd_rp2040.c.i: cmake_force
@@ -901,7 +915,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/rp2040_usb.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/rp2040_usb.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/rp2040_usb.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/rp2040_usb.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_61) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/rp2040_usb.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_62) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/rp2040_usb.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/rp2040_usb.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/rp2040_usb.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/rp2040_usb.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/rp2040_usb.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/rp2040_usb.c.i: cmake_force
@@ -915,7 +929,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/device/usbd.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_62) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_63) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/device/usbd.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd.c.i: cmake_force
@@ -929,7 +943,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd.c.s: cma
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd_control.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd_control.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/device/usbd_control.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd_control.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_63) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd_control.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_64) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd_control.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd_control.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd_control.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd_control.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/device/usbd_control.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd_control.c.i: cmake_force
@@ -943,7 +957,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd_control.
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/audio/audio_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/audio/audio_device.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/audio/audio_device.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/audio/audio_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_64) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/audio/audio_device.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_65) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/audio/audio_device.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/audio/audio_device.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/audio/audio_device.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/audio/audio_device.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/audio/audio_device.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/audio/audio_device.c.i: cmake_force
@@ -957,7 +971,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/audio/audio_de
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/cdc/cdc_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/cdc/cdc_device.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/cdc/cdc_device.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/cdc/cdc_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_65) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/cdc/cdc_device.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_66) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/cdc/cdc_device.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/cdc/cdc_device.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/cdc/cdc_device.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/cdc/cdc_device.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/cdc/cdc_device.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/cdc/cdc_device.c.i: cmake_force
@@ -971,7 +985,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/cdc/cdc_device
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_device.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/dfu/dfu_device.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_66) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_device.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_67) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_device.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_device.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_device.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_device.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/dfu/dfu_device.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_device.c.i: cmake_force
@@ -985,7 +999,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_device
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_rt_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_rt_device.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/dfu/dfu_rt_device.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_rt_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_67) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_rt_device.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_68) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_rt_device.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_rt_device.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_rt_device.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_rt_device.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/dfu/dfu_rt_device.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_rt_device.c.i: cmake_force
@@ -999,7 +1013,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_rt_dev
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/hid/hid_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/hid/hid_device.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/hid/hid_device.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/hid/hid_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_68) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/hid/hid_device.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_69) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/hid/hid_device.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/hid/hid_device.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/hid/hid_device.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/hid/hid_device.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/hid/hid_device.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/hid/hid_device.c.i: cmake_force
@@ -1013,7 +1027,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/hid/hid_device
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/midi/midi_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/midi/midi_device.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/midi/midi_device.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/midi/midi_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_69) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/midi/midi_device.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_70) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/midi/midi_device.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/midi/midi_device.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/midi/midi_device.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/midi/midi_device.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/midi/midi_device.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/midi/midi_device.c.i: cmake_force
@@ -1027,7 +1041,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/midi/midi_devi
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/msc/msc_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/msc/msc_device.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/msc/msc_device.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/msc/msc_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_70) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/msc/msc_device.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_71) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/msc/msc_device.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/msc/msc_device.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/msc/msc_device.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/msc/msc_device.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/msc/msc_device.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/msc/msc_device.c.i: cmake_force
@@ -1041,7 +1055,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/msc/msc_device
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ecm_rndis_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ecm_rndis_device.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/net/ecm_rndis_device.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ecm_rndis_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_71) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ecm_rndis_device.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_72) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ecm_rndis_device.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ecm_rndis_device.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ecm_rndis_device.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ecm_rndis_device.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/net/ecm_rndis_device.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ecm_rndis_device.c.i: cmake_force
@@ -1055,7 +1069,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ecm_rndis_
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ncm_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ncm_device.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/net/ncm_device.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ncm_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_72) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ncm_device.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_73) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ncm_device.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ncm_device.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ncm_device.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ncm_device.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/net/ncm_device.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ncm_device.c.i: cmake_force
@@ -1069,7 +1083,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ncm_device
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/usbtmc/usbtmc_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/usbtmc/usbtmc_device.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/usbtmc/usbtmc_device.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/usbtmc/usbtmc_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_73) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/usbtmc/usbtmc_device.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_74) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/usbtmc/usbtmc_device.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/usbtmc/usbtmc_device.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/usbtmc/usbtmc_device.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/usbtmc/usbtmc_device.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/usbtmc/usbtmc_device.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/usbtmc/usbtmc_device.c.i: cmake_force
@@ -1083,7 +1097,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/usbtmc/usbtmc_
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/vendor/vendor_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/vendor/vendor_device.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/vendor/vendor_device.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/vendor/vendor_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_74) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/vendor/vendor_device.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_75) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/vendor/vendor_device.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/vendor/vendor_device.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/vendor/vendor_device.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/vendor/vendor_device.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/vendor/vendor_device.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/vendor/vendor_device.c.i: cmake_force
@@ -1097,7 +1111,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/vendor/vendor_
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/video/video_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/video/video_device.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/video/video_device.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/video/video_device.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_75) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/video/video_device.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_76) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/video/video_device.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/video/video_device.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/video/video_device.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/video/video_device.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/class/video/video_device.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/video/video_device.c.i: cmake_force
@@ -1111,7 +1125,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/video/video_de
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/tusb.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/tusb.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/tusb.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/tusb.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_76) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/tusb.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_77) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/tusb.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/tusb.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/tusb.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/tusb.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/tusb.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/tusb.c.i: cmake_force
@@ -1125,7 +1139,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/tusb.c.s: cmake_forc
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/common/tusb_fifo.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/common/tusb_fifo.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/common/tusb_fifo.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/common/tusb_fifo.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_77) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/common/tusb_fifo.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_78) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/common/tusb_fifo.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/common/tusb_fifo.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/common/tusb_fifo.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/common/tusb_fifo.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/src/common/tusb_fifo.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/common/tusb_fifo.c.i: cmake_force
@@ -1139,7 +1153,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/common/tusb_fifo.c.s
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_fix/rp2040_usb_device_enumeration/rp2040_usb_device_enumeration.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_fix/rp2040_usb_device_enumeration/rp2040_usb_device_enumeration.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_fix/rp2040_usb_device_enumeration/rp2040_usb_device_enumeration.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_fix/rp2040_usb_device_enumeration/rp2040_usb_device_enumeration.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_78) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_fix/rp2040_usb_device_enumeration/rp2040_usb_device_enumeration.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_79) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_fix/rp2040_usb_device_enumeration/rp2040_usb_device_enumeration.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_fix/rp2040_usb_device_enumeration/rp2040_usb_device_enumeration.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_fix/rp2040_usb_device_enumeration/rp2040_usb_device_enumeration.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_fix/rp2040_usb_device_enumeration/rp2040_usb_device_enumeration.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_fix/rp2040_usb_device_enumeration/rp2040_usb_device_enumeration.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_fix/rp2040_usb_device_enumeration/rp2040_usb_device_enumeration.c.i: cmake_force
@@ -1153,7 +1167,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_fix/rp2040_usb_d
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.c.o: /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_79) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_80) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.c.o -c /Users/fedurca/het68/het68/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.c.i: cmake_force
@@ -1167,7 +1181,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.c.s
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_unique_id/unique_id.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_unique_id/unique_id.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_unique_id/unique_id.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_unique_id/unique_id.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_80) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_unique_id/unique_id.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_81) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_unique_id/unique_id.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_unique_id/unique_id.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_unique_id/unique_id.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_unique_id/unique_id.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_unique_id/unique_id.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_unique_id/unique_id.c.i: cmake_force
@@ -1181,7 +1195,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_unique_id/unique
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_flash/flash.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_flash/flash.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_flash/flash.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_flash/flash.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_81) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_flash/flash.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_82) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_flash/flash.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_flash/flash.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_flash/flash.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_flash/flash.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_flash/flash.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_flash/flash.c.i: cmake_force
@@ -1195,7 +1209,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_flash/flash.
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xip_cache/xip_cache.c.o: CMakeFiles/pico_6mic_soundcard.dir/flags.make
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xip_cache/xip_cache.c.o: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_xip_cache/xip_cache.c
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xip_cache/xip_cache.c.o: CMakeFiles/pico_6mic_soundcard.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_82) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xip_cache/xip_cache.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_83) "Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xip_cache/xip_cache.c.o"
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-gcc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xip_cache/xip_cache.c.o -MF CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xip_cache/xip_cache.c.o.d -o CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xip_cache/xip_cache.c.o -c /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/hardware_xip_cache/xip_cache.c
 
 CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xip_cache/xip_cache.c.i: cmake_force
@@ -1209,6 +1223,7 @@ CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xip_cache/xi
 # Object files for target pico_6mic_soundcard
 pico_6mic_soundcard_OBJECTS = \
 "CMakeFiles/pico_6mic_soundcard.dir/main.c.o" \
+"CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.o" \
 "CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c.o" \
 "CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o" \
 "CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2040/pico_platform/platform.c.o" \
@@ -1295,6 +1310,7 @@ pico_6mic_soundcard_OBJECTS = \
 pico_6mic_soundcard_EXTERNAL_OBJECTS =
 
 pico_6mic_soundcard.elf: CMakeFiles/pico_6mic_soundcard.dir/main.c.o
+pico_6mic_soundcard.elf: CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.o
 pico_6mic_soundcard.elf: CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c.o
 pico_6mic_soundcard.elf: CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
 pico_6mic_soundcard.elf: CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2040/pico_platform/platform.c.o
@@ -1380,7 +1396,7 @@ pico_6mic_soundcard.elf: CMakeFiles/pico_6mic_soundcard.dir/build.make
 pico_6mic_soundcard.elf: pico-sdk/src/rp2040/boot_stage2/CMakeFiles/bs2_default_library.dir/bs2_default_padded_checksummed.S.o
 pico_6mic_soundcard.elf: /Users/fedurca/het68/het68/pico-sdk/src/rp2_common/pico_crt0/rp2040/memmap_default.ld
 pico_6mic_soundcard.elf: CMakeFiles/pico_6mic_soundcard.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_83) "Linking CXX executable pico_6mic_soundcard.elf"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/Users/fedurca/het68/het68/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_84) "Linking CXX executable pico_6mic_soundcard.elf"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/pico_6mic_soundcard.dir/link.txt --verbose=$(VERBOSE)
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-objdump -h /Users/fedurca/het68/het68/build/pico_6mic_soundcard.elf > pico_6mic_soundcard.dis
 	/Applications/ArmGNUToolchain/14.3.rel1/arm-none-eabi/bin/arm-none-eabi-objdump -d /Users/fedurca/het68/het68/build/pico_6mic_soundcard.elf >> pico_6mic_soundcard.dis

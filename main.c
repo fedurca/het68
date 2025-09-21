@@ -1,181 +1,125 @@
-// main.c — RP2040 + TinyUSB: 6ch test mic callback + minimální USB deskriptory
+// main.c
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+
 #include "pico/stdlib.h"
 #include "tusb.h"
 
-// ---------------------------------------------------------------------------
-// Parametry audio streamu (musí korespondovat s tvým záměrem)
-// ---------------------------------------------------------------------------
-enum {
-  AUDIO_SAMPLE_RATE = 16000,   // Hz
-  AUDIO_CHANNELS_TX = 6,       // počet kanálů do hosta (mikrofon)
-  BYTES_PER_SAMPLE  = 2        // 16-bit
-};
+// ------------------------------------------------------------
+// Parametry musí odpovídat tomu, co je v tusb_config.h + usb_descriptors.c
+// 6 kanálů, 16 kHz, 16 bitů (2 B na vzorek), 1 USB rámec = 1 ms
+// => 16 vzorků/ch/ms * 6 ch * 2 B = 192 B na paket
+// ------------------------------------------------------------
+#define AUDIO_N_CHANNELS      6
+#define AUDIO_SAMPLE_RATE     16000
+#define AUDIO_BYTES_PER_SAMPLE 2
+#define AUDIO_FRAME_BYTES     ((AUDIO_SAMPLE_RATE/1000) * AUDIO_N_CHANNELS * AUDIO_BYTES_PER_SAMPLE)
 
-enum {
-  USB_PKT_LEN = (AUDIO_SAMPLE_RATE/1000) * AUDIO_CHANNELS_TX * BYTES_PER_SAMPLE
-};
+static uint8_t usb_frame_buf[AUDIO_FRAME_BYTES];
 
-static uint8_t usb_buf[USB_PKT_LEN];
-
-// ---------------------------------------------------------------------------
-// Jednoduchý generátor testovacích dat (6 kanálů, sinus s fázemi)
-// ---------------------------------------------------------------------------
-static const int16_t s_sine_lut[64] = {
-  0, 3211, 6392, 9512, 12539, 15446, 18204, 20787,
-  23170, 25329, 27244, 28898, 30273, 31356, 32137, 32609,
-  32767, 32609, 32137, 31356, 30273, 28898, 27244, 25329,
-  23170, 20787, 18204, 15446, 12539, 9512, 6392, 3211,
-  0, -3211, -6392, -9512, -12539, -15446, -18204, -20787,
-  -23170, -25329, -27244, -28898, -30273, -31356, -32137, -32609,
-  -32767, -32609, -32137, -31356, -30273, -28898, -27244, -25329,
-  -23170, -20787, -18204, -15446, -12539, -9512, -6392, -3211
-};
-static uint8_t s_phase[AUDIO_CHANNELS_TX] = {0};
-
-static void fill_usb_buf_from_source(void)
+// Jednoduché doplnění audio rámce (zatím ticho)
+static inline void fill_audio_frame(void)
 {
-  const uint32_t n_per_ms = AUDIO_SAMPLE_RATE/1000; // 16 vzorků/kanál/ms
-  int16_t *out = (int16_t *)usb_buf;
+  // ticho = samé nuly
+  memset(usb_frame_buf, 0, sizeof(usb_frame_buf));
 
-  for (uint32_t n = 0; n < n_per_ms; ++n) {
-    for (uint32_t ch = 0; ch < AUDIO_CHANNELS_TX; ++ch) {
-      uint8_t idx = (uint8_t)((s_phase[ch] + ch*4) & 63);
-      *out++ = s_sine_lut[idx];
-      s_phase[ch] = (uint8_t)((s_phase[ch] + 1) & 63);
-    }
-  }
-
-  // Sem později napojíš čtení z I2S/DMA ring-bufferu (interleaved ch0..ch5).
+  // Pokud chceš rychle ověřit, že data “tečou”, můžeš sem dát třeba rampu:
+  // static uint16_t s = 0;
+  // uint16_t* p = (uint16_t*)usb_frame_buf;
+  // for (int i = 0; i < AUDIO_FRAME_BYTES/2; ++i) {
+  //   p[i] = s;
+  //   s += 256;
+  // }
 }
 
-// ---------------------------------------------------------------------------
-// TinyUSB AUDIO callback – správný podpis (viz audio_device.h)
-// ---------------------------------------------------------------------------
-bool tud_audio_tx_done_pre_load_cb(uint8_t rhport, uint8_t func_id,
-                                   uint8_t ep_in, uint8_t cur_alt_setting)
-{
-  (void)rhport; (void)func_id; (void)ep_in; (void)cur_alt_setting;
-
-  fill_usb_buf_from_source();
-  (void)tud_audio_write(usb_buf, sizeof(usb_buf)); // pošleme 1ms rámec
-  return true;
-}
-
-// Volitelné „device“ callbacky (stav)
-void tud_mount_cb(void)         { }
-void tud_umount_cb(void)        { }
-void tud_suspend_cb(bool en)    { (void)en; }
-void tud_resume_cb(void)        { }
-
-// ---------------------------------------------------------------------------
-// *** POVINNÉ DESKRIPTOR CALLBACKY ***
-// Tohle řeší linkovací chyby: tud_descriptor_device_cb / configuration_cb / string_cb
-// Následuje minimální composite „Misc/IAD“ zařízení s 1 vendor IF bez EP.
-// Enumerace projde; UAC2 rozhraní doplníme v další iteraci.
-// ---------------------------------------------------------------------------
-
-// Device descriptor
-tusb_desc_device_t const desc_device = {
-  .bLength            = sizeof(tusb_desc_device_t),
-  .bDescriptorType    = TUSB_DESC_DEVICE,
-  // Composite přes IAD (běžná volba pro vícetřídní zařízení)
-  .bcdUSB             = 0x0200,
-  .bDeviceClass       = TUSB_CLASS_MISC,
-  .bDeviceSubClass    = MISC_SUBCLASS_COMMON,
-  .bDeviceProtocol    = MISC_PROTOCOL_IAD,
-  .bMaxPacketSize0    = CFG_TUD_ENDPOINT0_SIZE,
-
-  .idVendor           = 0xCafe,
-  .idProduct          = 0x4000,
-  .bcdDevice          = 0x0100,
-
-  .iManufacturer      = 0x01,
-  .iProduct           = 0x02,
-  .iSerialNumber      = 0x03,
-
-  .bNumConfigurations = 0x01
-};
-
-uint8_t const * tud_descriptor_device_cb(void)
-{
-  return (uint8_t const *) &desc_device;
-}
-
-// Jednoduchý config descriptor: Config + 1x Interface (vendor, bez EP).
-// (UAC2 rozhraní a ISO EP přidáme později.)
-enum {
-  ITF_NUM_VENDOR = 0,
-  ITF_COUNT      = 1
-};
-
-#define CONFIG_TOTAL_LEN   (TUD_CONFIG_DESC_LEN + TUD_INTERFACE_DESC_LEN)
-
-uint8_t const desc_configuration[] = {
-  // Config
-  TUD_CONFIG_DESCRIPTOR(1, ITF_COUNT, 0, CONFIG_TOTAL_LEN, 0x00, 100),
-
-  // Interface 0: vendor-specific, no EP (placeholder)
-  // bInterfaceNumber, bAlternateSetting, bNumEndpoints, bInterfaceClass, bInterfaceSubClass, bInterfaceProtocol, iInterface
-  TUD_INTERFACE_DESCRIPTOR(ITF_NUM_VENDOR, 0, 0, 0xFF, 0x00, 0x00, 0)
-};
-
-uint8_t const * tud_descriptor_configuration_cb(uint8_t index)
-{
-  (void)index;
-  return desc_configuration;
-}
-
-// String descriptor
-static char const *string_desc[] = {
-  (const char[]){ 0x09, 0x04 },     // 0: Jazyk (0x0409 = EN-US)
-  "het68",                           // 1: Manufacturer
-  "RP2040 6ch Mic (stub)",          // 2: Product
-  "123456",                         // 3: Serial
-};
-
-static uint16_t _desc_str[32];
-
-uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid)
-{
-  (void)langid;
-
-  uint8_t chr_count = 0;
-
-  if (index == 0) {
-    // návrat jazyka
-    _desc_str[1] = 0x0409;
-    _desc_str[0] = (TUSB_DESC_STRING << 8) | (2*2);
-    return _desc_str;
-  }
-
-  if (index < sizeof(string_desc)/sizeof(string_desc[0])) {
-    const char* str = string_desc[index];
-
-    // převod do UTF-16LE
-    while (str[chr_count] && chr_count < 31) {
-      _desc_str[1 + chr_count] = (uint8_t)str[chr_count];
-      chr_count++;
-    }
-    _desc_str[0] = (TUSB_DESC_STRING << 8) | ((chr_count+1)*2);
-    return _desc_str;
-  }
-
-  return NULL;
-}
-
-// ---------------------------------------------------------------------------
-// main()
-// ---------------------------------------------------------------------------
+// ------------------------------------------------------------
+// TinyUSB inicializace a hlavní smyčka
+// ------------------------------------------------------------
 int main(void)
 {
   stdio_init_all();
-  tud_init(0);
+  tusb_init();
+
+  // volitelně LED blikání pro život
+  const uint LED_PIN = PICO_DEFAULT_LED_PIN;
+  gpio_init(LED_PIN);
+  gpio_set_dir(LED_PIN, true);
+
+  absolute_time_t next_toggle = make_timeout_time_ms(250);
 
   while (true) {
-    tud_task();
+    tud_task(); // zpracování USB
+
+    if (absolute_time_diff_us(get_absolute_time(), next_toggle) <= 0) {
+      gpio_xor_mask(1u << LED_PIN);
+      next_toggle = make_timeout_time_ms(250);
+    }
   }
   return 0;
 }
+
+// ------------------------------------------------------------
+// USB události (volitelné, jen pro logiku/ladění)
+// ------------------------------------------------------------
+void tud_mount_cb(void)
+{
+  // Zařízení připojeno – nic speciálního neděláme
+}
+
+void tud_umount_cb(void)
+{
+  // Zařízení odpojeno
+}
+
+void tud_suspend_cb(bool remote_wakeup_en)
+{
+  (void)remote_wakeup_en;
+}
+
+void tud_resume_cb(void)
+{
+}
+
+// ------------------------------------------------------------
+// AUDIO (UAC2) callbacky – signatury musí přesně sedět s TinyUSB
+// audio_device.h deklaruje:
+//
+// bool tud_audio_tx_done_pre_load_cb(uint8_t rhport,
+//                                    uint8_t func_id,
+//                                    uint8_t ep_in,
+//                                    uint8_t cur_alt_setting);
+//
+// V tomto callbacku připravíme a zapíšeme další isochronní IN paket.
+// Vrátíme true = OK (TinyUSB může pokračovat).
+// ------------------------------------------------------------
+bool tud_audio_tx_done_pre_load_cb(uint8_t rhport,
+                                   uint8_t func_id,
+                                   uint8_t ep_in,
+                                   uint8_t cur_alt_setting)
+{
+  (void)rhport;
+  (void)ep_in;
+
+  // Streamujeme jen pokud je zvolený “operational” alt-setting (typicky 1)
+  if (cur_alt_setting == 0) {
+    return true; // zero-bandwidth: nic neposílat, ale OK
+  }
+
+  // (Nepovinné) Ověření, že je audio funkce opravdu připojená
+  if (!tud_audio_n_mounted(func_id)) {
+    return true;
+  }
+
+  // Naplnit 1 ms rámec a poslat ho hostovi
+  fill_audio_frame();
+  (void)tud_audio_write(usb_frame_buf, sizeof(usb_frame_buf));
+
+  return true;
+}
+
+// ------------------------------------------------------------
+// (Nepovinné) Pokud chceš reagovat na změnu alt-settingu rozhraní,
+// TinyUSB má ještě další slabé (weak) callbacky. Není nutné je definovat.
+// Základní stream výše funguje sám o sobě.
+// ------------------------------------------------------------

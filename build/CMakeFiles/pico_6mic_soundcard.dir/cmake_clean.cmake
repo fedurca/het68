@@ -152,6 +152,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c.o.d"
   "CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_unique_id/unique_id.c.o"
   "CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_unique_id/unique_id.c.o.d"
+  "CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.o"
+  "CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.o.d"
   "pico_6mic_soundcard.bin"
   "pico_6mic_soundcard.dis"
   "pico_6mic_soundcard.elf"
