@@ -1,0 +1,72 @@
+; I2S Receiver PIO Program
+; Přijímá 32-bitová I2S stereo data a ukládá je do RX FIFO.
+;
+; Tento program je určen pro I2S master režim (Pico generuje hodiny).
+;
+; - Side-set se používá pro generování SCLK.
+; - WS (LRCK) je očekáván na 'jmp' pinu.
+; - DATA je čteno z 'in' pinů.
+
+.program i2s_rx
+
+.side_set 1
+
+; Čeká na začátek rámce (WS = low), poté načte 32 bitů dat
+; Levý kanál
+wait 0 pin 0        ; Čekej, dokud WS (připojený na 'jmp' pin) není 0
+set x, 31           ; Nastav počítadlo na 32 bitů
+left_channel_loop:
+in pins, 1  side 0  ; Načti 1 bit dat a nastav SCLK na 0
+side 1  ; Nastav SCLK na 1
+jmp x-- left_channel_loop
+
+; Pravý kanál
+wait 1 pin 0        ; Čekej, dokud WS není 1
+set x, 31           ; Znovu nastav počítadlo
+right_channel_loop:
+in pins, 1  side 0
+side 1
+jmp x-- right_channel_loop
+
+push                ; Ulož načtených 64 bitů (2x32) do RX FIFO.
+; V našem C kódu je ale čteme po 32 bitech.
+
+% c-sdk {
+#include "hardware/gpio.h"
+
+static inline void i2s_rx_program_init(PIO pio, uint sm, uint offset, uint data_pin, uint sclk_pin) {
+// Konfigurace pinů
+pio_gpio_init(pio, sclk_pin);
+pio_gpio_init(pio, sclk_pin + 1); // WS pin je hned vedle
+pio_gpio_init(pio, data_pin);
+
+pio_sm_set_consecutive_pindirs(pio, sm, sclk_pin, 2, true); // SCLK a WS jsou výstupy
+pio_sm_set_consecutive_pindirs(pio, sm, data_pin, 1, false); // DATA je vstup
+
+// Načtení výchozí konfigurace
+pio_sm_config c = pio_get_default_sm_config();
+sm_config_set_wrap(&c, offset, offset + i2s_rx_program_instructions - 1);
+
+// Konfigurace side-set pro SCLK
+sm_config_set_sideset_pins(&c, sclk_pin);
+
+// Konfigurace pinů pro IN a JMP
+sm_config_set_in_pins(&c, data_pin);
+sm_config_set_jmp_pin(&c, sclk_pin + 1); // WS pin
+
+// Konfigurace posuvných registrů
+sm_config_set_in_shift(&c, false, true, 32); // Posun doleva, automatické push po 32 bitech
+sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
+
+// Dělička taktu pro PIO
+// SCLK frekvence = system_clock / (clkdiv * 2 * (1+0))
+// Pro 16kHz, 32bit stereo: 16000 * 32 * 2 = 1.024 MHz
+// clock_get_hz(clk_sys) / (1.024e6)
+float div = (float)clock_get_hz(clk_sys) / (16000 * 32 * 2);
+sm_config_set_clkdiv(&c, div);
+
+// Načtení konfigurace do SM a spuštění
+pio_sm_init(pio, sm, offset, &c);
+
+}
+%}
