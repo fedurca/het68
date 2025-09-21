@@ -5,6 +5,9 @@
         "*.pio": "platformio-assembly",
         "atomic": "c",
         "tusb_config.h": "c"
-    }
+    },
+    // Přidáno pro automatický výběr správného kompilátoru (toolchainu) pro Pico.
+    // Tento řádek říká CMake, aby použil konfigurační soubor z Pico SDK,
+    // který nastaví správný ARM kompilátor a všechny potřebné příznaky.
+    "cmake.toolchainFile": "${env:PICO_SDK_PATH}/cmake/pico_sdk_tools.cmake"
 }
-
