@@ -1,0 +1,7 @@
+/home/fedurca/het68/build/_deps/picotool/picotool
+/home/fedurca/het68/build/_deps/picotool/picotoolTargets.cmake
+/home/fedurca/het68/build/_deps/picotool/picotoolTargets-release.cmake
+/home/fedurca/het68/build/_deps/picotool/picotoolConfig.cmake
+/home/fedurca/het68/build/_deps/picotool/picotoolConfigVersion.cmake
+/home/fedurca/het68/build/_deps/picotool/enc_bootloader.elf
+/home/fedurca/het68/build/_deps/picotool/enc_bootloader_mbedtls.elf

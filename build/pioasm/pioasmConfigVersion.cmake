@@ -70,7 +70,3 @@ if(PACKAGE_FIND_VERSION STREQUAL PACKAGE_VERSION)
 endif()
 
 
-# if the installed project requested no architecture check, don't perform the check
-if("TRUE")
-  return()
-endif()

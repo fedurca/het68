@@ -4,7 +4,7 @@
 
 // based on PICO_CONFIG_HEADER_FILES:
 
-#include "/Users/fedurca/het68/het68/pico-sdk/src/boards/include/boards/pico.h"
-#include "/Users/fedurca/het68/het68/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h"
+#include "/home/fedurca/het68/pico-sdk/src/boards/include/boards/pico2.h"
+#include "/home/fedurca/het68/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h"
 
-// based on PICO_RP2040_CONFIG_HEADER_FILES:
+// based on PICO_RP2350_ARM_S_CONFIG_HEADER_FILES:

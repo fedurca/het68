@@ -4,6 +4,6 @@
 
 method=source_dir
 command=
-source_dir=/Users/fedurca/het68/het68/pico-sdk/tools/pioasm
+source_dir=/home/fedurca/het68/pico-sdk/tools/pioasm
 work_dir=
 

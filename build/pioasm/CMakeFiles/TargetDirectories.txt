@@ -1,7 +1,7 @@
-/Users/fedurca/het68/het68/build/pioasm/CMakeFiles/pioasm.dir
-/Users/fedurca/het68/het68/build/pioasm/CMakeFiles/edit_cache.dir
-/Users/fedurca/het68/het68/build/pioasm/CMakeFiles/rebuild_cache.dir
-/Users/fedurca/het68/het68/build/pioasm/CMakeFiles/list_install_components.dir
-/Users/fedurca/het68/het68/build/pioasm/CMakeFiles/install.dir
-/Users/fedurca/het68/het68/build/pioasm/CMakeFiles/install/local.dir
-/Users/fedurca/het68/het68/build/pioasm/CMakeFiles/install/strip.dir
+/home/fedurca/het68/build/pioasm/CMakeFiles/pioasm.dir
+/home/fedurca/het68/build/pioasm/CMakeFiles/edit_cache.dir
+/home/fedurca/het68/build/pioasm/CMakeFiles/rebuild_cache.dir
+/home/fedurca/het68/build/pioasm/CMakeFiles/list_install_components.dir
+/home/fedurca/het68/build/pioasm/CMakeFiles/install.dir
+/home/fedurca/het68/build/pioasm/CMakeFiles/install/local.dir
+/home/fedurca/het68/build/pioasm/CMakeFiles/install/strip.dir

@@ -14,7 +14,7 @@
 
 #define i2s_rx_wrap_target 0
 #define i2s_rx_wrap 11
-#define i2s_rx_pio_version 0
+#define i2s_rx_pio_version 1
 
 static const uint16_t i2s_rx_program_instructions[] = {
             //     .wrap_target

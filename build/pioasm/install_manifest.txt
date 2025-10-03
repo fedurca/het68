@@ -1,5 +1,5 @@
-/Users/fedurca/het68/het68/build/pioasm-install/pioasm/pioasm
-/Users/fedurca/het68/het68/build/pioasm-install/pioasm/pioasmTargets.cmake
-/Users/fedurca/het68/het68/build/pioasm-install/pioasm/pioasmTargets-release.cmake
-/Users/fedurca/het68/het68/build/pioasm-install/pioasm/pioasmConfig.cmake
-/Users/fedurca/het68/het68/build/pioasm-install/pioasm/pioasmConfigVersion.cmake
+/home/fedurca/het68/build/pioasm-install/pioasm/pioasm
+/home/fedurca/het68/build/pioasm-install/pioasm/pioasmTargets.cmake
+/home/fedurca/het68/build/pioasm-install/pioasm/pioasmTargets-release.cmake
+/home/fedurca/het68/build/pioasm-install/pioasm/pioasmConfig.cmake
+/home/fedurca/het68/build/pioasm-install/pioasm/pioasmConfigVersion.cmake
