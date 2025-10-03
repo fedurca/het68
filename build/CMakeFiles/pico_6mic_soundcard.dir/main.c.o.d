@@ -1,32 +1,23 @@
 CMakeFiles/pico_6mic_soundcard.dir/main.c.o: /home/fedurca/het68/main.c \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/lib/gcc/arm-none-eabi/14.3.1/include/stdint.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/stdint.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/machine/_default_types.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/features.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/_newlib_version.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/_intsup.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/_stdint.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/lib/gcc/arm-none-eabi/14.3.1/include/stdbool.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/string.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/_ansi.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/newlib.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/config.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/machine/ieeefp.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/reent.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/_ansi.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/lib/gcc/arm-none-eabi/14.3.1/include/stddef.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/cdefs.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/_types.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/machine/_types.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/lock.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/_locale.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/strings.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/string.h \
- /home/fedurca/het68/pico-sdk/src/common/pico_stdlib_headers/include/pico/stdlib.h \
+ /home/fedurca/het68/build/i2s_rx.pio.h \
+ /home/fedurca/het68/pico-sdk/src/rp2_common/hardware_pio/include/hardware/pio.h \
  /home/fedurca/het68/pico-sdk/src/common/pico_base_headers/include/pico.h \
  /home/fedurca/het68/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
  /home/fedurca/het68/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/lib/gcc/arm-none-eabi/14.3.1/include/stdbool.h \
  /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/assert.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/_ansi.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/newlib.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/_newlib_version.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/config.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/machine/ieeefp.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/features.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/lib/gcc/arm-none-eabi/14.3.1/include/stdint.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/stdint.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/machine/_default_types.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/_intsup.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/_stdint.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/lib/gcc/arm-none-eabi/14.3.1/include/stddef.h \
  /home/fedurca/het68/build/generated/pico_base/pico/version.h \
  /home/fedurca/het68/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
  /home/fedurca/het68/build/generated/pico_base/pico/config_autogen.h \
@@ -35,6 +26,7 @@ CMakeFiles/pico_6mic_soundcard.dir/main.c.o: /home/fedurca/het68/main.c \
  /home/fedurca/het68/pico-sdk/src/rp2350/pico_platform/include/pico/platform.h \
  /home/fedurca/het68/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
  /home/fedurca/het68/pico-sdk/src/rp2350/hardware_regs/include/hardware/platform_defs.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/cdefs.h \
  /home/fedurca/het68/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
  /home/fedurca/het68/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
  /home/fedurca/het68/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
@@ -42,16 +34,11 @@ CMakeFiles/pico_6mic_soundcard.dir/main.c.o: /home/fedurca/het68/main.c \
  /home/fedurca/het68/pico-sdk/src/rp2350/hardware_regs/include/hardware/regs/addressmap.h \
  /home/fedurca/het68/pico-sdk/src/rp2350/hardware_regs/include/hardware/regs/sio.h \
  /home/fedurca/het68/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
- /home/fedurca/het68/pico-sdk/src/rp2_common/pico_stdio/include/pico/stdio.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/lib/gcc/arm-none-eabi/14.3.1/include/stdarg.h \
- /home/fedurca/het68/pico-sdk/src/common/pico_time/include/pico/time.h \
- /home/fedurca/het68/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h \
- /home/fedurca/het68/pico-sdk/src/rp2350/hardware_structs/include/hardware/structs/timer.h \
  /home/fedurca/het68/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
  /home/fedurca/het68/pico-sdk/src/rp2350/hardware_structs/include/hardware/structs/accessctrl.h \
  /home/fedurca/het68/pico-sdk/src/rp2350/hardware_regs/include/hardware/regs/accessctrl.h \
- /home/fedurca/het68/pico-sdk/src/rp2350/hardware_regs/include/hardware/regs/timer.h \
- /home/fedurca/het68/pico-sdk/src/rp2350/hardware_regs/include/hardware/regs/intctrl.h \
+ /home/fedurca/het68/pico-sdk/src/rp2350/hardware_structs/include/hardware/structs/pio.h \
+ /home/fedurca/het68/pico-sdk/src/rp2350/hardware_regs/include/hardware/regs/pio.h \
  /home/fedurca/het68/pico-sdk/src/rp2_common/hardware_gpio/include/hardware/gpio.h \
  /home/fedurca/het68/pico-sdk/src/rp2350/hardware_structs/include/hardware/structs/sio.h \
  /home/fedurca/het68/pico-sdk/src/rp2350/hardware_structs/include/hardware/structs/interp.h \
@@ -60,24 +47,49 @@ CMakeFiles/pico_6mic_soundcard.dir/main.c.o: /home/fedurca/het68/main.c \
  /home/fedurca/het68/pico-sdk/src/rp2350/hardware_structs/include/hardware/structs/io_bank0.h \
  /home/fedurca/het68/pico-sdk/src/rp2350/hardware_regs/include/hardware/regs/io_bank0.h \
  /home/fedurca/het68/pico-sdk/src/rp2_common/hardware_irq/include/hardware/irq.h \
+ /home/fedurca/het68/pico-sdk/src/rp2350/hardware_regs/include/hardware/regs/intctrl.h \
  /home/fedurca/het68/pico-sdk/src/rp2350/pico_platform/include/pico/platform/cpu_regs.h \
  /home/fedurca/het68/pico-sdk/src/rp2350/hardware_regs/include/hardware/regs/m33.h \
  /home/fedurca/het68/pico-sdk/src/rp2350/hardware_structs/include/hardware/structs/m33.h \
  /home/fedurca/het68/pico-sdk/src/rp2350/hardware_structs/include/hardware/structs/nvic.h \
  /home/fedurca/het68/pico-sdk/src/rp2350/hardware_structs/include/hardware/structs/scb.h \
  /home/fedurca/het68/pico-sdk/src/rp2_common/hardware_gpio/include/hardware/gpio_coproc.h \
+ /home/fedurca/het68/pico-sdk/src/rp2350/hardware_regs/include/hardware/regs/dreq.h \
+ /home/fedurca/het68/pico-sdk/src/rp2_common/hardware_pio/include/hardware/pio_instructions.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/stdio.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/lib/gcc/arm-none-eabi/14.3.1/include/stdarg.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/reent.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/_ansi.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/_types.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/machine/_types.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/lock.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/stdio.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/string.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/_locale.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/strings.h \
+ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/string.h \
+ /home/fedurca/het68/pico-sdk/src/common/pico_stdlib_headers/include/pico/stdlib.h \
+ /home/fedurca/het68/pico-sdk/src/rp2_common/pico_stdio/include/pico/stdio.h \
+ /home/fedurca/het68/pico-sdk/src/common/pico_time/include/pico/time.h \
+ /home/fedurca/het68/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h \
+ /home/fedurca/het68/pico-sdk/src/rp2350/hardware_structs/include/hardware/structs/timer.h \
+ /home/fedurca/het68/pico-sdk/src/rp2350/hardware_regs/include/hardware/regs/timer.h \
  /home/fedurca/het68/pico-sdk/src/rp2_common/hardware_uart/include/hardware/uart.h \
  /home/fedurca/het68/pico-sdk/src/rp2350/hardware_structs/include/hardware/structs/uart.h \
  /home/fedurca/het68/pico-sdk/src/rp2350/hardware_regs/include/hardware/regs/uart.h \
- /home/fedurca/het68/pico-sdk/src/rp2350/hardware_regs/include/hardware/regs/dreq.h \
  /home/fedurca/het68/pico-sdk/src/rp2_common/hardware_resets/include/hardware/resets.h \
  /home/fedurca/het68/pico-sdk/src/rp2350/hardware_structs/include/hardware/structs/resets.h \
  /home/fedurca/het68/pico-sdk/src/rp2350/hardware_regs/include/hardware/regs/resets.h \
+ /home/fedurca/het68/pico-sdk/src/rp2_common/hardware_dma/include/hardware/dma.h \
+ /home/fedurca/het68/pico-sdk/src/rp2350/hardware_structs/include/hardware/structs/dma.h \
+ /home/fedurca/het68/pico-sdk/src/rp2350/hardware_regs/include/hardware/regs/dma.h \
+ /home/fedurca/het68/pico-sdk/src/rp2350/hardware_structs/include/hardware/structs/dma_debug.h \
+ /home/fedurca/het68/pico-sdk/src/rp2_common/hardware_clocks/include/hardware/clocks.h \
+ /home/fedurca/het68/pico-sdk/src/rp2350/hardware_structs/include/hardware/structs/clocks.h \
+ /home/fedurca/het68/pico-sdk/src/rp2350/hardware_regs/include/hardware/regs/clocks.h \
  /home/fedurca/het68/pico-sdk/lib/tinyusb/src/tusb.h \
  /home/fedurca/het68/pico-sdk/lib/tinyusb/src/common/tusb_common.h \
  /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/inttypes.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/stdio.h \
- /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/sys/stdio.h \
  /home/fedurca/het68/pico-sdk/lib/tinyusb/src/tusb_option.h \
  /home/fedurca/het68/pico-sdk/lib/tinyusb/src/common/tusb_compiler.h \
  /home/fedurca/het68/tusb_config.h \

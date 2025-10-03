@@ -1,67 +1,22 @@
 .program i2s_rx
-; Non-optional sideset with 1 bit -> every instruction must specify 'side 0/1'.
 .side_set 1
 
-; Assumptions:
-; - Side-set pin = SCK (set from C via sm_config_set_sideset_pins)
-; - JMP pin = WS/LRCLK (set from C via sm_config_set_jmp_pin) — WS is INPUT here
-; - IN pin base = data pin (set from C via sm_config_set_in_pins)
-; - Samples 32 bits for Left when WS=0, then 32 bits for Right when WS=1
-; - Pushes two 32-bit words per audio frame: L then R (interleaved)
-
 .wrap_target
-wait 0 pin 0            side 0   ; wait for WS==0 (left phase)
-set x, 31               side 0
+    wait 0 pin 0            side 0    ; wait for WS==0 (left phase)
+    set x, 15               side 0    ; MODIFIED: Was 31
 
 left_loop:
-in pins, 1              side 0   ; sample bit on SCK low->high
-nop                     side 1   ; toggle SCK high
-jmp x-- left_loop       side 0
-push                    side 0   ; push 32b left word
+    in pins, 1              side 0
+    nop                     side 1
+    jmp x-- left_loop       side 0
+push                        side 0    ; push 16b left word (will be zero-padded to 32b in ISR)
 
-wait 1 pin 0            side 0   ; wait for WS==1 (right phase)
-set x, 31               side 0
+    wait 1 pin 0            side 0    ; wait for WS==1 (right phase)
+    set x, 15               side 0    ; MODIFIED: Was 31
 
 right_loop:
-in pins, 1              side 0
-nop                     side 1
-jmp x-- right_loop      side 0
-push                    side 0   ; push 32b right word
+    in pins, 1              side 0
+    nop                     side 1
+    jmp x-- right_loop      side 0
+push                        side 0    ; push 16b right word
 .wrap
-
-% c-sdk {
-#include "hardware/pio.h"
-#include "hardware/clocks.h"
-static inline void i2s_rx_program_init(PIO pio, uint sm, uint offset,
-                                       uint data_pin, uint sck_pin, uint ws_pin,
-                                       float sample_rate_hz)
-{
-    pio_sm_config c = i2s_rx_program_get_default_config(offset);
-
-    // pins wiring for this SM
-    sm_config_set_in_pins(&c, data_pin);     // data in base
-    sm_config_set_sideset_pins(&c, sck_pin); // SCK via sideset
-    sm_config_set_jmp_pin(&c, ws_pin);       // WS observed on JMP pin (as input)
-
-    // shift & fifo
-    sm_config_set_in_shift(&c, false, true, 32);  // shift-left, autopush 32b
-    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
-
-    // clock divider for bit clock: Fs * 32 * 2 edges
-    float div = (float)clock_get_hz(clk_sys) / (sample_rate_hz * 32.0f * 2.0f);
-    sm_config_set_clkdiv(&c, div);
-
-    // pin directions
-    pio_sm_set_consecutive_pindirs(pio, sm, sck_pin, 1, true);   // SCK out
-    pio_sm_set_consecutive_pindirs(pio, sm, ws_pin, 1, false);   // WS in (we 'wait pin')
-    pio_sm_set_consecutive_pindirs(pio, sm, data_pin, 1, false); // DATA in
-
-    // route pins to PIO
-    gpio_set_function(sck_pin, GPIO_FUNC_PIO0);
-    gpio_set_function(ws_pin,  GPIO_FUNC_PIO0);
-    gpio_set_function(data_pin,GPIO_FUNC_PIO0);
-
-    // start SM
-    pio_sm_init(pio, sm, offset, &c);
-}
-%}
