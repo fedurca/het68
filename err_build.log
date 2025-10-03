@@ -1,0 +1,256 @@
++ rm -rf build
++ cmake -S . -B build -DPICO_BOARD=pico2
+PICO_SDK_PATH is /home/fedurca/het68/pico-sdk
+Target board (PICO_BOARD) is 'pico2'.
+Using board configuration from /home/fedurca/het68/pico-sdk/src/boards/include/boards/pico2.h
+Auto-converting non-specific PICO_PLATFORM='rp2350' to 'rp2350-arm-s'
+Defaulting platform (PICO_PLATFORM) to 'rp2350-arm-s' based on PICO_BOARD setting.
+-- Defaulting build type to 'Release' since not specified.
+Defaulting compiler (PICO_COMPILER) to 'pico_arm_cortex_m33_gcc' since not specified.
+Configuring toolchain based on PICO_COMPILER 'pico_arm_cortex_m33_gcc'
+Defaulting PICO_GCC_TRIPLE to 'arm-none-eabi'
+-- The C compiler identification is GNU 14.3.1
+-- The CXX compiler identification is GNU 14.3.1
+-- The ASM compiler identification is GNU
+-- Found assembler: /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gcc
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gcc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-g++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+Build type is Release
+CMake Warning at pico-sdk/tools/Findpicotool.cmake:30 (message):
+  No installed picotool with version 2.1.1 found - building from source
+
+  It is recommended to build and install picotool separately, or to set
+  PICOTOOL_FETCH_FROM_GIT_PATH to a common directory for all your SDK
+  projects
+Call Stack (most recent call first):
+  pico-sdk/tools/CMakeLists.txt:168 (find_package)
+  pico-sdk/src/cmake/on_device.cmake:54 (pico_init_picotool)
+  pico-sdk/src/rp2350/boot_stage2/CMakeLists.txt:63 (pico_add_dis_output)
+  pico-sdk/src/rp2350/boot_stage2/CMakeLists.txt:104 (pico_define_boot_stage2)
+
+
+Downloading Picotool
+Using picotool from /home/fedurca/het68/build/_deps/picotool/picotool
+-- Found Python3: /usr/bin/python3 (found version "3.13.3") found components: Interpreter
+TinyUSB available at /home/fedurca/het68/pico-sdk/lib/tinyusb/hw/bsp/rp2040; enabling build support for USB.
+BTstack available at /home/fedurca/het68/pico-sdk/lib/btstack
+cyw43-driver available at /home/fedurca/het68/pico-sdk/lib/cyw43-driver
+mbedtls available at /home/fedurca/het68/pico-sdk/lib/mbedtls
+lwIP available at /home/fedurca/het68/pico-sdk/lib/lwip
+-- Configuring done (3.1s)
+-- Generating done (0.1s)
+-- Build files have been written to: /home/fedurca/het68/build
++ cmake --build build -j
+[  1%] Creating directories for 'pioasmBuild'
+[  1%] Built target picotoolForceReconfigure
+[  2%] Creating directories for 'picotoolBuild'
+[  3%] No download step for 'pioasmBuild'
+[  5%] No download step for 'picotoolBuild'
+[  5%] No update step for 'pioasmBuild'
+[  7%] No patch step for 'pioasmBuild'
+[  7%] No update step for 'picotoolBuild'
+[  9%] No patch step for 'picotoolBuild'
+[  9%] Performing configure step for 'pioasmBuild'
+Not searching for unused variables given on the command line.
+loading initial cache file /home/fedurca/het68/build/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/tmp/pioasmBuild-cache-Release.cmake
+[ 10%] Performing configure step for 'picotoolBuild'
+-- The CXX compiler identification is GNU 14.2.0
+-- Detecting CXX compiler ABI info
+Not searching for unused variables given on the command line.
+-- The C compiler identification is GNU 14.2.0
+-- The CXX compiler identification is GNU 14.2.0
+-- Detecting C compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done (0.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/fedurca/het68/build/pioasm
+[ 11%] Performing build step for 'pioasmBuild'
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Using the single-header code from /home/fedurca/het68/build/_deps/picotool-src/lib/nlohmann_json/single_include/
+PICOTOOL_NO_LIBUSB is set - no USB support will be built
+-- Configuring done (1.0s)
+-- Generating done (0.1s)
+-- Build files have been written to: /home/fedurca/het68/build/_deps/picotool-build
+[ 12%] Performing build step for 'picotoolBuild'
+-- The C compiler identification is GNU 14.2.0
+-- The C compiler identification is GNU 14.2.0
+-- The CXX compiler identification is GNU 14.2.0
+-- The ASM compiler identification is GNU
+-- Found assembler: /usr/bin/cc
+-- Detecting C compiler ABI info
+-- The CXX compiler identification is GNU 14.2.0
+-- The ASM compiler identification is GNU
+-- Detecting C compiler ABI info - done
+-- Found assembler: /usr/bin/cc
+-- Detecting C compiler ABI info
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting CXX compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Detecting CXX compiler ABI info
+Using precompiled enc_bootloader.elf
+-- Configuring done (2.3s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/fedurca/het68/build/_deps/picotool-build/enc_bootloader_mbedtls
+[  2%] Built target errors
+[  9%] Built target enc_bootloader_mbedtls
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+Using precompiled enc_bootloader.elf
+-- Configuring done (2.8s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/fedurca/het68/build/_deps/picotool-build/enc_bootloader
+[ 16%] Built target enc_bootloader
+[ 18%] Built target embedded_data_no_libusb
+[ 86%] Built target mbedtls
+[ 88%] Built target elf
+[ 90%] Built target elf2uf2
+[100%] Built target pioasm
+[ 13%] Performing install step for 'pioasmBuild'
+[100%] Built target pioasm
+Install the project...
+-- Install configuration: "Release"
+[ 14%] Completed 'pioasmBuild'
+[ 14%] Built target pioasmBuild
+[ 15%] Generating i2s_rx.pio.h
+[ 15%] Built target pico_6mic_soundcard_i2s_rx_pio_h
+[ 92%] Built target bintool
+[100%] Built target picotool
+[ 15%] Performing install step for 'picotoolBuild'
+[  2%] Built target errors
+[  4%] Built target elf
+[  6%] Built target elf2uf2
+[ 13%] Built target enc_bootloader_mbedtls
+[ 20%] Built target enc_bootloader
+[ 88%] Built target mbedtls
+[ 90%] Built target embedded_data_no_libusb
+[ 92%] Built target bintool
+[100%] Built target picotool
+Install the project...
+-- Install configuration: "Release"
+[ 16%] Performing test step for 'picotoolBuild'
+picotool v2.2.0 (Linux, GNU-14.2.0, Release)
+
+This version of picotool was compiled without USB support. Some commands are not available.
+[ 17%] Completed 'picotoolBuild'
+[ 17%] Built target picotoolBuild
+[ 17%] Building ASM object pico-sdk/src/rp2350/boot_stage2/CMakeFiles/bs2_default.dir/compile_time_choice.S.o
+[ 18%] Linking ASM executable bs2_default.elf
+[ 18%] Built target bs2_default
+[ 19%] Generating bs2_default.bin
+[ 20%] Generating bs2_default_padded_checksummed.S
+[ 21%] Building ASM object pico-sdk/src/rp2350/boot_stage2/CMakeFiles/bs2_default_library.dir/bs2_default_padded_checksummed.S.o
+[ 21%] Built target bs2_default_library
+[ 22%] Building C object CMakeFiles/pico_6mic_soundcard.dir/main.c.o
+[ 23%] Building C object CMakeFiles/pico_6mic_soundcard.dir/usb_descriptors.c.o
+[ 24%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2350/pico_platform/platform.c.o
+[ 24%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_common/common.c.o
+[ 25%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
+[ 27%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c.o
+[ 27%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o
+[ 28%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/hardware_claim/claim.c.o
+[ 29%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync/sync.c.o
+[ 30%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
+[ 31%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o
+[ 32%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/sem.c.o
+[ 34%] Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_irq/irq_handler_chain.S.o
+[ 35%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/lock_core.c.o
+[ 36%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/mutex.c.o
+[ 37%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/time.c.o
+[ 38%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_sync/critical_section.c.o
+[ 38%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_time/timeout_helper.c.o
+[ 39%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/datetime.c.o
+[ 40%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/queue.c.o
+[ 41%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/common/pico_util/pheap.c.o
+[ 43%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
+[ 42%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
+[ 44%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pll/pll.c.o
+[ 45%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
+[ 46%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_vreg/vreg.c.o
+[ 47%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_watchdog/watchdog.c.o
+[ 48%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o
+[ 48%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom_lock.c.o
+[ 49%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_divider/divider.c.o
+[ 50%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_flash/flash.c.o
+[ 51%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
+[ 52%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o
+[ 53%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o
+[ 54%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_boot_lock/boot_lock.c.o
+[ 55%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
+[ 56%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+[ 57%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_stack_guard.c.o
+[ 58%] Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o
+[ 59%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_divider/divider_compiler.c.o
+[ 59%] Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_aeabi_dcp.S.o
+[ 61%] Building CXX object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_cxx_options/new_delete.cpp.o
+[ 61%] Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_sci_m33.S.o
+[ 62%] Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_fma_dcp.S.o
+[ 63%] Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_conv_m33.S.o
+[ 64%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_double/double_math.c.o
+[ 65%] Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_conv32_vfp.S.o
+[ 68%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_malloc/malloc.c.o
+[ 68%] Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_common_m33.S.o
+[ 69%] Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_sci_m33_vfp.S.o
+[ 70%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/cdc/cdc_device.c.o
+[ 71%] Building ASM object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o
+[ 72%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd_control.c.o
+[ 73%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_float/float_math.c.o
+[ 73%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+[ 75%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o
+[ 77%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_pio/pio.c.o
+[ 77%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/midi/midi_device.c.o
+[ 75%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_atomic/atomic.c.o
+[ 78%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/rp2040_usb.c.o
+[ 79%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
+[ 81%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
+[ 81%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_dma/dma.c.o
+[ 82%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/portable/raspberrypi/rp2040/dcd_rp2040.c.o
+[ 82%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_device.c.o
+[ 83%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/dfu/dfu_rt_device.c.o
+[ 84%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/audio/audio_device.c.o
+[ 85%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/device/usbd.c.o
+[ 86%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/msc/msc_device.c.o
+[ 87%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/hid/hid_device.c.o
+[ 88%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ecm_rndis_device.c.o
+[ 89%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/net/ncm_device.c.o
+[ 90%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/common/tusb_fifo.c.o
+[ 91%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/video/video_device.c.o
+[ 92%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/tusb.c.o
+[ 93%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/usbtmc/usbtmc_device.c.o
+[ 94%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/src/class/vendor/vendor_device.c.o
+[ 95%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.c.o
+[ 95%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_fix/rp2040_usb_device_enumeration/rp2040_usb_device_enumeration.c.o
+[ 96%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_flash/flash.c.o
+[ 97%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/pico_unique_id/unique_id.c.o
+[ 98%] Building C object CMakeFiles/pico_6mic_soundcard.dir/pico-sdk/src/rp2_common/hardware_xip_cache/xip_cache.c.o
+[100%] Linking CXX executable pico_6mic_soundcard.elf
+[100%] Built target pico_6mic_soundcard

@@ -159,8 +159,8 @@ events:
     checks:
       - "Detecting C compiler ABI info"
     directories:
-      source: "/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-c452nK"
-      binary: "/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-c452nK"
+      source: "/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-pRaUo7"
+      binary: "/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-pRaUo7"
     cmakeVariables:
       CMAKE_C_FLAGS: "-mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse"
       CMAKE_C_FLAGS_DEBUG: "-Og -g"
@@ -171,13 +171,13 @@ events:
       variable: "CMAKE_C_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-c452nK'
+        Change Dir: '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-pRaUo7'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_045b1/fast
-        /usr/bin/gmake  -f CMakeFiles/cmTC_045b1.dir/build.make CMakeFiles/cmTC_045b1.dir/build
-        gmake[1]: Entering directory '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-c452nK'
-        Building C object CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.o
-        /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gcc   -mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse    -v -o CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-3.31/Modules/CMakeCCompilerABI.c
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_3f03b/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_3f03b.dir/build.make CMakeFiles/cmTC_3f03b.dir/build
+        gmake[1]: Entering directory '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-pRaUo7'
+        Building C object CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.o
+        /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gcc   -mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse    -v -o CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-3.31/Modules/CMakeCCompilerABI.c
         Using built-in specs.
         COLLECT_GCC=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gcc
         Target: arm-none-eabi
@@ -185,8 +185,8 @@ events:
         Thread model: single
         Supported LTO compression algorithms: zlib zstd
         gcc version 14.3.1 20250623 (Arm GNU Toolchain 14.3.Rel1 (Build arm-14.174)) 
-        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_045b1.dir/'
-         /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/cc1 -quiet -v -imultilib thumb/v8-m.main+fp/softfp -iprefix /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/ -isysroot /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi -D__USES_INITFINI__ /usr/share/cmake-3.31/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_045b1.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mcpu=cortex-m33 -mthumb -mfloat-abi=softfp -mcmse -mlibarch=armv8-m.main+dsp+fp -march=armv8-m.main+dsp+fp -version -o /tmp/ccn5JLAQ.s
+        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_3f03b.dir/'
+         /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/cc1 -quiet -v -imultilib thumb/v8-m.main+fp/softfp -iprefix /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/ -isysroot /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi -D__USES_INITFINI__ /usr/share/cmake-3.31/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_3f03b.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mcpu=cortex-m33 -mthumb -mfloat-abi=softfp -mcmse -mlibarch=armv8-m.main+dsp+fp -march=armv8-m.main+dsp+fp -version -o /tmp/ccK2UOaV.s
         GNU C17 (Arm GNU Toolchain 14.3.Rel1 (Build arm-14.174)) version 14.3.1 20250623 (arm-none-eabi)
         	compiled by GNU C version 9.2.1 20191120 (Red Hat 9.2.1-2), GMP version 6.2.1, MPFR version 3.1.6, MPC version 1.0.3, isl version isl-0.15-1-g835ea3a-GMP
         
@@ -203,14 +203,14 @@ events:
          /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/include
         End of search list.
         Compiler executable checksum: f1c6d1095e4a9f51a2e062da29cb95b2
-        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_045b1.dir/'
-         /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/as -v -march=armv8-m.main+dsp+fp -mfloat-abi=softfp -meabi=5 -o CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.o /tmp/ccn5JLAQ.s
+        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_3f03b.dir/'
+         /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/as -v -march=armv8-m.main+dsp+fp -mfloat-abi=softfp -meabi=5 -o CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.o /tmp/ccK2UOaV.s
         GNU assembler version 2.44.0 (arm-none-eabi) using BFD version (Arm GNU Toolchain 14.3.Rel1 (Build arm-14.174)) 2.44.0.20250616
         COMPILER_PATH=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/
         LIBRARY_PATH=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/
-        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.'
-        Linking C executable cmTC_045b1.elf
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_045b1.dir/link.txt --verbose=1
+        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.'
+        Linking C executable cmTC_3f03b.elf
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_3f03b.dir/link.txt --verbose=1
         Using built-in specs.
         COLLECT_GCC=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gcc
         COLLECT_LTO_WRAPPER=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/lto-wrapper
@@ -221,12 +221,12 @@ events:
         gcc version 14.3.1 20250623 (Arm GNU Toolchain 14.3.Rel1 (Build arm-14.174)) 
         COMPILER_PATH=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/
         LIBRARY_PATH=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/
-        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-nostdlib' '-v' '-o' 'cmTC_045b1.elf' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'cmTC_045b1.elf.'
-         /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/collect2 -plugin /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/liblto_plugin.so -plugin-opt=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cc9Swgn6.res --sysroot=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi -X -o cmTC_045b1.elf -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1 -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib --build-id=none CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.o
+        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-nostdlib' '-v' '-o' 'cmTC_3f03b.elf' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'cmTC_3f03b.elf.'
+         /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/collect2 -plugin /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/liblto_plugin.so -plugin-opt=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccvTi97k.res --sysroot=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi -X -o cmTC_3f03b.elf -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1 -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib --build-id=none CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.o
         /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/ld: warning: cannot find entry symbol _start; defaulting to 00008000
-        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-nostdlib' '-v' '-o' 'cmTC_045b1.elf' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'cmTC_045b1.elf.'
-        /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gcc -mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse  -Wl,--build-id=none -nostdlib  -v CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.o -o cmTC_045b1.elf
-        gmake[1]: Leaving directory '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-c452nK'
+        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-nostdlib' '-v' '-o' 'cmTC_3f03b.elf' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'cmTC_3f03b.elf.'
+        /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gcc -mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse  -Wl,--build-id=none -nostdlib  -v CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.o -o cmTC_3f03b.elf
+        gmake[1]: Leaving directory '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-pRaUo7'
         
       exitCode: 0
   -
@@ -259,13 +259,13 @@ events:
       Parsed C implicit link information:
         link line regex: [^( *|.*[/\\])(ld[0-9]*(\\.[a-z]+)?|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
         linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(ld[0-9]*(\\.[a-z]+)?))("|,| |$)]
-        ignore line: [Change Dir: '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-c452nK']
+        ignore line: [Change Dir: '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-pRaUo7']
         ignore line: []
-        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_045b1/fast]
-        ignore line: [/usr/bin/gmake  -f CMakeFiles/cmTC_045b1.dir/build.make CMakeFiles/cmTC_045b1.dir/build]
-        ignore line: [gmake[1]: Entering directory '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-c452nK']
-        ignore line: [Building C object CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.o]
-        ignore line: [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gcc   -mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse    -v -o CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-3.31/Modules/CMakeCCompilerABI.c]
+        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_3f03b/fast]
+        ignore line: [/usr/bin/gmake  -f CMakeFiles/cmTC_3f03b.dir/build.make CMakeFiles/cmTC_3f03b.dir/build]
+        ignore line: [gmake[1]: Entering directory '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-pRaUo7']
+        ignore line: [Building C object CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.o]
+        ignore line: [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gcc   -mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse    -v -o CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-3.31/Modules/CMakeCCompilerABI.c]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gcc]
         ignore line: [Target: arm-none-eabi]
@@ -273,8 +273,8 @@ events:
         ignore line: [Thread model: single]
         ignore line: [Supported LTO compression algorithms: zlib zstd]
         ignore line: [gcc version 14.3.1 20250623 (Arm GNU Toolchain 14.3.Rel1 (Build arm-14.174)) ]
-        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_045b1.dir/']
-        ignore line: [ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/cc1 -quiet -v -imultilib thumb/v8-m.main+fp/softfp -iprefix /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/ -isysroot /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi -D__USES_INITFINI__ /usr/share/cmake-3.31/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_045b1.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mcpu=cortex-m33 -mthumb -mfloat-abi=softfp -mcmse -mlibarch=armv8-m.main+dsp+fp -march=armv8-m.main+dsp+fp -version -o /tmp/ccn5JLAQ.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_3f03b.dir/']
+        ignore line: [ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/cc1 -quiet -v -imultilib thumb/v8-m.main+fp/softfp -iprefix /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/ -isysroot /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi -D__USES_INITFINI__ /usr/share/cmake-3.31/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_3f03b.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mcpu=cortex-m33 -mthumb -mfloat-abi=softfp -mcmse -mlibarch=armv8-m.main+dsp+fp -march=armv8-m.main+dsp+fp -version -o /tmp/ccK2UOaV.s]
         ignore line: [GNU C17 (Arm GNU Toolchain 14.3.Rel1 (Build arm-14.174)) version 14.3.1 20250623 (arm-none-eabi)]
         ignore line: [	compiled by GNU C version 9.2.1 20191120 (Red Hat 9.2.1-2)  GMP version 6.2.1  MPFR version 3.1.6  MPC version 1.0.3  isl version isl-0.15-1-g835ea3a-GMP]
         ignore line: []
@@ -291,14 +291,14 @@ events:
         ignore line: [ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/include]
         ignore line: [End of search list.]
         ignore line: [Compiler executable checksum: f1c6d1095e4a9f51a2e062da29cb95b2]
-        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_045b1.dir/']
-        ignore line: [ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/as -v -march=armv8-m.main+dsp+fp -mfloat-abi=softfp -meabi=5 -o CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.o /tmp/ccn5JLAQ.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_3f03b.dir/']
+        ignore line: [ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/as -v -march=armv8-m.main+dsp+fp -mfloat-abi=softfp -meabi=5 -o CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.o /tmp/ccK2UOaV.s]
         ignore line: [GNU assembler version 2.44.0 (arm-none-eabi) using BFD version (Arm GNU Toolchain 14.3.Rel1 (Build arm-14.174)) 2.44.0.20250616]
         ignore line: [COMPILER_PATH=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/]
         ignore line: [LIBRARY_PATH=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.']
-        ignore line: [Linking C executable cmTC_045b1.elf]
-        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_045b1.dir/link.txt --verbose=1]
+        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.']
+        ignore line: [Linking C executable cmTC_3f03b.elf]
+        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_3f03b.dir/link.txt --verbose=1]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gcc]
         ignore line: [COLLECT_LTO_WRAPPER=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/lto-wrapper]
@@ -309,17 +309,17 @@ events:
         ignore line: [gcc version 14.3.1 20250623 (Arm GNU Toolchain 14.3.Rel1 (Build arm-14.174)) ]
         ignore line: [COMPILER_PATH=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/]
         ignore line: [LIBRARY_PATH=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-nostdlib' '-v' '-o' 'cmTC_045b1.elf' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'cmTC_045b1.elf.']
-        link line: [ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/collect2 -plugin /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/liblto_plugin.so -plugin-opt=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cc9Swgn6.res --sysroot=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi -X -o cmTC_045b1.elf -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1 -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib --build-id=none CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.o]
+        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-nostdlib' '-v' '-o' 'cmTC_3f03b.elf' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'cmTC_3f03b.elf.']
+        link line: [ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/collect2 -plugin /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/liblto_plugin.so -plugin-opt=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccvTi97k.res --sysroot=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi -X -o cmTC_3f03b.elf -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1 -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib --build-id=none CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.o]
           arg [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/collect2] ==> ignore
           arg [-plugin] ==> ignore
           arg [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/liblto_plugin.so] ==> ignore
           arg [-plugin-opt=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/lto-wrapper] ==> ignore
-          arg [-plugin-opt=-fresolution=/tmp/cc9Swgn6.res] ==> ignore
+          arg [-plugin-opt=-fresolution=/tmp/ccvTi97k.res] ==> ignore
           arg [--sysroot=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi] ==> ignore
           arg [-X] ==> ignore
           arg [-o] ==> ignore
-          arg [cmTC_045b1.elf] ==> ignore
+          arg [cmTC_3f03b.elf] ==> ignore
           arg [-L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp] ==> dir [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp]
           arg [-L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp] ==> dir [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp]
           arg [-L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp] ==> dir [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp]
@@ -328,12 +328,12 @@ events:
           arg [-L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib] ==> dir [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib]
           arg [-L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib] ==> dir [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib]
           arg [--build-id=none] ==> ignore
-          arg [CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.o] ==> ignore
+          arg [CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.o] ==> ignore
         ignore line: [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/ld: warning: cannot find entry symbol _start]
         ignore line: [ defaulting to 00008000]
-        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-nostdlib' '-v' '-o' 'cmTC_045b1.elf' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'cmTC_045b1.elf.']
-        ignore line: [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gcc -mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse  -Wl --build-id=none -nostdlib  -v CMakeFiles/cmTC_045b1.dir/CMakeCCompilerABI.c.o -o cmTC_045b1.elf]
-        ignore line: [gmake[1]: Leaving directory '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-c452nK']
+        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-nostdlib' '-v' '-o' 'cmTC_3f03b.elf' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'cmTC_3f03b.elf.']
+        ignore line: [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gcc -mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse  -Wl --build-id=none -nostdlib  -v CMakeFiles/cmTC_3f03b.dir/CMakeCCompilerABI.c.o -o cmTC_3f03b.elf]
+        ignore line: [gmake[1]: Leaving directory '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-pRaUo7']
         ignore line: []
         ignore line: []
         collapse library dir [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp] ==> [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp]
@@ -358,8 +358,8 @@ events:
     checks:
       - "Detecting CXX compiler ABI info"
     directories:
-      source: "/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-DtqJTf"
-      binary: "/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-DtqJTf"
+      source: "/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-FPiiKr"
+      binary: "/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-FPiiKr"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "-mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse"
       CMAKE_CXX_FLAGS_DEBUG: "-Og -g"
@@ -371,13 +371,13 @@ events:
       variable: "CMAKE_CXX_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-DtqJTf'
+        Change Dir: '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-FPiiKr'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_ddd4a/fast
-        /usr/bin/gmake  -f CMakeFiles/cmTC_ddd4a.dir/build.make CMakeFiles/cmTC_ddd4a.dir/build
-        gmake[1]: Entering directory '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-DtqJTf'
-        Building CXX object CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.o
-        /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-g++   -mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse    -v -o CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-3.31/Modules/CMakeCXXCompilerABI.cpp
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_5d73f/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_5d73f.dir/build.make CMakeFiles/cmTC_5d73f.dir/build
+        gmake[1]: Entering directory '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-FPiiKr'
+        Building CXX object CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.o
+        /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-g++   -mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse    -v -o CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-3.31/Modules/CMakeCXXCompilerABI.cpp
         Using built-in specs.
         COLLECT_GCC=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-g++
         Target: arm-none-eabi
@@ -385,8 +385,8 @@ events:
         Thread model: single
         Supported LTO compression algorithms: zlib zstd
         gcc version 14.3.1 20250623 (Arm GNU Toolchain 14.3.Rel1 (Build arm-14.174)) 
-        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_ddd4a.dir/'
-         /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/cc1plus -quiet -v -imultilib thumb/v8-m.main+fp/softfp -iprefix /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/ -isysroot /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi -D__USES_INITFINI__ /usr/share/cmake-3.31/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_ddd4a.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mcpu=cortex-m33 -mthumb -mfloat-abi=softfp -mcmse -mlibarch=armv8-m.main+dsp+fp -march=armv8-m.main+dsp+fp -version -o /tmp/ccXzAtV4.s
+        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_5d73f.dir/'
+         /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/cc1plus -quiet -v -imultilib thumb/v8-m.main+fp/softfp -iprefix /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/ -isysroot /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi -D__USES_INITFINI__ /usr/share/cmake-3.31/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_5d73f.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mcpu=cortex-m33 -mthumb -mfloat-abi=softfp -mcmse -mlibarch=armv8-m.main+dsp+fp -march=armv8-m.main+dsp+fp -version -o /tmp/ccs6rkQ5.s
         GNU C++17 (Arm GNU Toolchain 14.3.Rel1 (Build arm-14.174)) version 14.3.1 20250623 (arm-none-eabi)
         	compiled by GNU C version 9.2.1 20191120 (Red Hat 9.2.1-2), GMP version 6.2.1, MPFR version 3.1.6, MPC version 1.0.3, isl version isl-0.15-1-g835ea3a-GMP
         
@@ -409,14 +409,14 @@ events:
          /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/include
         End of search list.
         Compiler executable checksum: 533e33c5ce831fccacfca7f53cae5699
-        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_ddd4a.dir/'
-         /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/as -v -march=armv8-m.main+dsp+fp -mfloat-abi=softfp -meabi=5 -o CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccXzAtV4.s
+        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_5d73f.dir/'
+         /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/as -v -march=armv8-m.main+dsp+fp -mfloat-abi=softfp -meabi=5 -o CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccs6rkQ5.s
         GNU assembler version 2.44.0 (arm-none-eabi) using BFD version (Arm GNU Toolchain 14.3.Rel1 (Build arm-14.174)) 2.44.0.20250616
         COMPILER_PATH=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/
         LIBRARY_PATH=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/
-        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.'
-        Linking CXX executable cmTC_ddd4a.elf
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_ddd4a.dir/link.txt --verbose=1
+        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.'
+        Linking CXX executable cmTC_5d73f.elf
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_5d73f.dir/link.txt --verbose=1
         Using built-in specs.
         COLLECT_GCC=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-g++
         COLLECT_LTO_WRAPPER=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/lto-wrapper
@@ -427,12 +427,12 @@ events:
         gcc version 14.3.1 20250623 (Arm GNU Toolchain 14.3.Rel1 (Build arm-14.174)) 
         COMPILER_PATH=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/
         LIBRARY_PATH=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/
-        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-nostdlib' '-v' '-o' 'cmTC_ddd4a.elf' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'cmTC_ddd4a.elf.'
-         /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/collect2 -plugin /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/liblto_plugin.so -plugin-opt=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccarZJXs.res --sysroot=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi -X -o cmTC_ddd4a.elf -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1 -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib --build-id=none CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.o
+        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-nostdlib' '-v' '-o' 'cmTC_5d73f.elf' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'cmTC_5d73f.elf.'
+         /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/collect2 -plugin /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/liblto_plugin.so -plugin-opt=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cc85Q2cp.res --sysroot=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi -X -o cmTC_5d73f.elf -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1 -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib --build-id=none CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.o
         /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/ld: warning: cannot find entry symbol _start; defaulting to 00008000
-        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-nostdlib' '-v' '-o' 'cmTC_ddd4a.elf' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'cmTC_ddd4a.elf.'
-        /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-g++ -mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse  -Wl,--build-id=none -nostdlib  -v CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_ddd4a.elf
-        gmake[1]: Leaving directory '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-DtqJTf'
+        COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-nostdlib' '-v' '-o' 'cmTC_5d73f.elf' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'cmTC_5d73f.elf.'
+        /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-g++ -mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse  -Wl,--build-id=none -nostdlib  -v CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_5d73f.elf
+        gmake[1]: Leaving directory '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-FPiiKr'
         
       exitCode: 0
   -
@@ -471,13 +471,13 @@ events:
       Parsed CXX implicit link information:
         link line regex: [^( *|.*[/\\])(ld[0-9]*(\\.[a-z]+)?|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
         linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(ld[0-9]*(\\.[a-z]+)?))("|,| |$)]
-        ignore line: [Change Dir: '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-DtqJTf']
+        ignore line: [Change Dir: '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-FPiiKr']
         ignore line: []
-        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_ddd4a/fast]
-        ignore line: [/usr/bin/gmake  -f CMakeFiles/cmTC_ddd4a.dir/build.make CMakeFiles/cmTC_ddd4a.dir/build]
-        ignore line: [gmake[1]: Entering directory '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-DtqJTf']
-        ignore line: [Building CXX object CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.o]
-        ignore line: [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-g++   -mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse    -v -o CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-3.31/Modules/CMakeCXXCompilerABI.cpp]
+        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_5d73f/fast]
+        ignore line: [/usr/bin/gmake  -f CMakeFiles/cmTC_5d73f.dir/build.make CMakeFiles/cmTC_5d73f.dir/build]
+        ignore line: [gmake[1]: Entering directory '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-FPiiKr']
+        ignore line: [Building CXX object CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.o]
+        ignore line: [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-g++   -mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse    -v -o CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-3.31/Modules/CMakeCXXCompilerABI.cpp]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-g++]
         ignore line: [Target: arm-none-eabi]
@@ -485,8 +485,8 @@ events:
         ignore line: [Thread model: single]
         ignore line: [Supported LTO compression algorithms: zlib zstd]
         ignore line: [gcc version 14.3.1 20250623 (Arm GNU Toolchain 14.3.Rel1 (Build arm-14.174)) ]
-        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_ddd4a.dir/']
-        ignore line: [ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/cc1plus -quiet -v -imultilib thumb/v8-m.main+fp/softfp -iprefix /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/ -isysroot /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi -D__USES_INITFINI__ /usr/share/cmake-3.31/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_ddd4a.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mcpu=cortex-m33 -mthumb -mfloat-abi=softfp -mcmse -mlibarch=armv8-m.main+dsp+fp -march=armv8-m.main+dsp+fp -version -o /tmp/ccXzAtV4.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_5d73f.dir/']
+        ignore line: [ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/cc1plus -quiet -v -imultilib thumb/v8-m.main+fp/softfp -iprefix /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/ -isysroot /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi -D__USES_INITFINI__ /usr/share/cmake-3.31/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_5d73f.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mcpu=cortex-m33 -mthumb -mfloat-abi=softfp -mcmse -mlibarch=armv8-m.main+dsp+fp -march=armv8-m.main+dsp+fp -version -o /tmp/ccs6rkQ5.s]
         ignore line: [GNU C++17 (Arm GNU Toolchain 14.3.Rel1 (Build arm-14.174)) version 14.3.1 20250623 (arm-none-eabi)]
         ignore line: [	compiled by GNU C version 9.2.1 20191120 (Red Hat 9.2.1-2)  GMP version 6.2.1  MPFR version 3.1.6  MPC version 1.0.3  isl version isl-0.15-1-g835ea3a-GMP]
         ignore line: []
@@ -509,14 +509,14 @@ events:
         ignore line: [ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/include]
         ignore line: [End of search list.]
         ignore line: [Compiler executable checksum: 533e33c5ce831fccacfca7f53cae5699]
-        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_ddd4a.dir/']
-        ignore line: [ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/as -v -march=armv8-m.main+dsp+fp -mfloat-abi=softfp -meabi=5 -o CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccXzAtV4.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_5d73f.dir/']
+        ignore line: [ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/as -v -march=armv8-m.main+dsp+fp -mfloat-abi=softfp -meabi=5 -o CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccs6rkQ5.s]
         ignore line: [GNU assembler version 2.44.0 (arm-none-eabi) using BFD version (Arm GNU Toolchain 14.3.Rel1 (Build arm-14.174)) 2.44.0.20250616]
         ignore line: [COMPILER_PATH=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/]
         ignore line: [LIBRARY_PATH=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.']
-        ignore line: [Linking CXX executable cmTC_ddd4a.elf]
-        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_ddd4a.dir/link.txt --verbose=1]
+        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-v' '-o' 'CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.']
+        ignore line: [Linking CXX executable cmTC_5d73f.elf]
+        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_5d73f.dir/link.txt --verbose=1]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-g++]
         ignore line: [COLLECT_LTO_WRAPPER=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/lto-wrapper]
@@ -527,17 +527,17 @@ events:
         ignore line: [gcc version 14.3.1 20250623 (Arm GNU Toolchain 14.3.Rel1 (Build arm-14.174)) ]
         ignore line: [COMPILER_PATH=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/]
         ignore line: [LIBRARY_PATH=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/:/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-nostdlib' '-v' '-o' 'cmTC_ddd4a.elf' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'cmTC_ddd4a.elf.']
-        link line: [ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/collect2 -plugin /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/liblto_plugin.so -plugin-opt=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccarZJXs.res --sysroot=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi -X -o cmTC_ddd4a.elf -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1 -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib --build-id=none CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.o]
+        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-nostdlib' '-v' '-o' 'cmTC_5d73f.elf' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'cmTC_5d73f.elf.']
+        link line: [ /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/collect2 -plugin /opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/liblto_plugin.so -plugin-opt=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cc85Q2cp.res --sysroot=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi -X -o cmTC_5d73f.elf -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1 -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib -L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib --build-id=none CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.o]
           arg [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/collect2] ==> ignore
           arg [-plugin] ==> ignore
           arg [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/liblto_plugin.so] ==> ignore
           arg [-plugin-opt=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../libexec/gcc/arm-none-eabi/14.3.1/lto-wrapper] ==> ignore
-          arg [-plugin-opt=-fresolution=/tmp/ccarZJXs.res] ==> ignore
+          arg [-plugin-opt=-fresolution=/tmp/cc85Q2cp.res] ==> ignore
           arg [--sysroot=/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi] ==> ignore
           arg [-X] ==> ignore
           arg [-o] ==> ignore
-          arg [cmTC_ddd4a.elf] ==> ignore
+          arg [cmTC_5d73f.elf] ==> ignore
           arg [-L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp] ==> dir [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp]
           arg [-L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp] ==> dir [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp]
           arg [-L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp] ==> dir [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib/thumb/v8-m.main+fp/softfp]
@@ -546,12 +546,12 @@ events:
           arg [-L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib] ==> dir [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib]
           arg [-L/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib] ==> dir [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../arm-none-eabi/lib]
           arg [--build-id=none] ==> ignore
-          arg [CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+          arg [CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
         ignore line: [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/bin/ld: warning: cannot find entry symbol _start]
         ignore line: [ defaulting to 00008000]
-        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-nostdlib' '-v' '-o' 'cmTC_ddd4a.elf' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'cmTC_ddd4a.elf.']
-        ignore line: [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-g++ -mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse  -Wl --build-id=none -nostdlib  -v CMakeFiles/cmTC_ddd4a.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_ddd4a.elf]
-        ignore line: [gmake[1]: Leaving directory '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-DtqJTf']
+        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m33' '-mthumb'  '-mfloat-abi=softfp' '-mcmse' '-nostdlib' '-v' '-o' 'cmTC_5d73f.elf' '-mlibarch=armv8-m.main+dsp+fp' '-march=armv8-m.main+dsp+fp' '-dumpdir' 'cmTC_5d73f.elf.']
+        ignore line: [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-g++ -mcpu=cortex-m33 -mthumb -march=armv8-m.main+fp+dsp -mfloat-abi=softfp -mcmse  -Wl --build-id=none -nostdlib  -v CMakeFiles/cmTC_5d73f.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_5d73f.elf]
+        ignore line: [gmake[1]: Leaving directory '/home/fedurca/het68/build/CMakeFiles/CMakeScratch/TryCompile-FPiiKr']
         ignore line: []
         ignore line: []
         collapse library dir [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp] ==> [/opt/arm/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/lib/gcc/arm-none-eabi/14.3.1/thumb/v8-m.main+fp/softfp]

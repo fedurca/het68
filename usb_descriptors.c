@@ -23,31 +23,26 @@ uint8_t const* tud_descriptor_device_cb(void) {
   return (uint8_t const*) &desc_device;
 }
 
-// ---------- Config descriptor (UAC2, 2ch mic @ 48 kHz / 16-bit packed) ----------
+// ---------- Config descriptor (UAC2, 6ch mic @ 16 kHz / 16-bit packed) ----------
 enum { ITF_NUM_AC = 0, ITF_NUM_AS, ITF_NUM_TOTAL };
 #define EPNUM_AUDIO_IN      0x01
 #define EP_ADDR_AUDIO_IN    (0x80 | EPNUM_AUDIO_IN)
 
-// MODIFIED for 2-channel, 16-bit, 48kHz
-#define AUDIO_N_CHANNELS    2
-#define AUDIO_SAMPLE_RATE   48000
+#define AUDIO_N_CHANNELS    6
+#define AUDIO_SAMPLE_RATE   16000
 #define AUDIO_SAMPLE_BYTES  2
-#define AUDIO_PACKET_SIZE   ((AUDIO_SAMPLE_RATE/1000) * AUDIO_N_CHANNELS * AUDIO_SAMPLE_BYTES) // 48 * 2 * 2 = 192
+#define AUDIO_PACKET_SIZE   ((AUDIO_SAMPLE_RATE/1000) * AUDIO_N_CHANNELS * AUDIO_SAMPLE_BYTES) // 16 * 6 * 2 = 192
 
 #define ID_CLK  0x01
 #define ID_IT   0x02
 #define ID_FU   0x03
 #define ID_OT   0x04
-
-// MODIFIED Feature Unit length for 2 channels: 5 + (2+1)*4 + 1 = 18
 #define LEN_CS_AC_HEADER    9
 #define LEN_CS_CLK_SRC      8
 #define LEN_CS_IT           17
-#define LEN_CS_FU           18
+#define LEN_CS_FU           34
 #define LEN_CS_OT           12
-
-// MODIFIED Total AC length: 9+8+17+18+12 = 64
-#define AC_CS_TOTAL         64
+#define AC_CS_TOTAL         80
 
 static uint8_t const desc_configuration[] = {
   // ---- Standard Configuration ----
@@ -63,11 +58,15 @@ static uint8_t const desc_configuration[] = {
   LEN_CS_CLK_SRC, 0x24, 0x0A, ID_CLK, 0x01, 0x01, 0x00, 0x00,
   // ---- Input Terminal ----
   LEN_CS_IT, 0x24, 0x02, ID_IT, 0x01, 0x02, 0x00, ID_CLK, AUDIO_N_CHANNELS, 0,0,0,0, 0x00, 0x00, 0x00, 0x00,
-  // ---- Feature Unit (MODIFIED for 2 channels)----
+  // ---- Feature Unit ----
   LEN_CS_FU, 0x24, 0x06, ID_FU, ID_IT,
-  0x03, 0x00, 0x00, 0x00, // Master controls
-  0x00, 0x00, 0x00, 0x00, // Channel 1 controls
-  0x00, 0x00, 0x00, 0x00, // Channel 2 controls
+  0x03, 0x00, 0x00, 0x00, // Master
+  0x00, 0x00, 0x00, 0x00, // Ch1
+  0x00, 0x00, 0x00, 0x00, // Ch2
+  0x00, 0x00, 0x00, 0x00, // Ch3
+  0x00, 0x00, 0x00, 0x00, // Ch4
+  0x00, 0x00, 0x00, 0x00, // Ch5
+  0x00, 0x00, 0x00, 0x00, // Ch6  <-- CORRECTED: Added comma
   0x00,                   // iFeature
   // ---- Output Terminal ----
   LEN_CS_OT, 0x24, 0x03, ID_OT, 0x01, 0x01, 0x00, ID_FU, ID_CLK, 0x00, 0x00, 0x00,
@@ -77,7 +76,7 @@ static uint8_t const desc_configuration[] = {
   9, TUSB_DESC_INTERFACE, ITF_NUM_AS, 1, 1, TUSB_CLASS_AUDIO, 0x02, 0x20, 0,
   // ---- CS AS General ----
   16, 0x24, 0x01, ID_OT, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, AUDIO_N_CHANNELS, 0,0,0,0, 0,
-  // ---- Type I Format (MODIFIED for 16-bit) ----
+  // ---- Type I Format (16-bit) ----
   6, 0x24, 0x02, 0x01, AUDIO_SAMPLE_BYTES, 16,
   // ---- Standard ISO IN Endpoint ----
   7, TUSB_DESC_ENDPOINT, EP_ADDR_AUDIO_IN, 0x05, (AUDIO_PACKET_SIZE & 0xFF), (AUDIO_PACKET_SIZE >> 8), 0x01,
@@ -100,14 +99,14 @@ uint8_t const* tud_descriptor_configuration_cb(uint8_t index) {
 static char const* string_desc[] = {
   (const char[]){ 0x09, 0x04 },   // 0: English (US)
   "het68",                        // 1: Manufacturer
-  "Pico 2ch Microphone 48k/16",   // 2: Product (MODIFIED)
-  "123456",                       // 3: Serial
+  "Pico 6ch Microphone 16k/16",   // 2: Product
+  "123654",                       // 3: Serial
 };
 
 static uint16_t _desc_str[32];
 
 uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
-  (void) index;
+  (void) langid;
   uint8_t chr_count;
   if (index == 0) {
     memcpy(&_desc_str[1], string_desc[0], 2);
