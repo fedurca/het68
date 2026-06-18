@@ -1,99 +1,259 @@
-// main.c — RP2040 + PIO I2S RX -> TinyUSB audio (TX to host)
+// main.c — TinyUSB UAC2 6ch diagnostic tone/silence generator
+// Purpose: isolate USB Audio streaming from PIO/I2S/DMA.
+// It enumerates as your existing 6ch / 48 kHz / 16-bit microphone and always
+// feeds a valid 576-byte frame to the ISO IN endpoint.
+//
+// If this records without arecord I/O error, USB descriptors + TinyUSB streaming
+// are basically OK and the remaining bug is in PIO/I2S/DMA capture.
+// If this still fails, the remaining bug is in USB Audio descriptors or TinyUSB
+// callback/API mismatch.
 
-#include "i2s_rx.pio.h"
-#include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
+
 #include "pico/stdlib.h"
-#include "hardware/pio.h"
-#include "hardware/dma.h"
-#include "hardware/clocks.h"
-#include "hardware/irq.h"
 #include "tusb.h"
 
-// ---------- Audio parameters (taken from tusb_config.h) ----------
 #define AUDIO_SAMPLE_RATE   CFG_TUD_AUDIO_FUNC_1_MAX_SAMPLE_RATE
 #define AUDIO_N_CHANNELS    CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX
 #define AUDIO_SAMPLE_BYTES  CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_TX
-#define AUDIO_PACKET_SIZE   (AUDIO_SAMPLE_RATE / 1000 * AUDIO_N_CHANNELS * AUDIO_SAMPLE_BYTES)
-// One USB frame (1 ms) worth of audio bytes per packet.
+#define AUDIO_SAMPLES_PER_USB_FRAME  (AUDIO_SAMPLE_RATE / 1000)  // 48
+#define AUDIO_PACKET_SIZE   (AUDIO_SAMPLES_PER_USB_FRAME * AUDIO_N_CHANNELS * AUDIO_SAMPLE_BYTES)
 
-// ---------- Pins ----------
-#define PIN_I2S_DATA  2
-#define PIN_I2S_SCK   3
-#define PIN_I2S_WS    4
+#define ID_CLK  0x01
+#define ID_FU   0x03
 
-// ---------- DMA setup ----------
-#define DMA_ADC_CHANNEL  0
-// Double buffer: 2 * one-USB-packet so DMA can fill one while USB sends the other
-#define DMA_BUF_SIZE_IN_BYTES   (2 * AUDIO_PACKET_SIZE)
+// 1 = audible/debug square-ish test signal in all 6 channels.
+// 0 = pure silence.
+#ifndef USB_DIAG_TONE
+#define USB_DIAG_TONE 1
+#endif
 
-// ---------- Globals ----------
-static volatile uint32_t dma_buf_select = 0;               // 0 or 1
-static uint8_t  usb_frame_buf[AUDIO_PACKET_SIZE];          // staging for tud_audio_write
-static uint8_t  dma_buf[DMA_BUF_SIZE_IN_BYTES];            // DMA target (2 halves)
+static uint8_t usb_frame_buf[AUDIO_PACKET_SIZE] __attribute__((aligned(4)));
+static uint32_t frame_counter = 0;
 
-// ---------- Minimal PIO init helper for i2s_rx ----------
-static void i2s_rx_program_init(PIO pio, uint sm, uint offset,
-                                uint pin_data, uint pin_sck, uint pin_ws,
-                                uint32_t sample_rate)
+static uint32_t current_sample_rate = AUDIO_SAMPLE_RATE;
+static uint8_t clock_valid = 1;
+static uint8_t master_mute = 0;
+
+static void build_diag_frame(void)
 {
-    // Configure pins
-    pio_gpio_init(pio, pin_sck);
-    pio_gpio_init(pio, pin_ws);
-    pio_gpio_init(pio, pin_data);
+    int16_t *out = (int16_t *)usb_frame_buf;
 
-    // SCK (sideset) is output; WS and DATA are inputs
-    pio_sm_set_consecutive_pindirs(pio, sm, pin_sck, 1, true);
-    pio_sm_set_consecutive_pindirs(pio, sm, pin_ws,  1, false);
-    pio_sm_set_consecutive_pindirs(pio, sm, pin_data,1, false);
+#if USB_DIAG_TONE
+    // Different simple square-wave-ish patterns per channel. No libm needed.
+    // Amplitude is intentionally low to avoid speaker/headphone surprises.
+    static const uint16_t periods[6] = { 109, 97, 83, 71, 61, 53 };
+    static const int16_t amps[6] = { 1200, 1600, 2000, 2400, 2800, 3200 };
 
-    // Build config from program
-    pio_sm_config c = i2s_rx_program_get_default_config(offset);
-
-    // Map pins to functions
-    sm_config_set_sideset_pins(&c, pin_sck);   // sideset drives SCK
-    sm_config_set_in_pins(&c, pin_data);       // IN reads from DATA
-    sm_config_set_jmp_pin(&c, pin_ws);         // WAIT/JMP uses WS
-
-    // Shift config: explicit PUSH in PIO program -> no autopush
-    sm_config_set_in_shift(&c, true /*right*/, false /*autopush*/, 32);
-
-    // Clocking:
-    // PIO toggles SCK every instruction; one data bit uses 2 instr (in+nop)
-    // => f_sm = 2 * BCLK. For 16-bit stereo: BCLK = 32 * fs. => f_sm = 64 * fs.
-    float div = (float)clock_get_hz(clk_sys) / (64.0f * (float)sample_rate);
-    sm_config_set_clkdiv(&c, div);
-
-    // Init SM
-    pio_sm_init(pio, sm, offset, &c);
+    for (uint32_t i = 0; i < AUDIO_SAMPLES_PER_USB_FRAME; i++) {
+        uint32_t sample_index = frame_counter * AUDIO_SAMPLES_PER_USB_FRAME + i;
+        for (uint32_t ch = 0; ch < 6; ch++) {
+            int16_t v = ((sample_index % periods[ch]) < (periods[ch] / 2)) ? amps[ch] : -amps[ch];
+            out[i * 6u + ch] = master_mute ? 0 : v;
+        }
+    }
+    frame_counter++;
+#else
+    memset(usb_frame_buf, 0, sizeof(usb_frame_buf));
+#endif
 }
 
-// ---------- DMA IRQ handler ----------
-static void __isr dma_handler(void)
+static inline void usb_audio_feed_one_frame(void)
 {
-    // Ack IRQ for our channel
-    dma_hw->ints0 = 1u << DMA_ADC_CHANNEL;
-
-    // Flip buffer half
-    dma_buf_select ^= 1;
-
-    // Point DMA to the other half of our buffer and re-trigger
-    uint32_t next_addr = (uint32_t)dma_buf + (dma_buf_select * AUDIO_PACKET_SIZE);
-    dma_channel_set_write_addr(DMA_ADC_CHANNEL, (void *)next_addr, true);
-}
-
-// ---------- TinyUSB audio callback ----------
-// Called before TinyUSB loads the IN endpoint; we copy the just-filled half.
-bool tud_audio_tx_done_pre_load_cb(uint8_t rhport, uint8_t func_id,
-                                   uint8_t ep_in, uint8_t cur_alt_setting)
-{
-    (void)rhport; (void)func_id; (void)ep_in; (void)cur_alt_setting;
-    if (!tud_audio_n_mounted(func_id)) return false;
-
-    uint32_t filled_addr = (uint32_t)dma_buf + ((1u - dma_buf_select) * AUDIO_PACKET_SIZE);
-    memcpy(usb_frame_buf, (void *)filled_addr, sizeof(usb_frame_buf));
+    build_diag_frame();
     (void)tud_audio_write(usb_frame_buf, sizeof(usb_frame_buf));
+}
+
+bool tud_audio_tx_done_pre_load_cb(uint8_t rhport,
+                                   uint8_t func_id,
+                                   uint8_t ep_in,
+                                   uint8_t cur_alt_setting)
+{
+    (void)rhport;
+    (void)func_id;
+    (void)ep_in;
+
+    if (cur_alt_setting != 0) {
+        usb_audio_feed_one_frame();
+    }
     return true;
+}
+
+bool tud_audio_tx_done_post_load_cb(uint8_t rhport,
+                                    uint16_t n_bytes_copied,
+                                    uint8_t func_id,
+                                    uint8_t ep_in,
+                                    uint8_t cur_alt_setting)
+{
+    (void)rhport;
+    (void)n_bytes_copied;
+    (void)func_id;
+    (void)ep_in;
+    (void)cur_alt_setting;
+    return true;
+}
+
+bool tud_audio_tx_done_isr(uint8_t rhport,
+                           uint16_t n_bytes_sent,
+                           uint8_t func_id,
+                           uint8_t ep_in,
+                           uint8_t cur_alt_setting)
+{
+    (void)rhport;
+    (void)n_bytes_sent;
+    (void)func_id;
+    (void)ep_in;
+
+    if (cur_alt_setting != 0) {
+        usb_audio_feed_one_frame();
+    }
+    return true;
+}
+
+bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_request)
+{
+    (void)rhport;
+
+    uint8_t alt = (uint8_t)(p_request->wValue & 0xffu);
+    if (alt != 0) {
+        // Pre-fill a few frames so the first ISO IN transaction is not empty.
+        for (unsigned i = 0; i < 4; i++) {
+            usb_audio_feed_one_frame();
+        }
+    }
+    return true;
+}
+
+bool tud_audio_set_itf_close_ep_cb(uint8_t rhport, tusb_control_request_t const *p_request)
+{
+    (void)rhport;
+    (void)p_request;
+    return true;
+}
+
+#ifndef tud_audio_set_itf_close_EP_cb
+bool tud_audio_set_itf_close_EP_cb(uint8_t rhport, tusb_control_request_t const *p_request)
+{
+    return tud_audio_set_itf_close_ep_cb(rhport, p_request);
+}
+#endif
+
+bool tud_audio_set_req_ep_cb(uint8_t rhport,
+                             tusb_control_request_t const *p_request,
+                             uint8_t *pBuff)
+{
+    (void)rhport;
+    (void)p_request;
+    (void)pBuff;
+    return false;
+}
+
+bool tud_audio_get_req_ep_cb(uint8_t rhport,
+                             tusb_control_request_t const *p_request)
+{
+    (void)rhport;
+    (void)p_request;
+    return false;
+}
+
+bool tud_audio_set_req_itf_cb(uint8_t rhport,
+                              tusb_control_request_t const *p_request,
+                              uint8_t *pBuff)
+{
+    (void)rhport;
+    (void)p_request;
+    (void)pBuff;
+    return false;
+}
+
+bool tud_audio_get_req_itf_cb(uint8_t rhport,
+                              tusb_control_request_t const *p_request)
+{
+    (void)rhport;
+    (void)p_request;
+    return false;
+}
+
+bool tud_audio_get_req_entity_cb(uint8_t rhport,
+                                 tusb_control_request_t const *p_request)
+{
+    audio_control_request_t const *request = (audio_control_request_t const *)p_request;
+
+    if (request->bEntityID == ID_CLK &&
+        request->bControlSelector == AUDIO_CS_CTRL_SAM_FREQ)
+    {
+        if (request->bRequest == AUDIO_CS_REQ_CUR) {
+            audio_control_cur_4_t curf = { .bCur = current_sample_rate };
+            return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &curf, sizeof(curf));
+        }
+
+        if (request->bRequest == AUDIO_CS_REQ_RANGE) {
+            audio_control_range_4_n_t(1) rangef = {
+                .wNumSubRanges = 1,
+                .subrange[0] = {
+                    .bMin = AUDIO_SAMPLE_RATE,
+                    .bMax = AUDIO_SAMPLE_RATE,
+                    .bRes = 0
+                }
+            };
+            return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &rangef, sizeof(rangef));
+        }
+    }
+
+    if (request->bEntityID == ID_CLK &&
+        request->bControlSelector == AUDIO_CS_CTRL_CLK_VALID)
+    {
+        if (request->bRequest == AUDIO_CS_REQ_CUR) {
+            audio_control_cur_1_t cur_valid = { .bCur = clock_valid };
+            return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &cur_valid, sizeof(cur_valid));
+        }
+    }
+
+    if (request->bEntityID == ID_FU &&
+        request->bControlSelector == AUDIO_FU_CTRL_MUTE &&
+        request->bChannelNumber == 0)
+    {
+        if (request->bRequest == AUDIO_CS_REQ_CUR) {
+            audio_control_cur_1_t cur_mute = { .bCur = master_mute };
+            return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &cur_mute, sizeof(cur_mute));
+        }
+    }
+
+    return false;
+}
+
+bool tud_audio_set_req_entity_cb(uint8_t rhport,
+                                 tusb_control_request_t const *p_request,
+                                 uint8_t *pBuff)
+{
+    (void)rhport;
+    audio_control_request_t const *request = (audio_control_request_t const *)p_request;
+
+    if (request->bEntityID == ID_CLK &&
+        request->bControlSelector == AUDIO_CS_CTRL_SAM_FREQ &&
+        request->bRequest == AUDIO_CS_REQ_CUR)
+    {
+        if (p_request->wLength != sizeof(audio_control_cur_4_t)) return false;
+        audio_control_cur_4_t const *curf = (audio_control_cur_4_t const *)pBuff;
+        if ((uint32_t)curf->bCur != AUDIO_SAMPLE_RATE) return false;
+        current_sample_rate = (uint32_t)curf->bCur;
+        return true;
+    }
+
+    if (request->bEntityID == ID_FU &&
+        request->bControlSelector == AUDIO_FU_CTRL_MUTE &&
+        request->bChannelNumber == 0 &&
+        request->bRequest == AUDIO_CS_REQ_CUR)
+    {
+        if (p_request->wLength != sizeof(audio_control_cur_1_t)) return false;
+        audio_control_cur_1_t const *cur_mute = (audio_control_cur_1_t const *)pBuff;
+        master_mute = cur_mute->bCur ? 1u : 0u;
+        return true;
+    }
+
+    return false;
 }
 
 int main(void)
@@ -101,60 +261,27 @@ int main(void)
     stdio_init_all();
     tusb_init();
 
-    // Heartbeat LED
     const uint led_pin = PICO_DEFAULT_LED_PIN;
     gpio_init(led_pin);
     gpio_set_dir(led_pin, GPIO_OUT);
+
     bool led_state = false;
-    uint32_t heartbeat_ms = 200;
-    absolute_time_t next_heartbeat = make_timeout_time_ms(heartbeat_ms);
+    absolute_time_t next_heartbeat = make_timeout_time_ms(100);
 
-    // -------- PIO program load & init --------
-    PIO pio = pio0;
-    uint sm = 0;
-    uint offset = pio_add_program(pio, &i2s_rx_program);
-    i2s_rx_program_init(pio, sm, offset, PIN_I2S_DATA, PIN_I2S_SCK, PIN_I2S_WS, AUDIO_SAMPLE_RATE);
-
-    // Enable SM
-    pio_sm_set_enabled(pio, sm, true);
-
-    // -------- DMA config --------
-    dma_channel_config c = dma_channel_get_default_config(DMA_ADC_CHANNEL);
-    channel_config_set_transfer_data_size(&c, DMA_SIZE_32);       // PIO RX FIFO is 32-bit
-    channel_config_set_read_increment(&c, false);                  // read from fixed FIFO address
-    channel_config_set_write_increment(&c, true);                  // write linear buffer
-    channel_config_set_dreq(&c, pio_get_dreq(pio, sm, false));     // PIO RX DREQ
-
-    // Start writing into the first half
-    dma_buf_select = 0;
-    dma_channel_configure(
-        DMA_ADC_CHANNEL, &c,
-        dma_buf,               // dst
-        &pio->rxf[sm],         // src
-        AUDIO_PACKET_SIZE / 4, // 32-bit words per half
-        false                  // don't start yet
-    );
-
-    // IRQ for half-complete
-    dma_channel_set_irq0_enabled(DMA_ADC_CHANNEL, true);
-    irq_set_exclusive_handler(DMA_IRQ_0, dma_handler);
-    irq_set_enabled(DMA_IRQ_0, true);
-
-    // Kick off first transfer
-    dma_channel_start(DMA_ADC_CHANNEL);
-
-    // -------- Main loop --------
-    for (;;)
-    {
+    for (;;) {
         tud_task();
 
-        // Blink
-        if (absolute_time_diff_us(get_absolute_time(), next_heartbeat) <= 0)
-        {
+        // Fallback pre-fill path for TinyUSB variants where the TX callbacks are
+        // only invoked after the first successful transfer. This is intentionally
+        // conservative: one frame per main-loop tick when mounted.
+        if (tud_audio_mounted()) {
+            usb_audio_feed_one_frame();
+        }
+
+        if (absolute_time_diff_us(get_absolute_time(), next_heartbeat) <= 0) {
             led_state = !led_state;
             gpio_put(led_pin, led_state);
-            next_heartbeat = make_timeout_time_ms(heartbeat_ms);
+            next_heartbeat = make_timeout_time_ms(100);
         }
     }
 }
-

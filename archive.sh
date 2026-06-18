@@ -1,20 +1,24 @@
 #!/bin/bash
 
-# This script creates a clean source archive named project.tar.gz
+# Tento skript vytvoří čistý archiv obsahující POUZE zdrojové kódy a logy
 
-echo "Creating archive..."
+echo "Vytvářím archiv project.tar.gz..."
 
 tar -czf project.tar.gz \
   --exclude='./.git' \
   --exclude='./build' \
   --exclude='./pico-sdk' \
+  --exclude='./openocd' \
+  --exclude='./picotool' \
+  --exclude='./.aider*' \
   --exclude='./datasheets' \
-  --exclude='./project.tar.gz' \
+  --exclude='./presentation' \
   --exclude='./.vscode' \
+  --exclude='./project.tar.gz' \
   --exclude='*.old' \
   --exclude='*.bak' \
-  --exclude='lsusb_output.txt' \
   --exclude='.DS_Store' \
-  .
+  --exclude='err_build.log' \
+.
 
-echo "Archive 'project.tar.gz' created successfully."
+echo "Archiv 'project.tar.gz' byl úspěšně vytvořen."

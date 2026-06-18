@@ -23,15 +23,15 @@ uint8_t const* tud_descriptor_device_cb(void) {
   return (uint8_t const*) &desc_device;
 }
 
-// ---------- Config descriptor (UAC2, 6ch mic @ 16 kHz / 16-bit packed) ----------
+// ---------- Config descriptor (UAC2, 6ch mic @ 48 kHz / 16-bit packed) ----------
 enum { ITF_NUM_AC = 0, ITF_NUM_AS, ITF_NUM_TOTAL };
 #define EPNUM_AUDIO_IN      0x01
 #define EP_ADDR_AUDIO_IN    (0x80 | EPNUM_AUDIO_IN)
 
 #define AUDIO_N_CHANNELS    6
-#define AUDIO_SAMPLE_RATE   16000
+#define AUDIO_SAMPLE_RATE   48000 // OPRAVENO: Bylo 16000
 #define AUDIO_SAMPLE_BYTES  2
-#define AUDIO_PACKET_SIZE   ((AUDIO_SAMPLE_RATE/1000) * AUDIO_N_CHANNELS * AUDIO_SAMPLE_BYTES) // 16 * 6 * 2 = 192
+#define AUDIO_PACKET_SIZE   ((AUDIO_SAMPLE_RATE/1000) * AUDIO_N_CHANNELS * AUDIO_SAMPLE_BYTES) // 48 * 6 * 2 = 576
 
 #define ID_CLK  0x01
 #define ID_IT   0x02
@@ -66,7 +66,7 @@ static uint8_t const desc_configuration[] = {
   0x00, 0x00, 0x00, 0x00, // Ch3
   0x00, 0x00, 0x00, 0x00, // Ch4
   0x00, 0x00, 0x00, 0x00, // Ch5
-  0x00, 0x00, 0x00, 0x00, // Ch6  <-- CORRECTED: Added comma
+  0x00, 0x00, 0x00, 0x00, // Ch6
   0x00,                   // iFeature
   // ---- Output Terminal ----
   LEN_CS_OT, 0x24, 0x03, ID_OT, 0x01, 0x01, 0x00, ID_FU, ID_CLK, 0x00, 0x00, 0x00,
@@ -99,7 +99,7 @@ uint8_t const* tud_descriptor_configuration_cb(uint8_t index) {
 static char const* string_desc[] = {
   (const char[]){ 0x09, 0x04 },   // 0: English (US)
   "het68",                        // 1: Manufacturer
-  "Pico 6ch Microphone 16k/16",   // 2: Product
+  "Pico 6ch Microphone 48k/16",   // 2: Product (OPRAVENO z 16k na 48k)
   "123654",                       // 3: Serial
 };
 
