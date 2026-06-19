@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "pico/stdlib.h"
 #include "tusb.h"
@@ -95,34 +96,12 @@ bool tud_audio_tx_done_post_load_cb(uint8_t rhport,
     return true;
 }
 
-bool tud_audio_tx_done_isr(uint8_t rhport,
-                           uint16_t n_bytes_sent,
-                           uint8_t func_id,
-                           uint8_t ep_in,
-                           uint8_t cur_alt_setting)
-{
-    (void)rhport;
-    (void)n_bytes_sent;
-    (void)func_id;
-    (void)ep_in;
-
-    if (cur_alt_setting != 0) {
-        usb_audio_feed_one_frame();
-    }
-    return true;
-}
-
 bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_request)
 {
     (void)rhport;
-
-    uint8_t alt = (uint8_t)(p_request->wValue & 0xffu);
-    if (alt != 0) {
-        // Pre-fill a few frames so the first ISO IN transaction is not empty.
-        for (unsigned i = 0; i < 4; i++) {
-            usb_audio_feed_one_frame();
-        }
-    }
+    uint8_t const alt = (uint8_t)(p_request->wValue & 0xffu);
+    uint8_t const itf = (uint8_t)(p_request->wIndex & 0xffu);
+    printf("[UAC2] SET_INTERFACE iface=%u alt=%u\n", itf, alt);
     return true;
 }
 
@@ -185,11 +164,13 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport,
         request->bControlSelector == AUDIO_CS_CTRL_SAM_FREQ)
     {
         if (request->bRequest == AUDIO_CS_REQ_CUR) {
+            printf("[UAC2] GET_CUR clk freq -> %lu\n", (unsigned long)current_sample_rate);
             audio_control_cur_4_t curf = { .bCur = current_sample_rate };
             return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &curf, sizeof(curf));
         }
 
         if (request->bRequest == AUDIO_CS_REQ_RANGE) {
+            printf("[UAC2] GET_RANGE clk freq\n");
             audio_control_range_4_n_t(1) rangef = {
                 .wNumSubRanges = 1,
                 .subrange[0] = {
@@ -206,16 +187,17 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport,
         request->bControlSelector == AUDIO_CS_CTRL_CLK_VALID)
     {
         if (request->bRequest == AUDIO_CS_REQ_CUR) {
+            printf("[UAC2] GET_CUR clk valid -> %u\n", clock_valid);
             audio_control_cur_1_t cur_valid = { .bCur = clock_valid };
             return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &cur_valid, sizeof(cur_valid));
         }
     }
 
     if (request->bEntityID == ID_FU &&
-        request->bControlSelector == AUDIO_FU_CTRL_MUTE &&
-        request->bChannelNumber == 0)
+        request->bControlSelector == AUDIO_FU_CTRL_MUTE)
     {
         if (request->bRequest == AUDIO_CS_REQ_CUR) {
+            // All channels report the same master mute state.
             audio_control_cur_1_t cur_mute = { .bCur = master_mute };
             return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &cur_mute, sizeof(cur_mute));
         }
@@ -244,7 +226,6 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport,
 
     if (request->bEntityID == ID_FU &&
         request->bControlSelector == AUDIO_FU_CTRL_MUTE &&
-        request->bChannelNumber == 0 &&
         request->bRequest == AUDIO_CS_REQ_CUR)
     {
         if (p_request->wLength != sizeof(audio_control_cur_1_t)) return false;
@@ -259,7 +240,12 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport,
 int main(void)
 {
     stdio_init_all();
+    printf("\n\n=== het68 UAC2 6ch diagnostic firmware starting ===\n");
+    printf("    AUDIO: %d ch, %d Hz, %d bit\n",
+           AUDIO_N_CHANNELS, AUDIO_SAMPLE_RATE, AUDIO_SAMPLE_BYTES * 8);
+    printf("    PACKET: %d bytes/frame\n", AUDIO_PACKET_SIZE);
     tusb_init();
+    printf("    TinyUSB init OK\n");
 
     const uint led_pin = PICO_DEFAULT_LED_PIN;
     gpio_init(led_pin);
