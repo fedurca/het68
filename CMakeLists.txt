@@ -35,5 +35,6 @@ target_link_libraries(pico_6mic_soundcard
 pico_enable_stdio_usb(pico_6mic_soundcard 0)   # žádné stdio přes USB -> bez warningu
 # pico_enable_stdio_usb(pico_6mic_soundcard 1) # pokud chceš stdio USB, zapni zároveň CFG_TUD_CDC v tusb_config.h
 
-pico_enable_stdio_uart(pico_6mic_soundcard 0)
+# UART stdio na GP0(TX)/GP1(RX) @ 115200 Bd — pouze pro ladění, I2S ještě není zapojený
+pico_enable_stdio_uart(pico_6mic_soundcard 1)
 pico_add_extra_outputs(pico_6mic_soundcard)
