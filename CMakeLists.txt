@@ -22,6 +22,13 @@ target_include_directories(pico_6mic_soundcard PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# Redirect panic() to our custom handler so UART drains before CPU halts.
+# Without this, __breakpoint() in the stock panic halts the CPU (Debug Probe)
+# before the UART FIFO transmits the message.
+target_compile_definitions(pico_6mic_soundcard PRIVATE
+    PICO_PANIC_FUNCTION=het68_panic
+)
+
 target_link_libraries(pico_6mic_soundcard
     pico_stdlib
     hardware_pio

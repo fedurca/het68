@@ -12,9 +12,25 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #include "pico/stdlib.h"
 #include "tusb.h"
+
+// Custom panic handler registered via PICO_PANIC_FUNCTION=het68_panic (CMakeLists.txt).
+// Without this, pico-sdk's panic() calls __breakpoint() which halts the CPU before
+// the UART FIFO has drained, silently swallowing the panic reason when the Debug Probe
+// is connected.
+void __attribute__((noreturn)) het68_panic(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    puts("\n!!! PANIC !!!\n");
+    vprintf(fmt, args);
+    puts("\n");
+    va_end(args);
+    sleep_ms(300); // let UART FIFO drain at 115200 baud (~200 chars @ 115200)
+    for (;;) { __asm volatile("nop"); }  // spin — no __breakpoint so UART stays alive
+}
 
 #define AUDIO_SAMPLE_RATE   CFG_TUD_AUDIO_FUNC_1_MAX_SAMPLE_RATE
 #define AUDIO_N_CHANNELS    CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX
