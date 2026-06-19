@@ -55,8 +55,37 @@ def add_extern(path):
         print(f"  = extern decls already in {os.path.basename(path)}")
 
 
+def reset_pico_sdk():
+    """Reset patchable files to their original git state to avoid duplicate patches."""
+    files = [
+        "src/portable/raspberrypi/rp2040/dcd_rp2040.c",
+        "src/portable/raspberrypi/rp2040/rp2040_usb.c",
+        "src/class/audio/audio_device.c",
+        "src/device/usbd.c",
+        "src/device/usbd_control.c",
+    ]
+    tinyusb = os.path.join(ROOT, "pico-sdk/lib/tinyusb")
+    if not os.path.isdir(tinyusb):
+        return
+    # Only reset if git is available and the directory is a git repo
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["git", "checkout", "HEAD", "--"] + files,
+            cwd=tinyusb, capture_output=True, text=True)
+        if result.returncode == 0:
+            print("  ✓ pico-sdk/lib/tinyusb files reset to original")
+        else:
+            print(f"  ! git checkout failed: {result.stderr.strip()[:80]}")
+    except Exception as e:
+        print(f"  ! Could not reset pico-sdk: {e}")
+
+
 def main():
     os.chdir(ROOT)
+    print("── Resetting pico-sdk files to original state:")
+    reset_pico_sdk()
+    print()
     for p in [DCD, USB, AC, UC, UD]:
         if not os.path.exists(p):
             sys.exit(f"ERROR: {p} not found – clone pico-sdk first (sdk_init.sh)")
