@@ -235,11 +235,11 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
     # ── Summary ──────────────────────────────────────────────────────────────
     print("\n── Verify:")
     checks = [
-        (DCD, "hw_endpoint_abort_xfer",   "3"),
-        (USB, "TUSB_XFER_ISOCHRONOUS",    "1"),
-        (USB, "ep->endpoint_control)",    "1"),
-        (AC,  "usbd_edpt_release",        "1"),
-        (AC,  "Fix 5b",                   "1"),
+        (DCD, "hw_endpoint_abort_xfer",      "3"),
+        (USB, "TUSB_XFER_ISOCHRONOUS",       "1"),
+        (USB, "if (ep->endpoint_control)",   "1"),  # unique: our null-guard
+        (AC,  "// Fix 5a",                   "1"),  # unique comment marker
+        (AC,  "// Fix 5b",                   "1"),  # unique comment marker
     ]
     all_ok = True
     for path, pattern, expect in checks:
