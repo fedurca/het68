@@ -246,6 +246,30 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
     # ────────────────────────────────────────────────────────────────────────
     print(f"\n── {os.path.basename(UD)}")
 
+    # Fix 9: Clear EP0 busy/claimed on SETUP — root cause of post-alt=1 crash.
+    # Our set_itf_cb calls tud_control_status → EP0_IN busy=1.  The next SETUP
+    # (clock query from Linux) calls reset_ep0() which clears hardware state but
+    # NOT the software busy flag.  usbd_edpt_claim then sees busy=1 →
+    # TU_ASSERT UB → crash.  Fix: reset software state to match hardware.
+    apply(UD,
+        ("    // deliver event\n"
+         "    case DCD_EVENT_SETUP_RECEIVED:"),
+        ("    // deliver event\n"
+         "    case DCD_EVENT_SETUP_RECEIVED:\n"
+         "      /* Fix 9: SETUP aborts pending EP0; reset SW state to match HW */\n"
+         "      _usbd_dev.ep_status[0][TUSB_DIR_IN].busy    = 0;\n"
+         "      _usbd_dev.ep_status[0][TUSB_DIR_IN].claimed = 0;\n"
+         "      _usbd_dev.ep_status[0][TUSB_DIR_OUT].busy   = 0;\n"
+         "      _usbd_dev.ep_status[0][TUSB_DIR_OUT].claimed = 0;"),
+        "Fix 9  – clear EP0 busy/claimed on SETUP (prevent TU_ASSERT UB on clock query)")
+
+    # Fix 10: TU_ASSERT(!claimed && !busy) in usbd_edpt_claim is UB with -O3.
+    apply(UD,
+        "  TU_ASSERT(!_usbd_dev.ep_status[epnum][dir].claimed && !_usbd_dev.ep_status[epnum][dir].busy);",
+        ("  if (_usbd_dev.ep_status[epnum][dir].claimed ||\n"
+         "      _usbd_dev.ep_status[epnum][dir].busy) { return false; } // Fix 10: no UB"),
+        "Fix 10 – replace TU_ASSERT in usbd_edpt_claim with safe if/return")
+
     # Fix 6: TU_ASSERT(busy==0) in usbd_edpt_xfer causes UB with -O3:
     # 'return;' in a bool function may not actually return (compiler can prove
     # the path is UB and optimize it away), causing fall-through that tries to
@@ -268,6 +292,8 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
         (AC,  "// Fix 5b",                   "1"),
         (AC,  "// Fix 7",                    "1"),
         (AC,  "// Fix 8",                    "1"),
+        (UD,  "/* Fix 9",                    "1"),
+        (UD,  "// Fix 10",                   "1"),
         (UD,  "// Fix 6",                    "1"),
     ]
     all_ok = True
