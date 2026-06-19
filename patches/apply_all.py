@@ -190,20 +190,23 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
     print(f"\n── {os.path.basename(AC)}")
     add_extern(AC)
 
-    # Fix 5: after dcd_edpt_iso_activate aborts an active transfer, TinyUSB's
-    # software busy flag (_usbd_dev.ep_status[1][IN].busy) is still 1 because
-    # the abort doesn't generate a xfer_complete event.  usbd_edpt_clear_stall
-    # only clears busy when the endpoint is STALLED, so the flag stays 1.
-    # When audiod_tx_done_cb then calls usbd_edpt_xfer(EP_IN), TU_ASSERT(busy==0)
-    # fails → returns false → TU_VERIFY in audiod_set_interface hits UB with -O3
-    # (return; in bool fn) → execution falls through → firmware freezes.
-    # Fix: call usbd_edpt_release(rhport, ep_addr) after clear_stall so that
-    # the busy flag is explicitly cleared before the new transfer is started.
+    # Fix 5a: clear the busy flag so audiod_tx_done_cb can start a new transfer.
+    # usbd_edpt_clear_stall only clears busy when stalled; usbd_edpt_release
+    # always clears it.
     apply(AC,
         "          usbd_edpt_clear_stall(rhport, ep_addr);",
         ("          usbd_edpt_clear_stall(rhport, ep_addr);\n"
-         "          usbd_edpt_release(rhport, ep_addr); // Fix 5: clear busy after ISO abort"),
-        "Fix 5  – usbd_edpt_release after clear_stall to reset busy flag")
+         "          usbd_edpt_release(rhport, ep_addr); // Fix 5a: clear busy after ISO abort"),
+        "Fix 5a – usbd_edpt_release after clear_stall to reset busy flag")
+
+    # Fix 5b: TU_VERIFY(audiod_tx_done_cb(...)) with -O3 generates UB: 'return;'
+    # in a bool function.  GCC may not actually return, causing fall-through with
+    # corrupted state.  Remove TU_VERIFY so a failed call is silently ignored —
+    # the main loop will start normal streaming at the next xfer_complete event.
+    apply(AC,
+        "            TU_VERIFY(audiod_tx_done_cb(rhport, &_audiod_fct[func_id]));",
+        ("            audiod_tx_done_cb(rhport, &_audiod_fct[func_id]); // Fix 5b: no TU_VERIFY UB"),
+        "Fix 5b – remove TU_VERIFY from audiod_tx_done_cb call (UB with -O3)")
 
     apply(AC,
         "      TU_VERIFY(tud_audio_set_itf_cb(rhport, p_request));",
@@ -247,6 +250,7 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
         (USB, "ep->endpoint_control)",      "1"),
         (USB, "DBG_CP('I')",               "1"),
         (AC,  "usbd_edpt_release",          "1"),
+        (AC,  "Fix 5b",                     "1"),
         (AC,  "DBG_CP('O')",               "1"),
         (UC,  "DBG_CP('Q')",               "1"),
         (UD,  "DBG_CP('K')",               "1"),
