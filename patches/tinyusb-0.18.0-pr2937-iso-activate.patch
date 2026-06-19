@@ -1,16 +1,24 @@
-From: TinyUSB PR #2937 backport
-Subject: rp2040: abort transfer if active in iso_activate()
+From: TinyUSB backport: PR #2937 + commit 4bfba6b
+Subject: rp2040: two ISO transfer fixes for UAC2 on pico-sdk 0.18.0
 
-Fix SET_INTERFACE (-110 ETIMEDOUT) on Linux when re-starting USB Audio
-streaming.  Without this fix, if the host (Linux UAC2 driver) tries to
-set the streaming interface to alt-setting 1 while a previous isochronous
-transfer is still marked active in TinyUSB's endpoint state, the firmware
-panics with "ep 81 was already available" or hangs, making the device
-completely unresponsive and causing all subsequent control requests to
-time out with ETIMEDOUT (-110).
+Fix 1 (PR #2937, merged 2025-03-07):
+  dcd_edpt_iso_activate() did not abort an in-flight ISO transfer before
+  re-enabling the endpoint on SET_INTERFACE. This caused a hard panic
+  ("ep 81 was already available") on the very first SET_INTERFACE from
+  the Linux UAC2 driver, making the device completely unresponsive
+  (all subsequent EP0 requests timed out with -110 ETIMEDOUT).
 
-Upstream fix: https://github.com/hathach/tinyusb/pull/2937
-Merged into TinyUSB master on 2025-03-07, not yet in pico-sdk 0.18.0.
+Fix 2 (commit 4bfba6b, 2025-08-05):
+  hw_handle_buff_status() notified the stack (dcd_event_xfer_complete)
+  BEFORE resetting ep->active. Since TinyUSB's audio class driver queues
+  the next ISO transfer from within the xfer-complete callback (ISR),
+  hw_endpoint_xfer_start() would find ep->active == true and
+  hard-assert, crashing the firmware ~50 s after successful streaming
+  start (after the first xfer-complete ISR fires).
+
+Upstream references:
+  https://github.com/hathach/tinyusb/pull/2937
+  https://github.com/hathach/tinyusb/commit/4bfba6b09a90d5321b3dbd2d986760438417c430
 
 --- a/src/portable/raspberrypi/rp2040/dcd_rp2040.c
 +++ b/src/portable/raspberrypi/rp2040/dcd_rp2040.c
@@ -49,7 +57,23 @@ Merged into TinyUSB master on 2025-03-07, not yet in pico-sdk 0.18.0.
  static void __tusb_irq_path_func(hw_handle_buff_status)(void) {
    uint32_t remaining_buffers = usb_hw->buf_status;
    pico_trace("buf_status = 0x%08lx\r\n", remaining_buffers);
-@@ -178,25 +206,10 @@ TU_ATTR_ALWAYS_INLINE static inline void reset_ep0(void) {
+@@ -163,9 +191,13 @@ static void __tusb_irq_path_func(hw_handle_buff_status)(void) {
+       // Continue xfer
+       bool done = hw_endpoint_xfer_continue(ep);
+       if (done) {
+-        // Notify
+-        dcd_event_xfer_complete(0, ep->ep_addr, ep->xferred_len, XFER_RESULT_SUCCESS, true);
++        // Reset transfer state BEFORE notifying the stack (backport of TinyUSB commit 4bfba6b,
++        // Aug 2025). The audio class driver now queues the next ISO transfer from within the
++        // xfer-complete callback (ISR context). If ep->active is still true at that point,
++        // hw_endpoint_xfer_start() hard-asserts "ep XX was already available".
++        uint16_t const xferred_len = ep->xferred_len;
+         hw_endpoint_reset_transfer(ep);
++        dcd_event_xfer_complete(0, ep->ep_addr, xferred_len, XFER_RESULT_SUCCESS, true);
+       }
+       remaining_buffers &= ~bit;
+     }
+@@ -178,25 +210,10 @@ TU_ATTR_ALWAYS_INLINE static inline void reset_ep0(void) {
    // setup transfer. Also clear a stall in case
    for (uint8_t dir = 0; dir < 2; dir++) {
      struct hw_endpoint* ep = hw_endpoint_get_by_num(0, dir);
@@ -77,7 +101,7 @@ Merged into TinyUSB master on 2025-03-07, not yet in pico-sdk 0.18.0.
    }
  }
  
-@@ -495,12 +508,14 @@ bool dcd_edpt_iso_alloc(uint8_t rhport, uint8_t ep_addr, uint16_t largest_packet
+@@ -495,12 +512,14 @@ bool dcd_edpt_iso_alloc(uint8_t rhport, uint8_t ep_addr, uint16_t largest_packet
  // New API: Configure and enable an ISO endpoint according to descriptor
  bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc) {
    (void) rhport;
