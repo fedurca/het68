@@ -15,21 +15,85 @@
 #include <stdarg.h>
 
 #include "pico/stdlib.h"
+#include "hardware/uart.h"
 #include "tusb.h"
 
-// Custom panic handler registered via PICO_PANIC_FUNCTION=het68_panic (CMakeLists.txt).
-// Without this, pico-sdk's panic() calls __breakpoint() which halts the CPU before
-// the UART FIFO has drained, silently swallowing the panic reason when the Debug Probe
-// is connected.
+// ---------------------------------------------------------------------------
+// Raw UART helpers — safe to call from interrupt/fault context, no mutex.
+// ---------------------------------------------------------------------------
+static void raw_puts(const char *s) {
+    while (*s) uart_putc_raw(uart_default, *s++);
+}
+
+static void raw_puthex32(uint32_t v) {
+    static const char hex[] = "0123456789ABCDEF";
+    raw_puts("0x");
+    for (int i = 28; i >= 0; i -= 4)
+        uart_putc_raw(uart_default, hex[(v >> i) & 0xF]);
+}
+
+static void raw_putu32(uint32_t v) {
+    if (v == 0) { uart_putc_raw(uart_default, '0'); return; }
+    char buf[11]; int n = 0;
+    for (; v; v /= 10) buf[n++] = '0' + (v % 10);
+    while (n--) uart_putc_raw(uart_default, buf[n]);
+}
+
+// Spin until UART TX FIFO fully drained (~10 chars at 115200 = 0.87 ms).
+static void raw_flush(void) {
+    while (uart_is_writable(uart_default) == false) { }
+    // UART FIFO drained to hardware shift register; give one more char-time.
+    for (volatile int i = 0; i < 12000; i++) { }
+}
+
+// ---------------------------------------------------------------------------
+// Custom panic handler (PICO_PANIC_FUNCTION=het68_panic).
+// Uses raw UART so the message is visible even from fault/ISR context.
+// ---------------------------------------------------------------------------
 void __attribute__((noreturn)) het68_panic(const char *fmt, ...) {
+    raw_puts("\n!!! PANIC !!! uptime=");
+    raw_putu32((uint32_t)(time_us_64() / 1000000));
+    raw_puts("s\n");
+    // best-effort formatted print (may be unavailable in deep fault context)
     va_list args;
     va_start(args, fmt);
-    puts("\n!!! PANIC !!!\n");
     vprintf(fmt, args);
-    puts("\n");
     va_end(args);
-    sleep_ms(300); // let UART FIFO drain at 115200 baud (~200 chars @ 115200)
-    for (;;) { __asm volatile("nop"); }  // spin — no __breakpoint so UART stays alive
+    raw_puts("\n");
+    raw_flush();
+    for (;;) { __asm volatile("nop"); }
+}
+
+// ---------------------------------------------------------------------------
+// HardFault handler — catches NULL deref, bad jump, stack overflow etc.
+// Prints PC/LR from the faulting frame so we can find the crash site.
+// ---------------------------------------------------------------------------
+void __attribute__((naked)) isr_hardfault(void) {
+    // Stacked frame (PSP or MSP): R0 R1 R2 R3 R12 LR PC xPSR
+    __asm volatile (
+        "tst lr, #4        \n"  // test bit 2 of EXC_RETURN
+        "ite eq            \n"
+        "mrseq r0, msp     \n"  // 0 -> faulted on MSP
+        "mrsne r0, psp     \n"  // 1 -> faulted on PSP
+        "b het68_hardfault \n"
+        ::: "r0"
+    );
+}
+
+void __attribute__((noreturn)) het68_hardfault(uint32_t *frame) {
+    raw_puts("\n!!! HARDFAULT !!! uptime=");
+    raw_putu32((uint32_t)(time_us_64() / 1000000));
+    raw_puts("s\n");
+    raw_puts("PC="); raw_puthex32(frame[6]);
+    raw_puts(" LR="); raw_puthex32(frame[5]);
+    raw_puts(" PSR="); raw_puthex32(frame[7]);
+    raw_puts("\nR0="); raw_puthex32(frame[0]);
+    raw_puts(" R1="); raw_puthex32(frame[1]);
+    raw_puts(" R2="); raw_puthex32(frame[2]);
+    raw_puts(" R3="); raw_puthex32(frame[3]);
+    raw_puts("\n");
+    raw_flush();
+    for (;;) { __asm volatile("nop"); }
 }
 
 #define AUDIO_SAMPLE_RATE   CFG_TUD_AUDIO_FUNC_1_MAX_SAMPLE_RATE
@@ -115,7 +179,10 @@ bool tud_audio_tx_done_post_load_cb(uint8_t rhport,
 bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_request)
 {
     (void)rhport;
-    (void)p_request;
+    uint8_t const alt = (uint8_t)(p_request->wValue & 0xffu);
+    uint8_t const itf = (uint8_t)(p_request->wIndex & 0xffu);
+    printf("[%5lus] SET_INTERFACE iface=%u alt=%u\n",
+           (unsigned long)(time_us_64() / 1000000), itf, alt);
     return true;
 }
 
@@ -251,12 +318,14 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport,
 int main(void)
 {
     stdio_init_all();
-    printf("\n\n=== het68 UAC2 6ch diagnostic firmware starting ===\n");
-    printf("    AUDIO: %d ch, %d Hz, %d bit\n",
-           AUDIO_N_CHANNELS, AUDIO_SAMPLE_RATE, AUDIO_SAMPLE_BYTES * 8);
-    printf("    PACKET: %d bytes/frame\n", AUDIO_PACKET_SIZE);
+    printf("\n\n=== het68 UAC2 6ch diagnostic firmware ===\n");
+    printf("    Build : %s %s\n", __DATE__, __TIME__);
+    printf("    Audio : %d ch, %d Hz, %d bit, %d B/frame\n",
+           AUDIO_N_CHANNELS, AUDIO_SAMPLE_RATE,
+           AUDIO_SAMPLE_BYTES * 8, AUDIO_PACKET_SIZE);
     tusb_init();
-    printf("    TinyUSB init OK\n");
+    printf("    TinyUSB 0.18.0 + PR#2937+4bfba6b patches\n");
+    printf("==========================================\n");
 
     const uint led_pin = PICO_DEFAULT_LED_PIN;
     gpio_init(led_pin);
