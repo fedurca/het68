@@ -162,24 +162,9 @@ bool tud_audio_tx_done_pre_load_cb(uint8_t rhport,
     (void)func_id;
     (void)ep_in;
 
-    // CP-B: ISO xfer-complete pre-load callback reached
-    static uint32_t cb_count = 0;
-    cb_count++;
-    if (cb_count <= 5 || (cb_count % 1000) == 0) {
-        raw_puts("[CP-B] pre_load_cb #");
-        raw_putu32(cb_count);
-        raw_puts(" alt=");
-        raw_putu32(cur_alt_setting);
-        raw_puts("\n");
-        raw_flush();
-    }
-
     if (cur_alt_setting != 0) {
-        dbg_putc('X'); dbg_putc('\n');  // CP-X: before feed
         usb_audio_feed_one_frame();
-        dbg_putc('Y'); dbg_putc('\n');  // CP-Y: after feed — if freeze: bug is in feed
     }
-    dbg_putc('Z'); dbg_putc('\n');      // CP-Z: callback about to return true
     return true;
 }
 
@@ -377,27 +362,14 @@ int main(void)
     absolute_time_t next_led       = make_timeout_time_ms(500);
     absolute_time_t next_heartbeat = make_timeout_time_ms(10000);
     uint32_t hb_count = 0;
-    uint32_t loop_count = 0;
 
     for (;;) {
         tud_task();
-
-        // CP-A: confirm main loop runs after tud_task() returns
-        loop_count++;
-        if (loop_count == 1) {
-            raw_puts("[CP-A] main loop first iteration\n");
-            raw_flush();
-        } else if (loop_count == 100000) {
-            raw_puts("[CP-A] main loop 100k iters\n");
-            raw_flush();
-            loop_count = 0;
-        }
 
         if (tud_audio_mounted()) {
             usb_audio_feed_one_frame();
         }
 
-        // LED blink: 2 Hz when idle, 10 Hz when streaming
         uint32_t blink_ms = tud_audio_mounted() ? 100 : 500;
         if (absolute_time_diff_us(get_absolute_time(), next_led) <= 0) {
             led_state = !led_state;
@@ -405,10 +377,8 @@ int main(void)
             next_led = make_timeout_time_ms(blink_ms);
         }
 
-        // Heartbeat: prints uptime every 10 s so we can tell the firmware is alive
         if (absolute_time_diff_us(get_absolute_time(), next_heartbeat) <= 0) {
             hb_count++;
-            dbg_pulse(4);  // 4 pulses = heartbeat
             printf("[%5lus] heartbeat #%lu  mounted=%d\n",
                    (unsigned long)(time_us_64() / 1000000),
                    (unsigned long)hb_count,

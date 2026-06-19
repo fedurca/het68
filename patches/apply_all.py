@@ -179,16 +179,10 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
         "  if (ep->endpoint_control) *ep->endpoint_control = ep_ctrl;  // EP0=NULL on RP2350",
         "Fix 4  – NULL guard ep->endpoint_control")
 
-    # CP-I/J: checkpoints around _hw_endpoint_buffer_control_set_value32
-    add_extern(USB)
-    apply(USB,
-        "  _hw_endpoint_buffer_control_set_value32(ep, buf_ctrl);\n}",
-        "  DBG_CP('I');\n  _hw_endpoint_buffer_control_set_value32(ep, buf_ctrl);\n  DBG_CP('J');\n}",
-        "CP-I/J – hw_endpoint_start_next_buffer")
+    # (no debug checkpoints in production build)
 
     # ────────────────────────────────────────────────────────────────────────
     print(f"\n── {os.path.basename(AC)}")
-    add_extern(AC)
 
     # Fix 5a: clear the busy flag so audiod_tx_done_cb can start a new transfer.
     # usbd_edpt_clear_stall only clears busy when stalled; usbd_edpt_release
@@ -201,59 +195,22 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
 
     # Fix 5b: TU_VERIFY(audiod_tx_done_cb(...)) with -O3 generates UB: 'return;'
     # in a bool function.  GCC may not actually return, causing fall-through with
-    # corrupted state.  Remove TU_VERIFY so a failed call is silently ignored —
-    # the main loop will start normal streaming at the next xfer_complete event.
+    # corrupted state.
     apply(AC,
         "            TU_VERIFY(audiod_tx_done_cb(rhport, &_audiod_fct[func_id]));",
         ("            audiod_tx_done_cb(rhport, &_audiod_fct[func_id]); // Fix 5b: no TU_VERIFY UB"),
         "Fix 5b – remove TU_VERIFY from audiod_tx_done_cb call (UB with -O3)")
 
-    apply(AC,
-        "      TU_VERIFY(tud_audio_set_itf_cb(rhport, p_request));",
-        "      TU_VERIFY(tud_audio_set_itf_cb(rhport, p_request));\n      DBG_CP('O');",
-        "CP-O – after set_itf_cb in audiod_set_interface")
-
-    apply(AC,
-        "  tud_control_status(rhport, p_request);",
-        "  DBG_CP('P');\n  tud_control_status(rhport, p_request);",
-        "CP-P – before tud_control_status in audiod_set_interface")
-
-    # ────────────────────────────────────────────────────────────────────────
-    print(f"\n── {os.path.basename(UC)}")
-    add_extern(UC)
-
-    apply(UC,
-        "  return status_stage_xact(rhport, request);",
-        ("  DBG_CP('Q');\n"
-         "  bool _ssr = status_stage_xact(rhport, request);\n"
-         "  DBG_CP('R');\n"
-         "  return _ssr;"),
-        "CP-Q/R – tud_control_status")
-
-    # ────────────────────────────────────────────────────────────────────────
-    print(f"\n── {os.path.basename(UD)}")
-    add_extern(UD)
-
-    apply(UD,
-        "  TU_ASSERT(_usbd_dev.ep_status[epnum][dir].busy == 0);\n\n  // Set busy",
-        ("  DBG_CP('K'); dbg_putc('0'+epnum); dbg_putc('0'+dir);\n"
-         "  dbg_putc('0'+_usbd_dev.ep_status[epnum][dir].busy); dbg_putc('\\n');\n"
-         "  TU_ASSERT(_usbd_dev.ep_status[epnum][dir].busy == 0);\n"
-         "  DBG_CP('L');\n\n  // Set busy"),
-        "CP-K/L – usbd_edpt_xfer entry")
+    # (no debug checkpoints in usbd_control.c / usbd.c in production build)
 
     # ── Summary ──────────────────────────────────────────────────────────────
     print("\n── Verify:")
     checks = [
-        (DCD, "hw_endpoint_abort_xfer",     "3"),
-        (USB, "TUSB_XFER_ISOCHRONOUS",      "1"),
-        (USB, "ep->endpoint_control)",      "1"),
-        (USB, "DBG_CP('I')",               "1"),
-        (AC,  "usbd_edpt_release",          "1"),
-        (AC,  "Fix 5b",                     "1"),
-        (AC,  "DBG_CP('O')",               "1"),
-        (UC,  "DBG_CP('Q')",               "1"),
-        (UD,  "DBG_CP('K')",               "1"),
+        (DCD, "hw_endpoint_abort_xfer",   "3"),
+        (USB, "TUSB_XFER_ISOCHRONOUS",    "1"),
+        (USB, "ep->endpoint_control)",    "1"),
+        (AC,  "usbd_edpt_release",        "1"),
+        (AC,  "Fix 5b",                   "1"),
     ]
     all_ok = True
     for path, pattern, expect in checks:
