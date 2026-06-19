@@ -199,15 +199,20 @@ bool tud_audio_tx_done_post_load_cb(uint8_t rhport,
 
 bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_request)
 {
-    (void)rhport;
     uint8_t const alt = (uint8_t)(p_request->wValue & 0xffu);
     uint8_t const itf = (uint8_t)(p_request->wIndex & 0xffu);
     printf("[%5lus] SET_INTERFACE iface=%u alt=%u\n",
            (unsigned long)(time_us_64() / 1000000), itf, alt);
-    // 1 pulse = alt=0, 2 pulses = alt=1 — visible on oscilloscope/logic analyser
     dbg_pulse(alt ? 2 : 1);
     raw_puts("[CP-C] set_itf_cb returning true\n");
     raw_flush();
+
+    // Guarantee the SET_INTERFACE status ZLP is sent now, before
+    // audiod_set_interface() tries to send it (which may fail due to
+    // EP0_IN busy race).  The second call from audiod_set_interface will
+    // silently fail (busy=1) which is fine — the ZLP is already queued.
+    tud_control_status(rhport, p_request);
+
     return true;
 }
 
