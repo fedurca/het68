@@ -99,9 +99,7 @@ bool tud_audio_tx_done_post_load_cb(uint8_t rhport,
 bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_request)
 {
     (void)rhport;
-    uint8_t const alt = (uint8_t)(p_request->wValue & 0xffu);
-    uint8_t const itf = (uint8_t)(p_request->wIndex & 0xffu);
-    printf("[UAC2] SET_INTERFACE iface=%u alt=%u\n", itf, alt);
+    (void)p_request;
     return true;
 }
 
@@ -164,13 +162,11 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport,
         request->bControlSelector == AUDIO_CS_CTRL_SAM_FREQ)
     {
         if (request->bRequest == AUDIO_CS_REQ_CUR) {
-            printf("[UAC2] GET_CUR clk freq -> %lu\n", (unsigned long)current_sample_rate);
             audio_control_cur_4_t curf = { .bCur = current_sample_rate };
             return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &curf, sizeof(curf));
         }
 
         if (request->bRequest == AUDIO_CS_REQ_RANGE) {
-            printf("[UAC2] GET_RANGE clk freq\n");
             audio_control_range_4_n_t(1) rangef = {
                 .wNumSubRanges = 1,
                 .subrange[0] = {
@@ -187,7 +183,6 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport,
         request->bControlSelector == AUDIO_CS_CTRL_CLK_VALID)
     {
         if (request->bRequest == AUDIO_CS_REQ_CUR) {
-            printf("[UAC2] GET_CUR clk valid -> %u\n", clock_valid);
             audio_control_cur_1_t cur_valid = { .bCur = clock_valid };
             return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &cur_valid, sizeof(cur_valid));
         }

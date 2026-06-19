@@ -19,7 +19,7 @@ extern "C" {
 #define CFG_TUSB_OS     OPT_OS_PICO
 
 #ifndef CFG_TUSB_DEBUG
-#define CFG_TUSB_DEBUG  1   // 0=off, 1=key events, 2=verbose transfers
+#define CFG_TUSB_DEBUG  0
 #endif
 
 // --- COMMON ---
