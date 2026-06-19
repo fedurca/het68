@@ -95,34 +95,13 @@ bool tud_audio_tx_done_post_load_cb(uint8_t rhport,
     return true;
 }
 
-bool tud_audio_tx_done_isr(uint8_t rhport,
-                           uint16_t n_bytes_sent,
-                           uint8_t func_id,
-                           uint8_t ep_in,
-                           uint8_t cur_alt_setting)
-{
-    (void)rhport;
-    (void)n_bytes_sent;
-    (void)func_id;
-    (void)ep_in;
-
-    if (cur_alt_setting != 0) {
-        usb_audio_feed_one_frame();
-    }
-    return true;
-}
-
 bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_request)
 {
     (void)rhport;
-
-    uint8_t alt = (uint8_t)(p_request->wValue & 0xffu);
-    if (alt != 0) {
-        // Pre-fill a few frames so the first ISO IN transaction is not empty.
-        for (unsigned i = 0; i < 4; i++) {
-            usb_audio_feed_one_frame();
-        }
-    }
+    (void)p_request;
+    // Do not call tud_audio_write here: this runs inside EP0 control-transfer
+    // processing within tud_task(). Audio feeding starts via tx_done_pre_load_cb
+    // and the main-loop fallback below.
     return true;
 }
 
