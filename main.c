@@ -189,6 +189,8 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_reques
     uint8_t const itf = (uint8_t)(p_request->wIndex & 0xffu);
     printf("[%5lus] SET_INTERFACE iface=%u alt=%u\n",
            (unsigned long)(time_us_64() / 1000000), itf, alt);
+    // 1 pulse = alt=0, 2 pulses = alt=1 — visible on oscilloscope/logic analyser
+    dbg_pulse(alt ? 2 : 1);
     return true;
 }
 
@@ -321,9 +323,22 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport,
     return false;
 }
 
+// Forward declaration
+void dbg_pulse(uint8_t n);
+
+void dbg_pulse(uint8_t n) {
+    for (uint8_t i = 0; i < n; i++) {
+        gpio_put(2, 1); for (volatile int d=0; d<5000; d++) {}
+        gpio_put(2, 0); for (volatile int d=0; d<5000; d++) {}
+    }
+}
+
 int main(void)
 {
     stdio_init_all();
+    gpio_init(2); gpio_set_dir(2, GPIO_OUT);
+    dbg_pulse(3);  // 3 pulses = firmware started
+
     printf("\n\n=== het68 UAC2 6ch diagnostic firmware ===\n");
     printf("    Build : %s %s\n", __DATE__, __TIME__);
     printf("    Audio : %d ch, %d Hz, %d bit, %d B/frame\n",
@@ -360,6 +375,7 @@ int main(void)
         // Heartbeat: prints uptime every 10 s so we can tell the firmware is alive
         if (absolute_time_diff_us(get_absolute_time(), next_heartbeat) <= 0) {
             hb_count++;
+            dbg_pulse(4);  // 4 pulses = heartbeat
             printf("[%5lus] heartbeat #%lu  mounted=%d\n",
                    (unsigned long)(time_us_64() / 1000000),
                    (unsigned long)hb_count,
