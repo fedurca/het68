@@ -23,11 +23,13 @@ target_include_directories(pico_6mic_soundcard PRIVATE
 )
 
 # Redirect panic() to our custom handler so UART drains before CPU halts.
-# Without this, __breakpoint() in the stock panic halts the CPU (Debug Probe)
-# before the UART FIFO transmits the message.
-target_compile_definitions(pico_6mic_soundcard PRIVATE
-    PICO_PANIC_FUNCTION=het68_panic
-)
+# Must be add_compile_definitions (global), NOT target_compile_definitions PRIVATE,
+# so that pico-sdk's panic.c is also compiled with PICO_PANIC_FUNCTION defined.
+add_compile_definitions(PICO_PANIC_FUNCTION=het68_panic)
+
+# Wrap panic at link time as belt-and-suspenders: some pico-sdk libraries may
+# have been pre-built without PICO_PANIC_FUNCTION, so --wrap catches those too.
+target_link_options(pico_6mic_soundcard PRIVATE -Wl,--wrap=panic)
 
 target_link_libraries(pico_6mic_soundcard
     pico_stdlib

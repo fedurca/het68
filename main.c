@@ -80,17 +80,23 @@ void __attribute__((naked)) isr_hardfault(void) {
     );
 }
 
+// Only raw register writes — no stdlib, no timer — to prevent double-fault.
 void __attribute__((noreturn)) het68_hardfault(uint32_t *frame) {
-    raw_puts("\n!!! HARDFAULT !!! uptime=");
-    raw_putu32((uint32_t)(time_us_64() / 1000000));
-    raw_puts("s\n");
+    raw_puts("\n!!! HARDFAULT !!!\n");
     raw_puts("PC="); raw_puthex32(frame[6]);
     raw_puts(" LR="); raw_puthex32(frame[5]);
-    raw_puts(" PSR="); raw_puthex32(frame[7]);
-    raw_puts("\nR0="); raw_puthex32(frame[0]);
-    raw_puts(" R1="); raw_puthex32(frame[1]);
-    raw_puts(" R2="); raw_puthex32(frame[2]);
-    raw_puts(" R3="); raw_puthex32(frame[3]);
+    raw_puts("\n");
+    raw_flush();
+    for (;;) { __asm volatile("nop"); }
+}
+
+// --wrap=panic catches pre-built pico-sdk libraries that don't see het68_panic.
+void __attribute__((noreturn)) __wrap_panic(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    raw_puts("\n!!! PANIC(wrap) !!!\n");
+    vprintf(fmt, args);
+    va_end(args);
     raw_puts("\n");
     raw_flush();
     for (;;) { __asm volatile("nop"); }
