@@ -165,16 +165,21 @@ bool tud_audio_tx_done_pre_load_cb(uint8_t rhport,
     // CP-B: ISO xfer-complete pre-load callback reached
     static uint32_t cb_count = 0;
     cb_count++;
-    if (cb_count <= 3 || (cb_count % 1000) == 0) {
+    if (cb_count <= 5 || (cb_count % 1000) == 0) {
         raw_puts("[CP-B] pre_load_cb #");
         raw_putu32(cb_count);
+        raw_puts(" alt=");
+        raw_putu32(cur_alt_setting);
         raw_puts("\n");
         raw_flush();
     }
 
     if (cur_alt_setting != 0) {
+        dbg_putc('X'); dbg_putc('\n');  // CP-X: before feed
         usb_audio_feed_one_frame();
+        dbg_putc('Y'); dbg_putc('\n');  // CP-Y: after feed — if freeze: bug is in feed
     }
+    dbg_putc('Z'); dbg_putc('\n');      // CP-Z: callback about to return true
     return true;
 }
 
