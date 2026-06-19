@@ -190,6 +190,21 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
     print(f"\n── {os.path.basename(AC)}")
     add_extern(AC)
 
+    # Fix 5: after dcd_edpt_iso_activate aborts an active transfer, TinyUSB's
+    # software busy flag (_usbd_dev.ep_status[1][IN].busy) is still 1 because
+    # the abort doesn't generate a xfer_complete event.  usbd_edpt_clear_stall
+    # only clears busy when the endpoint is STALLED, so the flag stays 1.
+    # When audiod_tx_done_cb then calls usbd_edpt_xfer(EP_IN), TU_ASSERT(busy==0)
+    # fails → returns false → TU_VERIFY in audiod_set_interface hits UB with -O3
+    # (return; in bool fn) → execution falls through → firmware freezes.
+    # Fix: call usbd_edpt_release(rhport, ep_addr) after clear_stall so that
+    # the busy flag is explicitly cleared before the new transfer is started.
+    apply(AC,
+        "          usbd_edpt_clear_stall(rhport, ep_addr);",
+        ("          usbd_edpt_clear_stall(rhport, ep_addr);\n"
+         "          usbd_edpt_release(rhport, ep_addr); // Fix 5: clear busy after ISO abort"),
+        "Fix 5  – usbd_edpt_release after clear_stall to reset busy flag")
+
     apply(AC,
         "      TU_VERIFY(tud_audio_set_itf_cb(rhport, p_request));",
         "      TU_VERIFY(tud_audio_set_itf_cb(rhport, p_request));\n      DBG_CP('O');",
@@ -227,13 +242,14 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
     # ── Summary ──────────────────────────────────────────────────────────────
     print("\n── Verify:")
     checks = [
-        (DCD, "hw_endpoint_abort_xfer", "3"),
-        (USB, "TUSB_XFER_ISOCHRONOUS",  "1"),
-        (USB, "ep->endpoint_control)",  "1"),
-        (USB, "DBG_CP('I')",            "1"),
-        (AC,  "DBG_CP('O')",            "1"),
-        (UC,  "DBG_CP('Q')",            "1"),
-        (UD,  "DBG_CP('K')",            "1"),
+        (DCD, "hw_endpoint_abort_xfer",     "3"),
+        (USB, "TUSB_XFER_ISOCHRONOUS",      "1"),
+        (USB, "ep->endpoint_control)",      "1"),
+        (USB, "DBG_CP('I')",               "1"),
+        (AC,  "usbd_edpt_release",          "1"),
+        (AC,  "DBG_CP('O')",               "1"),
+        (UC,  "DBG_CP('Q')",               "1"),
+        (UD,  "DBG_CP('K')",               "1"),
     ]
     all_ok = True
     for path, pattern, expect in checks:
