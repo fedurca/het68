@@ -230,16 +230,30 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
         ("            audiod_tx_done_cb(rhport, &_audiod_fct[func_id]); // Fix 5b: no TU_VERIFY UB"),
         "Fix 5b – remove TU_VERIFY from audiod_tx_done_cb call (UB with -O3)")
 
-    # (no debug checkpoints in usbd_control.c / usbd.c in production build)
+    # ────────────────────────────────────────────────────────────────────────
+    print(f"\n── {os.path.basename(UD)}")
+
+    # Fix 6: TU_ASSERT(busy==0) in usbd_edpt_xfer causes UB with -O3:
+    # 'return;' in a bool function may not actually return (compiler can prove
+    # the path is UB and optimize it away), causing fall-through that tries to
+    # start a transfer on a busy endpoint → "ep XX was already available" panic.
+    # Replace with a proper if/return that is well-defined C.
+    apply(UD,
+        "  TU_ASSERT(_usbd_dev.ep_status[epnum][dir].busy == 0);\n\n  // Set busy",
+        ("  if (_usbd_dev.ep_status[epnum][dir].busy) {\n"
+         "    return false; // Fix 6: well-defined early return, avoids TU_ASSERT UB\n"
+         "  }\n\n  // Set busy"),
+        "Fix 6  – replace TU_ASSERT(busy==0) with safe if/return in usbd_edpt_xfer")
 
     # ── Summary ──────────────────────────────────────────────────────────────
     print("\n── Verify:")
     checks = [
         (DCD, "hw_endpoint_abort_xfer",      "3"),
         (USB, "TUSB_XFER_ISOCHRONOUS",       "1"),
-        (USB, "if (ep->endpoint_control)",   "1"),  # unique: our null-guard
-        (AC,  "// Fix 5a",                   "1"),  # unique comment marker
-        (AC,  "// Fix 5b",                   "1"),  # unique comment marker
+        (USB, "if (ep->endpoint_control)",   "1"),
+        (AC,  "// Fix 5a",                   "1"),
+        (AC,  "// Fix 5b",                   "1"),
+        (UD,  "// Fix 6",                    "1"),
     ]
     all_ok = True
     for path, pattern, expect in checks:
