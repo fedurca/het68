@@ -223,12 +223,25 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
         "Fix 5a – usbd_edpt_release after clear_stall to reset busy flag")
 
     # Fix 5b: TU_VERIFY(audiod_tx_done_cb(...)) with -O3 generates UB: 'return;'
-    # in a bool function.  GCC may not actually return, causing fall-through with
-    # corrupted state.
+    # in a bool function.  GCC may not actually return, causing fall-through.
     apply(AC,
         "            TU_VERIFY(audiod_tx_done_cb(rhport, &_audiod_fct[func_id]));",
         ("            audiod_tx_done_cb(rhport, &_audiod_fct[func_id]); // Fix 5b: no TU_VERIFY UB"),
         "Fix 5b – remove TU_VERIFY from audiod_tx_done_cb call (UB with -O3)")
+
+    # Fix 7: same UB in usbd_edpt_xfer call inside audiod_tx_done_cb
+    # (normal streaming path). If xfer fails, just miss one frame — streaming
+    # recovers at the next xfer_complete event.
+    apply(AC,
+        "  TU_VERIFY(usbd_edpt_xfer(rhport, audio->ep_in, audio->lin_buf_in, n_bytes_tx));",
+        "  usbd_edpt_xfer(rhport, audio->ep_in, audio->lin_buf_in, n_bytes_tx); // Fix 7",
+        "Fix 7  – remove TU_VERIFY from usbd_edpt_xfer in audiod_tx_done_cb (UB with -O3)")
+
+    # Fix 8: same UB in audiod_xfer_complete (xfer_complete event handler).
+    apply(AC,
+        "      TU_VERIFY(audiod_tx_done_cb(rhport, audio));",
+        "      audiod_tx_done_cb(rhport, audio); // Fix 8: no TU_VERIFY UB",
+        "Fix 8  – remove TU_VERIFY from audiod_tx_done_cb in audiod_xfer_complete (UB)")
 
     # ────────────────────────────────────────────────────────────────────────
     print(f"\n── {os.path.basename(UD)}")
@@ -253,6 +266,8 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
         (USB, "if (ep->endpoint_control)",   "1"),
         (AC,  "// Fix 5a",                   "1"),
         (AC,  "// Fix 5b",                   "1"),
+        (AC,  "// Fix 7",                    "1"),
+        (AC,  "// Fix 8",                    "1"),
         (UD,  "// Fix 6",                    "1"),
     ]
     all_ok = True
