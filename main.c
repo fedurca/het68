@@ -335,8 +335,7 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport,
     return false;
 }
 
-// Forward declaration
-void dbg_pulse(uint8_t n);
+void dbg_pulse(uint8_t n);  // defined below main()
 
 void dbg_pulse(uint8_t n) {
     for (uint8_t i = 0; i < n; i++) {

@@ -10,6 +10,7 @@ pico_sdk_init()
 set(SRCS
     main.c
     usb_descriptors.c
+    debug_io.c
 )
 
 add_executable(pico_6mic_soundcard ${SRCS})
