@@ -1,20 +1,31 @@
-From: TinyUSB backport: PR #2937 + commit 4bfba6b
-Subject: rp2040: two ISO transfer fixes for UAC2 on pico-sdk 0.18.0
+From: TinyUSB backport: PR #2937 + commit 4bfba6b + ISO ZLP fix
+Subject: rp2040: three ISO transfer fixes for UAC2 streaming on pico-sdk 0.18.0
 
-Fix 1 (PR #2937, merged 2025-03-07):
+All three bugs interact: fix #1 gets SET_INTERFACE past the first panic;
+fix #2 gets the first few frames working; fix #3 prevents the steady-state
+panic from ISO hardware firing buf_status even when no buffer was prepared.
+
+Fix 1 (PR #2937, merged 2025-03-07 — dcd_rp2040.c):
   dcd_edpt_iso_activate() did not abort an in-flight ISO transfer before
-  re-enabling the endpoint on SET_INTERFACE. This caused a hard panic
+  re-enabling the endpoint on SET_INTERFACE.  Caused hard panic
   ("ep 81 was already available") on the very first SET_INTERFACE from
-  the Linux UAC2 driver, making the device completely unresponsive
-  (all subsequent EP0 requests timed out with -110 ETIMEDOUT).
+  the Linux UAC2 driver → device completely unresponsive (-110 ETIMEDOUT).
 
-Fix 2 (commit 4bfba6b, 2025-08-05):
+Fix 2 (commit 4bfba6b, 2025-08-05 — dcd_rp2040.c):
   hw_handle_buff_status() notified the stack (dcd_event_xfer_complete)
-  BEFORE resetting ep->active. Since TinyUSB's audio class driver queues
-  the next ISO transfer from within the xfer-complete callback (ISR),
-  hw_endpoint_xfer_start() would find ep->active == true and
-  hard-assert, crashing the firmware ~50 s after successful streaming
-  start (after the first xfer-complete ISR fires).
+  BEFORE resetting ep->active.  The audio class driver queues the next
+  ISO transfer from within the xfer-complete callback (ISR), so
+  hw_endpoint_xfer_start() would find ep->active == true and assert
+  "ep XX was already available", crashing the firmware ~50 s after start.
+
+Fix 3 (new — rp2040_usb.c):
+  RP2040/2350 USB hardware fires buf_status for ISO IN on every SOF,
+  including SOFs where no buffer was prepared (AVAIL bit not set) and the
+  hardware automatically sent a ZLP.  After fix #2 resets ep->active to
+  false, the very next SOF fires buf_status → hw_endpoint_xfer_continue()
+  sees active==false → panic "Can't continue xfer on inactive ep".
+  Fix: for ISO endpoints, treat inactive buf_status as a 0-byte "done"
+  so the audio driver immediately reloads the buffer for the next frame.
 
 Upstream references:
   https://github.com/hathach/tinyusb/pull/2937
@@ -121,3 +132,21 @@ Upstream references:
    hw_endpoint_enable(ep);
    return true;
  }
+--- a/src/portable/raspberrypi/rp2040/rp2040_usb.c
++++ b/src/portable/raspberrypi/rp2040/rp2040_usb.c
+@@ -304,6 +304,15 @@ bool __tusb_irq_path_func(hw_endpoint_xfer_continue)(struct hw_endpoint* ep) {
+ 
+   // Part way through a transfer
+   if (!ep->active) {
++    // Fix: RP2040 ISO hardware fires buf_status on every SOF even when no buffer
++    // was prepared (AVAIL not set) — the hardware sent a ZLP. After fix #2
++    // (hw_endpoint_reset_transfer before dcd_event_xfer_complete) ep->active is
++    // false for one SOF window. Don't panic; report a 0-byte "done" so the audio
++    // driver reloads the next buffer immediately.
++    if (ep->transfer_type == TUSB_XFER_ISOCHRONOUS) {
++      hw_endpoint_lock_update(ep, -1);
++      return true; // 0-byte done — xferred_len is already 0 from reset
++    }
+     panic("Can't continue xfer on inactive ep %02X", ep->ep_addr);
+   }
+ 
