@@ -191,10 +191,10 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport,
     }
 
     if (request->bEntityID == ID_FU &&
-        request->bControlSelector == AUDIO_FU_CTRL_MUTE &&
-        request->bChannelNumber == 0)
+        request->bControlSelector == AUDIO_FU_CTRL_MUTE)
     {
         if (request->bRequest == AUDIO_CS_REQ_CUR) {
+            // All channels report the same master mute state.
             audio_control_cur_1_t cur_mute = { .bCur = master_mute };
             return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &cur_mute, sizeof(cur_mute));
         }
@@ -223,7 +223,6 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport,
 
     if (request->bEntityID == ID_FU &&
         request->bControlSelector == AUDIO_FU_CTRL_MUTE &&
-        request->bChannelNumber == 0 &&
         request->bRequest == AUDIO_CS_REQ_CUR)
     {
         if (p_request->wLength != sizeof(audio_control_cur_1_t)) return false;
