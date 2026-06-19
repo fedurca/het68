@@ -332,22 +332,33 @@ int main(void)
     gpio_set_dir(led_pin, GPIO_OUT);
 
     bool led_state = false;
-    absolute_time_t next_heartbeat = make_timeout_time_ms(100);
+    absolute_time_t next_led       = make_timeout_time_ms(500);
+    absolute_time_t next_heartbeat = make_timeout_time_ms(10000);
+    uint32_t hb_count = 0;
 
     for (;;) {
         tud_task();
 
-        // Fallback pre-fill path for TinyUSB variants where the TX callbacks are
-        // only invoked after the first successful transfer. This is intentionally
-        // conservative: one frame per main-loop tick when mounted.
         if (tud_audio_mounted()) {
             usb_audio_feed_one_frame();
         }
 
-        if (absolute_time_diff_us(get_absolute_time(), next_heartbeat) <= 0) {
+        // LED blink: 2 Hz when idle, 10 Hz when streaming
+        uint32_t blink_ms = tud_audio_mounted() ? 100 : 500;
+        if (absolute_time_diff_us(get_absolute_time(), next_led) <= 0) {
             led_state = !led_state;
             gpio_put(led_pin, led_state);
-            next_heartbeat = make_timeout_time_ms(100);
+            next_led = make_timeout_time_ms(blink_ms);
+        }
+
+        // Heartbeat: prints uptime every 10 s so we can tell the firmware is alive
+        if (absolute_time_diff_us(get_absolute_time(), next_heartbeat) <= 0) {
+            hb_count++;
+            printf("[%5lus] heartbeat #%lu  mounted=%d\n",
+                   (unsigned long)(time_us_64() / 1000000),
+                   (unsigned long)hb_count,
+                   (int)tud_audio_mounted());
+            next_heartbeat = make_timeout_time_ms(10000);
         }
     }
 }
