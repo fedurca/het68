@@ -28,6 +28,14 @@ find_usb_path() {
     return 1
 }
 
+usb_unbind() {
+    echo "$1" | sudo tee /sys/bus/usb/drivers/usb/unbind > /dev/null
+}
+
+usb_bind() {
+    echo "$1" | sudo tee /sys/bus/usb/drivers/usb/bind > /dev/null
+}
+
 echo "=== fixdebugger.sh ==="
 
 # 1. Unbind Pico USB audio device (releases snd_usb_audio / ALSA)
@@ -35,7 +43,7 @@ PICO_PATH=$(find_usb_path "$PICO_VID" 2>/dev/null || true)
 if [ -n "$PICO_PATH" ]; then
     PICO_BUS=$(basename "$PICO_PATH")
     echo "Pico at $PICO_BUS — unbinding..."
-    sudo sh -c "echo '$PICO_BUS' > /sys/bus/usb/drivers/usb/unbind" 2>/dev/null || true
+    usb_unbind "$PICO_BUS" 2>/dev/null || true
     sleep 1
 else
     echo "Pico not found (already disconnected?)"
@@ -46,9 +54,9 @@ PROBE_PATH=$(find_usb_path "$PROBE_VID" 2>/dev/null || true)
 if [ -n "$PROBE_PATH" ]; then
     PROBE_BUS=$(basename "$PROBE_PATH")
     echo "Debug Probe at $PROBE_BUS — resetting..."
-    sudo sh -c "echo '$PROBE_BUS' > /sys/bus/usb/drivers/usb/unbind" 2>/dev/null || true
+    usb_unbind "$PROBE_BUS" 2>/dev/null || true
     sleep 1
-    sudo sh -c "echo '$PROBE_BUS' > /sys/bus/usb/drivers/usb/bind"   2>/dev/null || true
+    usb_bind "$PROBE_BUS" 2>/dev/null || true
     sleep 2
 else
     echo "Debug Probe not found!"
