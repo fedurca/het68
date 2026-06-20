@@ -49,14 +49,10 @@ static void raw_flush(void) {
 }
 
 void __attribute__((noreturn)) het68_panic(const char *fmt, ...) {
+    (void)fmt;
     raw_puts("\n!!! PANIC !!! uptime=");
     raw_putu32((uint32_t)(time_us_64() / 1000000));
     raw_puts("s\n");
-    va_list args;
-    va_start(args, fmt);
-    vprintf(fmt, args);
-    va_end(args);
-    raw_puts("\n");
     raw_flush();
     for (;;) { __asm volatile("nop"); }
 }
@@ -83,12 +79,8 @@ void __attribute__((noreturn)) het68_hardfault(uint32_t *frame) {
 }
 
 void __attribute__((noreturn)) __wrap_panic(const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
+    (void)fmt;
     raw_puts("\n!!! PANIC(wrap) !!!\n");
-    vprintf(fmt, args);
-    va_end(args);
-    raw_puts("\n");
     raw_flush();
     for (;;) { __asm volatile("nop"); }
 }
@@ -299,7 +291,7 @@ static inline void usb_audio_feed_one_frame(void) {
 // Push one 1 ms USB frame from the main loop (not from USB callbacks).
 static void audio_task(void) {
     static absolute_time_t next_ms = {0};
-    if (!tud_audio_mounted()) {
+    if (!tud_audio_mounted() || dbg_last_alt == 0) {
         next_ms = get_absolute_time();
         return;
     }
@@ -347,11 +339,6 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_reques
     uint8_t alt = tu_u16_low(p_request->wValue);
     dbg_last_alt = alt;
     dbg_set_itf++;
-    dbg_puts("SET_ITF itf=");
-    dbg_puthex8(itf);
-    dbg_puts(" alt=");
-    dbg_puthex8(alt);
-    dbg_putc('\n');
     return true;
 }
 
@@ -408,21 +395,32 @@ bool tud_audio_get_req_itf_cb(uint8_t rhport,
 bool tud_audio_get_req_entity_cb(uint8_t rhport,
                                  tusb_control_request_t const *p_request)
 {
-    audio_control_request_t const *request = (audio_control_request_t const *)p_request;
+    uint8_t channelNum = tu_u16_low(p_request->wValue);
+    uint8_t ctrlSel = tu_u16_high(p_request->wValue);
+    uint8_t entityID = tu_u16_high(p_request->wIndex);
+    (void)channelNum;
 
-    dbg_puts("G");
-    dbg_puthex8(request->bEntityID);
-    dbg_putc('\n');
+    if (entityID == ID_IT && ctrlSel == AUDIO_TE_CTRL_CONNECTOR) {
+        dbg_ctrl_other++;
+        static audio_desc_channel_cluster_t connector = {
+            .bNrChannels = AUDIO_N_CHANNELS,
+            .bmChannelConfig = (audio_channel_config_t)(
+                AUDIO_CHANNEL_CONFIG_FRONT_LEFT | AUDIO_CHANNEL_CONFIG_FRONT_RIGHT |
+                AUDIO_CHANNEL_CONFIG_FRONT_CENTER | AUDIO_CHANNEL_CONFIG_LOW_FRQ_EFFECTS |
+                AUDIO_CHANNEL_CONFIG_BACK_LEFT | AUDIO_CHANNEL_CONFIG_BACK_RIGHT),
+            .iChannelNames = 0
+        };
+        return tud_audio_buffer_and_schedule_control_xfer(
+            rhport, p_request, &connector, sizeof(connector));
+    }
 
-    if (request->bEntityID == ID_CLK &&
-        request->bControlSelector == AUDIO_CS_CTRL_SAM_FREQ)
-    {
-        if (request->bRequest == AUDIO_CS_REQ_CUR) {
+    if (entityID == ID_CLK && ctrlSel == AUDIO_CS_CTRL_SAM_FREQ) {
+        if (p_request->bRequest == AUDIO_CS_REQ_CUR) {
             dbg_ctrl_sam_freq++;
             return tud_audio_buffer_and_schedule_control_xfer(
                 rhport, p_request, &current_sample_rate, sizeof(current_sample_rate));
         }
-        if (request->bRequest == AUDIO_CS_REQ_RANGE) {
+        if (p_request->bRequest == AUDIO_CS_REQ_RANGE) {
             dbg_ctrl_sam_freq++;
             static audio_control_range_4_n_t(1) rangef = {
                 .wNumSubRanges = 1,
@@ -436,19 +434,15 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport,
         }
     }
 
-    if (request->bEntityID == ID_CLK &&
-        request->bControlSelector == AUDIO_CS_CTRL_CLK_VALID)
-    {
-        if (request->bRequest == AUDIO_CS_REQ_CUR) {
+    if (entityID == ID_CLK && ctrlSel == AUDIO_CS_CTRL_CLK_VALID) {
+        if (p_request->bRequest == AUDIO_CS_REQ_CUR) {
             dbg_ctrl_clk_valid++;
             return tud_control_xfer(rhport, p_request, &clock_valid, sizeof(clock_valid));
         }
     }
 
-    if (request->bEntityID == ID_FU &&
-        request->bControlSelector == AUDIO_FU_CTRL_MUTE)
-    {
-        if (request->bRequest == AUDIO_CS_REQ_CUR) {
+    if (entityID == ID_FU && ctrlSel == AUDIO_FU_CTRL_MUTE) {
+        if (p_request->bRequest == AUDIO_CS_REQ_CUR) {
             dbg_ctrl_other++;
             return tud_control_xfer(rhport, p_request, &master_mute, sizeof(master_mute));
         }
@@ -527,7 +521,7 @@ void tud_umount_cb(void)
 // ---------------------------------------------------------------------------
 int main(void)
 {
-    stdio_init_all();
+    dbg_init();
     tusb_init();
 
     dbg_puts("\n=== het68 UAC2 6ch ===\n");
@@ -536,7 +530,8 @@ int main(void)
     dbg_putc(' ');
     dbg_puts(__TIME__);
     dbg_putc('\n');
-    dbg_puts("uart GP16/17 -> wire Debug Probe UART for serial\n");
+    dbg_puts("debug: USB CDC on Pico device (picocom /dev/ttyACM*)\n");
+    dbg_puts("       or UART GP16 -> Debug Probe UTX\n");
 
 #if !HET68_USB_DIAG
     dbg_puts("mode: I2S 3x stereo\n");
@@ -555,13 +550,6 @@ int main(void)
     absolute_time_t next_led = make_timeout_time_ms(500);
     absolute_time_t next_heartbeat = make_timeout_time_ms(2000);
     uint32_t hb_count = 0;
-
-    dbg_puts("\n=== het68 UAC2 6ch ===\n");
-    dbg_puts("build ");
-    dbg_puts(__DATE__);
-    dbg_putc(' ');
-    dbg_puts(__TIME__);
-    dbg_putc('\n');
 
     for (;;) {
         tud_task();

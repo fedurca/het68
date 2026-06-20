@@ -24,10 +24,13 @@ trap cleanup EXIT
 
     # WirePlumber grabs USB audio on plug; stop it so arecord can open hw directly.
     WP_STOPPED=0
-    if systemctl --user is-active --quiet wireplumber 2>/dev/null; then
-        echo "--- stopping wireplumber/pipewire-pulse for exclusive hw capture ---"
-        systemctl --user stop wireplumber pipewire-pulse 2>/dev/null && WP_STOPPED=1
+    if systemctl --user is-active --quiet wireplumber 2>/dev/null \
+       || systemctl --user is-active --quiet pipewire 2>/dev/null; then
+        echo "--- stopping pipewire/wireplumber for exclusive hw capture ---"
+        systemctl --user stop pipewire.socket pipewire wireplumber pipewire-pulse 2>/dev/null && WP_STOPPED=1
         sleep 2
+        pkill -9 wireplumber 2>/dev/null || true
+        sleep 1
     fi
 
     echo "--- arecord primy test nahravani 3s (480 samples / 10 ms perioda) ---"

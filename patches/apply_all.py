@@ -267,15 +267,43 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
     apply(AC,
         "  tud_control_status(rhport, p_request);\n\n  return true;\n}",
         ("  tud_control_status(rhport, p_request);\n\n"
-         "  // Fix 11: start ISO IN after EP0 status — clock queries work again\n"
+         "  // Fix 11c: defer first ISO IN to next USB event loop tick\n"
          "#if CFG_TUD_AUDIO_ENABLE_EP_IN\n"
          "  if (alt != 0 && _audiod_fct[func_id].ep_in != 0 &&\n"
          "      _audiod_fct[func_id].ep_in_as_intf_num == itf) {\n"
-         "    audiod_tx_done_cb(rhport, &_audiod_fct[func_id]);\n"
+         "    usbd_defer_func(audiod_deferred_first_tx_cb, (void*)(uintptr_t)func_id, false);\n"
          "  }\n"
          "#endif\n\n"
          "  return true;\n}"),
-        "Fix 11b – schedule deferred audiod_tx_done_cb after control status")
+        "Fix 11c – usbd_defer_func for first ISO IN after SET_INTERFACE")
+
+    apply(AC,
+        "static bool audiod_set_interface(uint8_t rhport, tusb_control_request_t const *p_request) {",
+        ("#if CFG_TUD_AUDIO_ENABLE_EP_IN\n"
+         "static void audiod_deferred_first_tx_cb(void* param) {\n"
+         "  uint8_t func_id = (uint8_t)(uintptr_t)param;\n"
+         "  audiod_tx_done_cb(_audiod_fct[func_id].rhport, &_audiod_fct[func_id]);\n"
+         "}\n"
+         "#endif\n\n"
+         "static bool audiod_set_interface(uint8_t rhport, tusb_control_request_t const *p_request) {"),
+        "Fix 11c – audiod_deferred_first_tx_cb helper")
+
+    # Fix 13: Linux may address entity requests with AS interface (1) in wIndex, not only AC (0).
+    apply(AC,
+        ("  for (i = 0; i < CFG_TUD_AUDIO; i++) {\n"
+         "    // Look for the correct driver by checking if the unique standard AC interface number fits\n"
+         "    if (_audiod_fct[i].p_desc && ((tusb_desc_interface_t const *) _audiod_fct[i].p_desc)->bInterfaceNumber == itf) {"),
+        ("  for (i = 0; i < CFG_TUD_AUDIO; i++) {\n"
+         "    // Fix 13: accept wIndex on any interface belonging to this audio function (IAD range)\n"
+         "    if (!_audiod_fct[i].p_desc) continue;\n"
+         "    {\n"
+         "      uint8_t const *iad = _audiod_fct[i].p_desc - TUD_AUDIO_DESC_IAD_LEN;\n"
+         "      uint8_t const first = ((tusb_desc_interface_assoc_t const *) iad)->bFirstInterface;\n"
+         "      uint8_t const count = ((tusb_desc_interface_assoc_t const *) iad)->bInterfaceCount;\n"
+         "      if (itf < first || itf >= first + count) continue;\n"
+         "    }\n"
+         "    {"),
+        "Fix 13 – audiod_verify_entity_exists accepts AS interface in wIndex")
 
     # ────────────────────────────────────────────────────────────────────────
     print(f"\n── {os.path.basename(UD)}")
@@ -334,7 +362,8 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
         (AC,  "// Fix 7c",                   "1"),
         (AC,  "// Fix 8",                    "1"),
         (AC,  "// Fix 11:",                  "1"),
-        (AC,  "// Fix 11: start ISO IN",     "1"),
+        (AC,  "usbd_defer_func(audiod_deferred_first_tx_cb", "1"),
+        (AC,  "Fix 13: accept wIndex",     "1"),
         (UD,  "// Fix 6/12:",                "1"),
     ]
     all_ok = True

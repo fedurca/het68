@@ -44,8 +44,6 @@ target_link_libraries(pico_6mic_soundcard
 )
 
 # vyber si jednu z následujících dvou řádek:
-pico_enable_stdio_usb(pico_6mic_soundcard 0)   # žádné stdio přes USB -> bez warningu
-# pico_enable_stdio_usb(pico_6mic_soundcard 1) # pokud chceš stdio USB, zapni zároveň CFG_TUD_CDC v tusb_config.h
-
-pico_enable_stdio_uart(pico_6mic_soundcard 1)
+pico_enable_stdio_usb(pico_6mic_soundcard 0)
+pico_enable_stdio_uart(pico_6mic_soundcard 0)
 pico_add_extra_outputs(pico_6mic_soundcard)

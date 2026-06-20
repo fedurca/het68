@@ -25,9 +25,12 @@ uint8_t const* tud_descriptor_device_cb(void) {
 }
 
 // ---------- Config descriptor (UAC2, 6ch mic @ 48 kHz / 16-bit) ----------
-enum { ITF_NUM_AC = 0, ITF_NUM_AS, ITF_NUM_TOTAL };
+enum { ITF_NUM_AC = 0, ITF_NUM_AS = 1, ITF_NUM_CDC = 2, ITF_NUM_TOTAL = 4 };
 #define EPNUM_AUDIO_IN      0x01
 #define EP_ADDR_AUDIO_IN    (0x80 | EPNUM_AUDIO_IN)
+#define EPNUM_CDC_NOTIF     0x83
+#define EPNUM_CDC_OUT       0x04
+#define EPNUM_CDC_IN        0x84
 
 #define AUDIO_N_CHANNELS    6
 #define AUDIO_SAMPLE_BYTES  2
@@ -100,14 +103,15 @@ enum { ITF_NUM_AC = 0, ITF_NUM_AS, ITF_NUM_TOTAL };
   TUD_AUDIO_DESC_CS_AS_ISO_EP(AUDIO_CS_AS_ISO_DATA_EP_ATT_NON_MAX_PACKETS_OK, AUDIO_CTRL_NONE, \
     AUDIO_CS_AS_ISO_DATA_EP_LOCK_DELAY_UNIT_UNDEFINED, 0x0000)
 
-#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_AUDIO_MIC_SIX_CH_DESC_LEN)
+#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_AUDIO_MIC_SIX_CH_DESC_LEN + TUD_CDC_DESC_LEN)
 
 // Export for tusb_config.h consistency check in build scripts if needed.
 enum { HET68_AUDIO_FUNC_DESC_LEN = TUD_AUDIO_MIC_SIX_CH_DESC_LEN };
 
 uint8_t const desc_configuration[] = {
   TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0x80, 100),
-  TUD_AUDIO_MIC_SIX_CH_DESCRIPTOR(ITF_NUM_AC, 0, AUDIO_SAMPLE_BYTES, 16, EP_ADDR_AUDIO_IN, AUDIO_EP_SIZE)
+  TUD_AUDIO_MIC_SIX_CH_DESCRIPTOR(ITF_NUM_AC, 0, AUDIO_SAMPLE_BYTES, 16, EP_ADDR_AUDIO_IN, AUDIO_EP_SIZE),
+  TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 4, EPNUM_CDC_NOTIF, 8, EPNUM_CDC_OUT, EPNUM_CDC_IN, 64)
 };
 
 uint8_t const* tud_descriptor_configuration_cb(uint8_t index) {
@@ -121,6 +125,7 @@ static char const* string_desc[] = {
   "het68",
   "Pico 6ch Microphone 48k/16",
   "123654",
+  "het68 debug",
 };
 
 static uint16_t _desc_str[32];

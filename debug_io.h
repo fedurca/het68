@@ -1,8 +1,10 @@
 #pragma once
 #include <stdint.h>
 
-// Portable UART debug output — works on RP2040 and RP2350.
+// UART (GP16) + optional USB CDC debug output.
+void dbg_init(void);
 void dbg_putc(char c);
+void dbg_flush(void);
 void dbg_puts(const char *s);
 void dbg_putu32(uint32_t v);
 void dbg_puthex8(uint8_t v);

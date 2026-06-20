@@ -1,91 +1,89 @@
 #!/usr/bin/env bash
-# fixdebugger.sh — Reset Pico USB device so Debug Probe can flash again.
+# fixdebugger.sh — Prepare USB bus, then flash via Debug Probe (OpenOCD/SWD).
 #
-# Problem: when the Pico firmware is running (USB audio active), the
-# CMSIS-DAP Debug Probe times out because the Pico USB device interferes
-# with the USB host controller's ability to communicate with the probe.
+# Problem: Pico running UAC2 on the same USB host port tree as the Debug Probe
+# can wedge the controller; OpenOCD then reports:
+#   "unable to find a matching CMSIS-DAP device"
 #
-# Solution: unbind the Pico from the USB driver, which causes a logical
-# disconnect. The Debug Probe can then connect cleanly. After flashing,
-# rebind the Pico so it re-enumerates.
+# Linux "unbind" alone is not enough — the Pico PHY may still be active.
+# This script deauthorizes + usbresets the Pico USB device, waits for the probe,
+# then runs upload.sh.
+#
+# One-time setup: ./install-lab-sudoers.sh
 #
 # Usage:
-#   ./fixdebugger.sh          — just reset Pico and probe, then flash
-#   ./fixdebugger.sh --test   — also run arecord test after flash
+#   ./fixdebugger.sh          — reset USB + flash
+#   ./fixdebugger.sh --test   — also run arecord smoke test
 
 set -euo pipefail
 
-PICO_VID="cafe"
+ROOT="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HELPER="${ROOT}/lab-usb-helper.sh"
 PROBE_VID="2e8a"
 
-find_usb_path() {
-    local vid="$1"
-    for d in /sys/bus/usb/devices/*/idVendor; do
-        [ -f "$d" ] || continue
-        v=$(cat "$d" 2>/dev/null)
-        [ "$v" = "$vid" ] && echo "${d%/idVendor}" && return 0
-    done
-    return 1
+kill_holders() {
+    pkill -x openocd 2>/dev/null || true
+    fuser -k /dev/ttyACM0 2>/dev/null || true
+    fuser -k /dev/ttyACM1 2>/dev/null || true
+    systemctl --user stop pipewire.socket pipewire wireplumber pipewire-pulse 2>/dev/null || true
 }
 
-usb_unbind() {
-    echo "$1" | sudo tee /sys/bus/usb/drivers/usb/unbind > /dev/null
-}
-
-usb_bind() {
-    echo "$1" | sudo tee /sys/bus/usb/drivers/usb/bind > /dev/null
+run_helper() {
+    if [ ! -x "$HELPER" ]; then
+        echo "ERROR: missing ${HELPER}" >&2
+        exit 1
+    fi
+    sudo "$HELPER" "$@"
 }
 
 echo "=== fixdebugger.sh ==="
 
-# 1. Unbind Pico USB audio device (releases snd_usb_audio / ALSA)
-PICO_PATH=$(find_usb_path "$PICO_VID" 2>/dev/null || true)
-if [ -n "$PICO_PATH" ]; then
-    PICO_BUS=$(basename "$PICO_PATH")
-    echo "Pico at $PICO_BUS — unbinding..."
-    usb_unbind "$PICO_BUS" 2>/dev/null || true
-    sleep 1
-else
-    echo "Pico not found (already disconnected?)"
-fi
+kill_holders
 
-# 2. Unbind + rebind Debug Probe to reset its USB state
-PROBE_PATH=$(find_usb_path "$PROBE_VID" 2>/dev/null || true)
-if [ -n "$PROBE_PATH" ]; then
-    PROBE_BUS=$(basename "$PROBE_PATH")
-    echo "Debug Probe at $PROBE_BUS — resetting..."
-    usb_unbind "$PROBE_BUS" 2>/dev/null || true
-    sleep 1
-    usb_bind "$PROBE_BUS" 2>/dev/null || true
-    sleep 2
-else
-    echo "Debug Probe not found!"
+if ! lsusb -d "${PROBE_VID}:" >/dev/null 2>&1; then
+    echo "ERROR: Debug Probe (${PROBE_VID}:*) not found on USB" >&2
     exit 1
 fi
 
-# 3. Flash firmware
-echo "Flashing..."
-./upload.sh
+echo "--- Pico USB off (release bus for probe) ---"
+run_helper pico-off
 
-# 4. Rebind Pico (re-enumerates as USB audio)
-echo "Waiting for Pico to boot..."
-sleep 3
-PICO_PATH=$(find_usb_path "$PICO_VID" 2>/dev/null || true)
-if [ -n "$PICO_PATH" ]; then
-    PICO_BUS=$(basename "$PICO_PATH")
-    echo "Pico re-enumerated at $PICO_BUS"
-else
-    echo "Pico re-enumerated automatically"
+echo "--- Debug Probe reset ---"
+run_helper probe-reset || true
+
+echo "--- Waiting for Debug Probe ---"
+if ! run_helper wait-probe; then
+    echo "ERROR: Debug Probe not responding." >&2
+    echo "Try: unplug/replug the Debug Probe USB cable, then rerun ./fixdebugger.sh" >&2
+    run_helper pico-on || true
+    exit 1
 fi
 
-echo "Done. Pico is running new firmware."
+echo "--- Flashing ---"
+if ! "${ROOT}/upload.sh"; then
+    echo "ERROR: flash failed" >&2
+    run_helper pico-on || true
+    exit 1
+fi
 
-# 5. Optional: run arecord test
+echo "--- Pico USB on ---"
+run_helper pico-on || true
+
+echo "Waiting for Pico to re-enumerate..."
+sleep 3
+if lsusb -d cafe:4066 >/dev/null 2>&1; then
+    echo "Done. Pico USB audio device is back."
+else
+    echo "Done. Pico firmware flashed; USB device not visible yet (may appear after reset)."
+fi
+
 if [ "${1:-}" = "--test" ]; then
     echo
     echo "=== Testing arecord ==="
-    sleep 5
-    arecord -D hw:3,0 -c 6 -r 48000 -f S16_LE --period-size=480 -d 3 /tmp/test_6ch.wav \
+    sleep 3
+    CARD=$(arecord -l 2>/dev/null | awk '/Pico 6ch/{gsub(":","",$2); print $2; exit}')
+    CARD=${CARD:-3}
+    arecord -D "hw:${CARD},0" -c 6 -r 48000 -f S16_LE --period-size=480 -d 3 /tmp/test_6ch.wav \
         && echo "=== CAPTURE OK ===" \
         || echo "=== CAPTURE FAILED ==="
 fi

@@ -1,18 +1,42 @@
-// debug_io.c — portable UART debug helpers for checkpoint instrumentation.
-// Uses pico-sdk uart_putc_raw so the correct UART hardware address is used
-// regardless of whether the target is RP2040 (UART0=0x40034000) or RP2350
-// (UART0=0x40070000).
+// debug_io.c — UART (GP16) + USB CDC debug output.
 #include "debug_io.h"
+#include "tusb_config.h"
 #include "hardware/uart.h"
 #include "pico/stdlib.h"
+#if CFG_TUD_CDC
+#include "tusb.h"
+#endif
+
+void dbg_init(void) {
+    uart_init(uart_default, 115200);
+    gpio_set_function(PICO_DEFAULT_UART_TX_PIN, GPIO_FUNC_UART);
+    gpio_set_function(PICO_DEFAULT_UART_RX_PIN, GPIO_FUNC_UART);
+}
 
 void dbg_putc(char c) {
-    while (!uart_is_writable(uart_default)) { }
-    uart_putc_raw(uart_default, c);
+    // Never block the main loop / tud_task() waiting for UART hardware.
+    for (int spin = 0; spin < 256 && !uart_is_writable(uart_default); spin++) { }
+    if (uart_is_writable(uart_default)) {
+        uart_putc_raw(uart_default, c);
+    }
+#if CFG_TUD_CDC
+    if (tud_cdc_connected()) {
+        tud_cdc_write_char(c);
+    }
+#endif
+}
+
+void dbg_flush(void) {
+#if CFG_TUD_CDC
+    if (tud_cdc_connected()) {
+        tud_cdc_write_flush();
+    }
+#endif
 }
 
 void dbg_puts(const char *s) {
     while (*s) dbg_putc(*s++);
+    dbg_flush();
 }
 
 void dbg_putu32(uint32_t v) {
