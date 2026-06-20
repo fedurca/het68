@@ -18,6 +18,7 @@
 #include "hardware/clocks.h"
 #include "hardware/irq.h"
 #include "tusb.h"
+#include "debug_io.h"
 #include "i2s_rx.pio.h"
 
 // ---------------------------------------------------------------------------
@@ -101,8 +102,10 @@ void __attribute__((noreturn)) __wrap_panic(const char *fmt, ...) {
 #define AUDIO_SAMPLES_PER_USB_FRAME  (AUDIO_SAMPLE_RATE / 1000u)
 #define AUDIO_PACKET_SIZE   (AUDIO_SAMPLES_PER_USB_FRAME * AUDIO_N_CHANNELS * AUDIO_SAMPLE_BYTES)
 
-#define ID_CLK  0x01
-#define ID_FU   0x03
+#define ID_IT   0x01
+#define ID_FU   0x02
+#define ID_OT   0x03
+#define ID_CLK  0x04
 
 // Set to 1 at compile time to bypass I2S and emit diagnostic tones (USB-only test).
 #ifndef HET68_USB_DIAG
@@ -128,6 +131,14 @@ static uint32_t current_sample_rate = AUDIO_SAMPLE_RATE;
 static uint8_t clock_valid = 1;
 static uint8_t master_mute = 0;
 
+// USB debug counters (read in heartbeat; updated from control callbacks only).
+static volatile uint32_t dbg_ctrl_clk_valid;
+static volatile uint32_t dbg_ctrl_sam_freq;
+static volatile uint32_t dbg_ctrl_other;
+static volatile uint32_t dbg_set_itf;
+static volatile uint32_t dbg_usb_frames;
+static volatile uint8_t  dbg_last_alt;
+
 #if HET68_USB_DIAG
 static uint32_t diag_frame_counter;
 #else
@@ -140,6 +151,7 @@ static int i2s_dma[I2S_NUM_LINES];
 static uint32_t i2s_cap[I2S_NUM_LINES][I2S_PINGPONG_WORDS];
 static volatile uint8_t i2s_ready_half;
 static volatile bool i2s_frame_ready;
+static bool i2s_started;
 #endif
 
 #if !HET68_USB_DIAG
@@ -279,7 +291,23 @@ static inline void usb_audio_feed_one_frame(void) {
         memset(usb_frame_buf, 0, sizeof(usb_frame_buf));
     }
 #endif
-    (void)tud_audio_write(usb_frame_buf, sizeof(usb_frame_buf));
+    if (tud_audio_write(usb_frame_buf, sizeof(usb_frame_buf)) > 0) {
+        dbg_usb_frames++;
+    }
+}
+
+// Push one 1 ms USB frame from the main loop (not from USB callbacks).
+static void audio_task(void) {
+    static absolute_time_t next_ms = {0};
+    if (!tud_audio_mounted()) {
+        next_ms = get_absolute_time();
+        return;
+    }
+    if (absolute_time_diff_us(get_absolute_time(), next_ms) > 0) {
+        return;
+    }
+    next_ms = delayed_by_us(next_ms, 1000);
+    usb_audio_feed_one_frame();
 }
 
 // ---------------------------------------------------------------------------
@@ -293,10 +321,8 @@ bool tud_audio_tx_done_pre_load_cb(uint8_t rhport,
     (void)rhport;
     (void)func_id;
     (void)ep_in;
-
-    if (cur_alt_setting != 0) {
-        usb_audio_feed_one_frame();
-    }
+    (void)cur_alt_setting;
+    // Data is fed from audio_task() in the main loop (TinyUSB mic example pattern).
     return true;
 }
 
@@ -317,8 +343,15 @@ bool tud_audio_tx_done_post_load_cb(uint8_t rhport,
 bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_request)
 {
     (void)rhport;
-    (void)p_request;
-    // No printf/logging here — stdio mutex can deadlock with tud_task/USB control path.
+    uint8_t itf = tu_u16_low(p_request->wIndex);
+    uint8_t alt = tu_u16_low(p_request->wValue);
+    dbg_last_alt = alt;
+    dbg_set_itf++;
+    dbg_puts("SET_ITF itf=");
+    dbg_puthex8(itf);
+    dbg_puts(" alt=");
+    dbg_puthex8(alt);
+    dbg_putc('\n');
     return true;
 }
 
@@ -377,15 +410,21 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport,
 {
     audio_control_request_t const *request = (audio_control_request_t const *)p_request;
 
+    dbg_puts("G");
+    dbg_puthex8(request->bEntityID);
+    dbg_putc('\n');
+
     if (request->bEntityID == ID_CLK &&
         request->bControlSelector == AUDIO_CS_CTRL_SAM_FREQ)
     {
         if (request->bRequest == AUDIO_CS_REQ_CUR) {
-            audio_control_cur_4_t curf = { .bCur = current_sample_rate };
-            return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &curf, sizeof(curf));
+            dbg_ctrl_sam_freq++;
+            return tud_audio_buffer_and_schedule_control_xfer(
+                rhport, p_request, &current_sample_rate, sizeof(current_sample_rate));
         }
         if (request->bRequest == AUDIO_CS_REQ_RANGE) {
-            audio_control_range_4_n_t(1) rangef = {
+            dbg_ctrl_sam_freq++;
+            static audio_control_range_4_n_t(1) rangef = {
                 .wNumSubRanges = 1,
                 .subrange[0] = {
                     .bMin = AUDIO_SAMPLE_RATE,
@@ -393,7 +432,7 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport,
                     .bRes = 0
                 }
             };
-            return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &rangef, sizeof(rangef));
+            return tud_control_xfer(rhport, p_request, &rangef, sizeof(rangef));
         }
     }
 
@@ -401,8 +440,8 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport,
         request->bControlSelector == AUDIO_CS_CTRL_CLK_VALID)
     {
         if (request->bRequest == AUDIO_CS_REQ_CUR) {
-            audio_control_cur_1_t cur_valid = { .bCur = clock_valid };
-            return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &cur_valid, sizeof(cur_valid));
+            dbg_ctrl_clk_valid++;
+            return tud_control_xfer(rhport, p_request, &clock_valid, sizeof(clock_valid));
         }
     }
 
@@ -410,11 +449,12 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport,
         request->bControlSelector == AUDIO_FU_CTRL_MUTE)
     {
         if (request->bRequest == AUDIO_CS_REQ_CUR) {
-            audio_control_cur_1_t cur_mute = { .bCur = master_mute };
-            return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &cur_mute, sizeof(cur_mute));
+            dbg_ctrl_other++;
+            return tud_control_xfer(rhport, p_request, &master_mute, sizeof(master_mute));
         }
     }
 
+    dbg_ctrl_other++;
     return false;
 }
 
@@ -449,24 +489,63 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport,
     return false;
 }
 
+static void dbg_heartbeat(uint32_t hb_count)
+{
+    dbg_puts("[");
+    dbg_putu32((uint32_t)(time_us_64() / 1000000u));
+    dbg_puts("s] hb=");
+    dbg_putu32(hb_count);
+    dbg_puts(" mnt=");
+    dbg_putu32(tud_audio_mounted() ? 1u : 0u);
+    dbg_puts(" alt=");
+    dbg_puthex8(dbg_last_alt);
+#if !HET68_USB_DIAG
+    dbg_puts(" i2s=");
+    dbg_putu32(i2s_frame_ready ? 1u : 0u);
+#endif
+    dbg_puts(" clk=");
+    dbg_putu32(dbg_ctrl_clk_valid);
+    dbg_puts(" freq=");
+    dbg_putu32(dbg_ctrl_sam_freq);
+    dbg_puts(" itf=");
+    dbg_putu32(dbg_set_itf);
+    dbg_puts(" usb=");
+    dbg_putu32(dbg_usb_frames);
+    dbg_putc('\n');
+}
+
+void tud_mount_cb(void)
+{
+    dbg_puts("USB mounted\n");
+}
+
+void tud_umount_cb(void)
+{
+    dbg_puts("USB unmounted\n");
+}
+
 // ---------------------------------------------------------------------------
 int main(void)
 {
     stdio_init_all();
     tusb_init();
 
-    printf("\n\n=== het68 UAC2 6ch microphone ===\n");
-    printf("    Build : %s %s\n", __DATE__, __TIME__);
-    printf("    Audio : %u ch, %u Hz, %u bit, %u B/frame\n",
-           (unsigned)AUDIO_N_CHANNELS, (unsigned)AUDIO_SAMPLE_RATE,
-           (unsigned)(AUDIO_SAMPLE_BYTES * 8), (unsigned)AUDIO_PACKET_SIZE);
+    dbg_puts("\n=== het68 UAC2 6ch ===\n");
+    dbg_puts("build ");
+    dbg_puts(__DATE__);
+    dbg_putc(' ');
+    dbg_puts(__TIME__);
+    dbg_putc('\n');
+    dbg_puts("uart GP16/17 -> wire Debug Probe UART for serial\n");
+
 #if !HET68_USB_DIAG
-    printf("    Mode  : I2S capture (3× ICS-43434 stereo)\n");
-    i2s_capture_init(AUDIO_SAMPLE_RATE);
+    dbg_puts("mode: I2S 3x stereo\n");
 #else
-    printf("    Mode  : USB diagnostic tones (I2S disabled)\n");
+    dbg_puts("mode: USB diag tones\n");
 #endif
-    printf("==========================================\n");
+
+    irq_set_priority(DMA_IRQ_0, 0x80);
+    irq_set_priority(USBCTRL_IRQ, 0x40);
 
     const uint led_pin = PICO_DEFAULT_LED_PIN;
     gpio_init(led_pin);
@@ -474,11 +553,27 @@ int main(void)
 
     bool led_state = false;
     absolute_time_t next_led = make_timeout_time_ms(500);
-    absolute_time_t next_heartbeat = make_timeout_time_ms(10000);
+    absolute_time_t next_heartbeat = make_timeout_time_ms(2000);
     uint32_t hb_count = 0;
+
+    dbg_puts("\n=== het68 UAC2 6ch ===\n");
+    dbg_puts("build ");
+    dbg_puts(__DATE__);
+    dbg_putc(' ');
+    dbg_puts(__TIME__);
+    dbg_putc('\n');
 
     for (;;) {
         tud_task();
+
+#if !HET68_USB_DIAG
+        if (tud_audio_mounted() && !i2s_started) {
+            i2s_capture_init(AUDIO_SAMPLE_RATE);
+            i2s_started = true;
+            dbg_puts("I2S started\n");
+        }
+#endif
+        audio_task();
 
         uint32_t blink_ms = tud_audio_mounted() ? 100u : 500u;
         if (absolute_time_diff_us(get_absolute_time(), next_led) <= 0) {
@@ -489,19 +584,8 @@ int main(void)
 
         if (absolute_time_diff_us(get_absolute_time(), next_heartbeat) <= 0) {
             hb_count++;
-#if !HET68_USB_DIAG
-            printf("[%5lus] heartbeat #%lu mounted=%d i2s=%d\n",
-                   (unsigned long)(time_us_64() / 1000000),
-                   (unsigned long)hb_count,
-                   (int)tud_audio_mounted(),
-                   (int)i2s_frame_ready);
-#else
-            printf("[%5lus] heartbeat #%lu mounted=%d\n",
-                   (unsigned long)(time_us_64() / 1000000),
-                   (unsigned long)hb_count,
-                   (int)tud_audio_mounted());
-#endif
-            next_heartbeat = make_timeout_time_ms(10000);
+            dbg_heartbeat(hb_count);
+            next_heartbeat = make_timeout_time_ms(2000);
         }
     }
 }

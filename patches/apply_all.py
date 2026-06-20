@@ -255,6 +255,28 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
         "      audiod_tx_done_cb(rhport, audio); // Fix 8: no TU_VERIFY UB",
         "Fix 8  – remove TU_VERIFY from audiod_tx_done_cb in audiod_xfer_complete (UB)")
 
+    # Fix 11: Starting ISO IN inside audiod_set_interface (before tud_control_status)
+    # races EP0 status stage; Linux then times out on clock-validity GET_CUR (err -110).
+    apply(AC,
+        ("            // Schedule first transmit if alternate interface is not zero i.e. streaming is disabled - in case no sample data is available a ZLP is loaded\n"
+         "            // It is necessary to trigger this here since the refill is done with an RX FIFO empty interrupt which can only trigger if something was in there\n"
+         "            audiod_tx_done_cb(rhport, &_audiod_fct[func_id]); // Fix 5b: no TU_VERIFY UB"),
+        ("            // Fix 11: defer first ISO IN until EP0 SET_INTERFACE status completes"),
+        "Fix 11 – defer first audiod_tx_done_cb until after tud_control_status")
+
+    apply(AC,
+        "  tud_control_status(rhport, p_request);\n\n  return true;\n}",
+        ("  tud_control_status(rhport, p_request);\n\n"
+         "  // Fix 11: start ISO IN after EP0 status — clock queries work again\n"
+         "#if CFG_TUD_AUDIO_ENABLE_EP_IN\n"
+         "  if (alt != 0 && _audiod_fct[func_id].ep_in != 0 &&\n"
+         "      _audiod_fct[func_id].ep_in_as_intf_num == itf) {\n"
+         "    audiod_tx_done_cb(rhport, &_audiod_fct[func_id]);\n"
+         "  }\n"
+         "#endif\n\n"
+         "  return true;\n}"),
+        "Fix 11b – schedule deferred audiod_tx_done_cb after control status")
+
     # ────────────────────────────────────────────────────────────────────────
     print(f"\n── {os.path.basename(UD)}")
 
@@ -282,17 +304,23 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
          "      _usbd_dev.ep_status[epnum][dir].busy) { return false; } // Fix 10: no UB"),
         "Fix 10 – replace TU_ASSERT in usbd_edpt_claim with safe if/return")
 
-    # Fix 6: TU_ASSERT(busy==0) in usbd_edpt_xfer causes UB with -O3:
-    # 'return;' in a bool function may not actually return (compiler can prove
-    # the path is UB and optimize it away), causing fall-through that tries to
-    # start a transfer on a busy endpoint → "ep XX was already available" panic.
-    # Replace with a proper if/return that is well-defined C.
-    apply(UD,
-        "  TU_ASSERT(_usbd_dev.ep_status[epnum][dir].busy == 0);\n\n  // Set busy",
-        ("  if (_usbd_dev.ep_status[epnum][dir].busy) {\n"
-         "    return false; // Fix 6: well-defined early return, avoids TU_ASSERT UB\n"
-         "  }\n\n  // Set busy"),
-        "Fix 6  – replace TU_ASSERT(busy==0) with safe if/return in usbd_edpt_xfer")
+    # Fix 6/12: TU_ASSERT(busy==0) in usbd_edpt_xfer / usbd_edpt_xfer_fifo causes UB
+    # with -O3. Replace every occurrence with a well-defined if/return.
+    busy_assert = "  TU_ASSERT(_usbd_dev.ep_status[epnum][dir].busy == 0);\n\n  // Set busy"
+    busy_safe = ("  if (_usbd_dev.ep_status[epnum][dir].busy) {\n"
+                 "    return false; // Fix 6/12: no TU_ASSERT UB on busy endpoint\n"
+                 "  }\n\n  // Set busy")
+    with open(UD) as f:
+        ud_text = f.read()
+    n_busy = ud_text.count(busy_assert)
+    if n_busy:
+        with open(UD, 'w') as f:
+            f.write(ud_text.replace(busy_assert, busy_safe))
+        print(f"  ✓ Fix 6/12 – replace TU_ASSERT(busy==0) ×{n_busy} in usbd_edpt_xfer(_fifo)")
+    elif busy_safe.strip()[:40] in ud_text:
+        print(f"  = Fix 6/12  [already]")
+    else:
+        print(f"  ✗ Fix 6/12  [pattern not found]", file=sys.stderr)
 
     # ── Summary ──────────────────────────────────────────────────────────────
     print("\n── Verify:")
@@ -305,9 +333,9 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
         (AC,  "// Fix 7b",                   "1"),
         (AC,  "// Fix 7c",                   "1"),
         (AC,  "// Fix 8",                    "1"),
-        (UD,  "/* Fix 9",                    "1"),
-        (UD,  "// Fix 10",                   "1"),
-        (UD,  "// Fix 6",                    "1"),
+        (AC,  "// Fix 11:",                  "1"),
+        (AC,  "// Fix 11: start ISO IN",     "1"),
+        (UD,  "// Fix 6/12:",                "1"),
     ]
     all_ok = True
     for path, pattern, expect in checks:
