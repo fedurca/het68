@@ -229,13 +229,25 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
         ("            audiod_tx_done_cb(rhport, &_audiod_fct[func_id]); // Fix 5b: no TU_VERIFY UB"),
         "Fix 5b – remove TU_VERIFY from audiod_tx_done_cb call (UB with -O3)")
 
-    # Fix 7: same UB in usbd_edpt_xfer call inside audiod_tx_done_cb
-    # (normal streaming path). If xfer fails, just miss one frame — streaming
-    # recovers at the next xfer_complete event.
+    apply(AC,
+        "  TU_VERIFY(tud_audio_tx_done_pre_load_cb(rhport, idx_audio_fct, audio->ep_in, audio->alt_setting[idxItf]));",
+        "  tud_audio_tx_done_pre_load_cb(rhport, idx_audio_fct, audio->ep_in, audio->alt_setting[idxItf]); // Fix 5c: no TU_VERIFY UB",
+        "Fix 5c – remove TU_VERIFY from pre_load_cb in audiod_tx_done_cb (UB with -O3)")
+
+    apply(AC,
+        "  TU_VERIFY(tud_audio_tx_done_post_load_cb(rhport, n_bytes_tx, idx_audio_fct, audio->ep_in, audio->alt_setting[idxItf]));",
+        "  tud_audio_tx_done_post_load_cb(rhport, n_bytes_tx, idx_audio_fct, audio->ep_in, audio->alt_setting[idxItf]); // Fix 5d: no TU_VERIFY UB",
+        "Fix 5d – remove TU_VERIFY from post_load_cb in audiod_tx_done_cb (UB with -O3)")
+
     apply(AC,
         "  TU_VERIFY(usbd_edpt_xfer(rhport, audio->ep_in, audio->lin_buf_in, n_bytes_tx));",
-        "  usbd_edpt_xfer(rhport, audio->ep_in, audio->lin_buf_in, n_bytes_tx); // Fix 7",
-        "Fix 7  – remove TU_VERIFY from usbd_edpt_xfer in audiod_tx_done_cb (UB with -O3)")
+        "  usbd_edpt_xfer(rhport, audio->ep_in, audio->lin_buf_in, n_bytes_tx); // Fix 7b: no TU_VERIFY UB",
+        "Fix 7b – remove TU_VERIFY from usbd_edpt_xfer non-encoding path (UB with -O3)")
+
+    apply(AC,
+        "  TU_VERIFY(usbd_edpt_xfer_fifo(rhport, audio->ep_in, &audio->ep_in_ff, n_bytes_tx));",
+        "  usbd_edpt_xfer_fifo(rhport, audio->ep_in, &audio->ep_in_ff, n_bytes_tx); // Fix 7c: no TU_VERIFY UB",
+        "Fix 7c – remove TU_VERIFY from usbd_edpt_xfer_fifo non-encoding path (UB with -O3)")
 
     # Fix 8: same UB in audiod_xfer_complete (xfer_complete event handler).
     apply(AC,
@@ -290,7 +302,8 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
         (USB, "if (ep->endpoint_control)",   "1"),
         (AC,  "// Fix 5a",                   "1"),
         (AC,  "// Fix 5b",                   "1"),
-        (AC,  "// Fix 7",                    "1"),
+        (AC,  "// Fix 7b",                   "1"),
+        (AC,  "// Fix 7c",                   "1"),
         (AC,  "// Fix 8",                    "1"),
         (UD,  "/* Fix 9",                    "1"),
         (UD,  "// Fix 10",                   "1"),

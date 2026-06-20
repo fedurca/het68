@@ -1,12 +1,9 @@
-// main.c — TinyUSB UAC2 6ch diagnostic tone/silence generator
-// Purpose: isolate USB Audio streaming from PIO/I2S/DMA.
-// It enumerates as your existing 6ch / 48 kHz / 16-bit microphone and always
-// feeds a valid 576-byte frame to the ISO IN endpoint.
+// main.c — RP2350 UAC2 6ch microphone (3× ICS-43434 stereo pairs via PIO I2S RX + DMA)
 //
-// If this records without arecord I/O error, USB descriptors + TinyUSB streaming
-// are basically OK and the remaining bug is in PIO/I2S/DMA capture.
-// If this still fails, the remaining bug is in USB Audio descriptors or TinyUSB
-// callback/API mismatch.
+// Pinout (see wiring_and_bom.md):
+//   GP0 = WS/LRCLK, GP1 = BCLK/SCK (Pico is I2S master)
+//   GP2 = SD pair 1+2, GP3 = SD pair 3+4, GP4 = SD pair 5+6
+// UART debug on GP16/GP17 (GP0/GP1 reserved for I2S).
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -16,10 +13,15 @@
 
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
+#include "hardware/pio.h"
+#include "hardware/dma.h"
+#include "hardware/clocks.h"
+#include "hardware/irq.h"
 #include "tusb.h"
+#include "i2s_rx.pio.h"
 
 // ---------------------------------------------------------------------------
-// Raw UART helpers — safe to call from interrupt/fault context, no mutex.
+// Raw UART helpers — safe from fault context (no mutex).
 // ---------------------------------------------------------------------------
 static void raw_puts(const char *s) {
     while (*s) uart_putc_raw(uart_default, *s++);
@@ -34,27 +36,21 @@ static void raw_puthex32(uint32_t v) {
 
 static void raw_putu32(uint32_t v) {
     if (v == 0) { uart_putc_raw(uart_default, '0'); return; }
-    char buf[11]; int n = 0;
+    char buf[11];
+    int n = 0;
     for (; v; v /= 10) buf[n++] = '0' + (v % 10);
     while (n--) uart_putc_raw(uart_default, buf[n]);
 }
 
-// Spin until UART TX FIFO fully drained (~10 chars at 115200 = 0.87 ms).
 static void raw_flush(void) {
-    while (uart_is_writable(uart_default) == false) { }
-    // UART FIFO drained to hardware shift register; give one more char-time.
+    while (!uart_is_writable(uart_default)) { }
     for (volatile int i = 0; i < 12000; i++) { }
 }
 
-// ---------------------------------------------------------------------------
-// Custom panic handler (PICO_PANIC_FUNCTION=het68_panic).
-// Uses raw UART so the message is visible even from fault/ISR context.
-// ---------------------------------------------------------------------------
 void __attribute__((noreturn)) het68_panic(const char *fmt, ...) {
     raw_puts("\n!!! PANIC !!! uptime=");
     raw_putu32((uint32_t)(time_us_64() / 1000000));
     raw_puts("s\n");
-    // best-effort formatted print (may be unavailable in deep fault context)
     va_list args;
     va_start(args, fmt);
     vprintf(fmt, args);
@@ -64,33 +60,27 @@ void __attribute__((noreturn)) het68_panic(const char *fmt, ...) {
     for (;;) { __asm volatile("nop"); }
 }
 
-// ---------------------------------------------------------------------------
-// HardFault handler — catches NULL deref, bad jump, stack overflow etc.
-// Prints PC/LR from the faulting frame so we can find the crash site.
-// ---------------------------------------------------------------------------
 void __attribute__((naked)) isr_hardfault(void) {
-    // Stacked frame (PSP or MSP): R0 R1 R2 R3 R12 LR PC xPSR
     __asm volatile (
-        "tst lr, #4        \n"  // test bit 2 of EXC_RETURN
+        "tst lr, #4        \n"
         "ite eq            \n"
-        "mrseq r0, msp     \n"  // 0 -> faulted on MSP
-        "mrsne r0, psp     \n"  // 1 -> faulted on PSP
+        "mrseq r0, msp     \n"
+        "mrsne r0, psp     \n"
         "b het68_hardfault \n"
         ::: "r0"
     );
 }
 
-// Only raw register writes — no stdlib, no timer — to prevent double-fault.
 void __attribute__((noreturn)) het68_hardfault(uint32_t *frame) {
-    raw_puts("\n!!! HARDFAULT !!!\n");
-    raw_puts("PC="); raw_puthex32(frame[6]);
-    raw_puts(" LR="); raw_puthex32(frame[5]);
+    raw_puts("\n!!! HARDFAULT !!!\nPC=");
+    raw_puthex32(frame[6]);
+    raw_puts(" LR=");
+    raw_puthex32(frame[5]);
     raw_puts("\n");
     raw_flush();
     for (;;) { __asm volatile("nop"); }
 }
 
-// --wrap=panic catches pre-built pico-sdk libraries that don't see het68_panic.
 void __attribute__((noreturn)) __wrap_panic(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -102,57 +92,199 @@ void __attribute__((noreturn)) __wrap_panic(const char *fmt, ...) {
     for (;;) { __asm volatile("nop"); }
 }
 
+// ---------------------------------------------------------------------------
+// Audio / USB constants
+// ---------------------------------------------------------------------------
 #define AUDIO_SAMPLE_RATE   CFG_TUD_AUDIO_FUNC_1_MAX_SAMPLE_RATE
 #define AUDIO_N_CHANNELS    CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX
 #define AUDIO_SAMPLE_BYTES  CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_TX
-#define AUDIO_SAMPLES_PER_USB_FRAME  (AUDIO_SAMPLE_RATE / 1000)  // 48
+#define AUDIO_SAMPLES_PER_USB_FRAME  (AUDIO_SAMPLE_RATE / 1000u)
 #define AUDIO_PACKET_SIZE   (AUDIO_SAMPLES_PER_USB_FRAME * AUDIO_N_CHANNELS * AUDIO_SAMPLE_BYTES)
 
 #define ID_CLK  0x01
 #define ID_FU   0x03
 
-// 1 = audible/debug square-ish test signal in all 6 channels.
-// 0 = pure silence.
-#ifndef USB_DIAG_TONE
-#define USB_DIAG_TONE 1
+// Set to 1 at compile time to bypass I2S and emit diagnostic tones (USB-only test).
+#ifndef HET68_USB_DIAG
+#define HET68_USB_DIAG 0
 #endif
 
+// ---------------------------------------------------------------------------
+// I2S pins — must match wiring_and_bom.md / README_v24.txt
+// ---------------------------------------------------------------------------
+#define PIN_I2S_WS    0
+#define PIN_I2S_SCK   1
+#define PIN_I2S_D01   2
+#define PIN_I2S_D23   3
+#define PIN_I2S_D45   4
+
+#define I2S_NUM_LINES           3u
+#define I2S_WORDS_PER_FRAME     (AUDIO_SAMPLES_PER_USB_FRAME * 2u)   // L+R per line
+#define I2S_PINGPONG_WORDS      (I2S_WORDS_PER_FRAME * 2u)
+
 static uint8_t usb_frame_buf[AUDIO_PACKET_SIZE] __attribute__((aligned(4)));
-static uint32_t frame_counter = 0;
 
 static uint32_t current_sample_rate = AUDIO_SAMPLE_RATE;
 static uint8_t clock_valid = 1;
 static uint8_t master_mute = 0;
 
-static void build_diag_frame(void)
-{
-    int16_t *out = (int16_t *)usb_frame_buf;
+#if HET68_USB_DIAG
+static uint32_t diag_frame_counter;
+#else
+// ---------------------------------------------------------------------------
+// I2S capture: 3 PIO SMs + 3 DMA channels, ping-pong per line
+// ---------------------------------------------------------------------------
+static PIO i2s_pio;
+static uint i2s_sm[I2S_NUM_LINES];
+static int i2s_dma[I2S_NUM_LINES];
+static uint32_t i2s_cap[I2S_NUM_LINES][I2S_PINGPONG_WORDS];
+static volatile uint8_t i2s_ready_half;
+static volatile bool i2s_frame_ready;
+#endif
 
-#if USB_DIAG_TONE
-    // Different simple square-wave-ish patterns per channel. No libm needed.
-    // Amplitude is intentionally low to avoid speaker/headphone surprises.
+#if !HET68_USB_DIAG
+static void i2s_sm_init(uint sm, uint offset, uint pin_data, uint32_t sample_rate) {
+    pio_gpio_init(i2s_pio, PIN_I2S_SCK);
+    pio_gpio_init(i2s_pio, PIN_I2S_WS);
+    pio_gpio_init(i2s_pio, pin_data);
+
+    pio_sm_set_consecutive_pindirs(i2s_pio, sm, PIN_I2S_SCK, 1, true);
+    pio_sm_set_consecutive_pindirs(i2s_pio, sm, PIN_I2S_WS, 1, false);
+    pio_sm_set_consecutive_pindirs(i2s_pio, sm, pin_data, 1, false);
+
+    pio_sm_config c = i2s_rx_program_get_default_config(offset);
+    sm_config_set_sideset_pins(&c, PIN_I2S_SCK);
+    sm_config_set_in_pins(&c, pin_data);
+    sm_config_set_jmp_pin(&c, PIN_I2S_WS);
+    sm_config_set_in_shift(&c, true, false, 32);
+
+    // 16-bit stereo @ fs: BCLK = 32*fs, PIO toggles SCK every instruction → f_sm = 64*fs
+    float div = (float)clock_get_hz(clk_sys) / (64.0f * (float)sample_rate);
+    sm_config_set_clkdiv(&c, div);
+    pio_sm_init(i2s_pio, sm, offset, &c);
+}
+
+static void i2s_dma_start_half(uint8_t half) {
+    uint32_t base_off = (uint32_t)half * I2S_WORDS_PER_FRAME;
+    for (uint i = 0; i < I2S_NUM_LINES; i++) {
+        dma_channel_set_write_addr(i2s_dma[i], &i2s_cap[i][base_off], false);
+        dma_channel_set_trans_count(i2s_dma[i], I2S_WORDS_PER_FRAME, true);
+    }
+}
+
+static void __isr i2s_dma_irq(void) {
+    dma_hw->ints0 = (1u << i2s_dma[0]);
+    i2s_ready_half = (uint8_t)(1u - i2s_ready_half);
+    i2s_frame_ready = true;
+    i2s_dma_start_half(i2s_ready_half);
+}
+
+static void i2s_capture_init(uint32_t sample_rate) {
+    i2s_pio = pio0;
+    uint offset = pio_add_program(i2s_pio, &i2s_rx_program);
+
+    const uint pin_data[I2S_NUM_LINES] = { PIN_I2S_D01, PIN_I2S_D23, PIN_I2S_D45 };
+
+    for (uint i = 0; i < I2S_NUM_LINES; i++) {
+        i2s_sm[i] = i;
+        i2s_sm_init(i2s_sm[i], offset, pin_data[i], sample_rate);
+
+        i2s_dma[i] = dma_claim_unused_channel(true);
+        dma_channel_config c = dma_channel_get_default_config(i2s_dma[i]);
+        channel_config_set_transfer_data_size(&c, DMA_SIZE_32);
+        channel_config_set_read_increment(&c, false);
+        channel_config_set_write_increment(&c, true);
+        channel_config_set_dreq(&c, pio_get_dreq(i2s_pio, i2s_sm[i], false));
+        dma_channel_configure(
+            i2s_dma[i], &c,
+            &i2s_cap[i][0],
+            &i2s_pio->rxf[i2s_sm[i]],
+            I2S_WORDS_PER_FRAME,
+            false);
+    }
+
+    i2s_ready_half = 0;
+    i2s_frame_ready = false;
+
+    dma_channel_set_irq0_enabled(i2s_dma[0], true);
+    irq_set_exclusive_handler(DMA_IRQ_0, i2s_dma_irq);
+    irq_set_enabled(DMA_IRQ_0, true);
+
+    i2s_dma_start_half(0);
+
+    uint32_t mask = 0;
+    for (uint i = 0; i < I2S_NUM_LINES; i++) mask |= (1u << i2s_sm[i]);
+    pio_enable_sm_mask_in_sync(i2s_pio, mask);
+}
+
+static int16_t i2s_word_to_sample(int32_t raw) {
+    // PIO pushes 16-bit MSB-aligned samples in the lower 16 bits of each 32-bit FIFO word.
+    return (int16_t)(raw >> 16);
+}
+
+static void build_usb_frame_from_i2s(void) {
+    uint8_t read_half = (uint8_t)(1u - i2s_ready_half);
+    uint32_t base = (uint32_t)read_half * I2S_WORDS_PER_FRAME;
+
+    int16_t *out = (int16_t *)usb_frame_buf;
+    for (uint32_t s = 0; s < AUDIO_SAMPLES_PER_USB_FRAME; s++) {
+        uint32_t w = base + s * 2u;
+        int16_t ch0 = i2s_word_to_sample((int32_t)i2s_cap[0][w]);
+        int16_t ch1 = i2s_word_to_sample((int32_t)i2s_cap[0][w + 1u]);
+        int16_t ch2 = i2s_word_to_sample((int32_t)i2s_cap[1][w]);
+        int16_t ch3 = i2s_word_to_sample((int32_t)i2s_cap[1][w + 1u]);
+        int16_t ch4 = i2s_word_to_sample((int32_t)i2s_cap[2][w]);
+        int16_t ch5 = i2s_word_to_sample((int32_t)i2s_cap[2][w + 1u]);
+
+        if (master_mute) {
+            ch0 = ch1 = ch2 = ch3 = ch4 = ch5 = 0;
+        }
+
+        uint32_t o = s * AUDIO_N_CHANNELS;
+        out[o + 0] = ch0;
+        out[o + 1] = ch1;
+        out[o + 2] = ch2;
+        out[o + 3] = ch3;
+        out[o + 4] = ch4;
+        out[o + 5] = ch5;
+    }
+}
+#endif  // !HET68_USB_DIAG
+
+#if HET68_USB_DIAG
+static void build_diag_frame(void) {
+    int16_t *out = (int16_t *)usb_frame_buf;
     static const uint16_t periods[6] = { 109, 97, 83, 71, 61, 53 };
     static const int16_t amps[6] = { 1200, 1600, 2000, 2400, 2800, 3200 };
 
     for (uint32_t i = 0; i < AUDIO_SAMPLES_PER_USB_FRAME; i++) {
-        uint32_t sample_index = frame_counter * AUDIO_SAMPLES_PER_USB_FRAME + i;
-        for (uint32_t ch = 0; ch < 6; ch++) {
+        uint32_t sample_index = diag_frame_counter * AUDIO_SAMPLES_PER_USB_FRAME + i;
+        for (uint32_t ch = 0; ch < AUDIO_N_CHANNELS; ch++) {
             int16_t v = ((sample_index % periods[ch]) < (periods[ch] / 2)) ? amps[ch] : -amps[ch];
-            out[i * 6u + ch] = master_mute ? 0 : v;
+            out[i * AUDIO_N_CHANNELS + ch] = master_mute ? 0 : v;
         }
     }
-    frame_counter++;
-#else
-    memset(usb_frame_buf, 0, sizeof(usb_frame_buf));
-#endif
+    diag_frame_counter++;
 }
+#endif
 
-static inline void usb_audio_feed_one_frame(void)
-{
+static inline void usb_audio_feed_one_frame(void) {
+#if HET68_USB_DIAG
     build_diag_frame();
+#else
+    if (i2s_frame_ready) {
+        build_usb_frame_from_i2s();
+        i2s_frame_ready = false;
+    } else {
+        memset(usb_frame_buf, 0, sizeof(usb_frame_buf));
+    }
+#endif
     (void)tud_audio_write(usb_frame_buf, sizeof(usb_frame_buf));
 }
 
+// ---------------------------------------------------------------------------
+// TinyUSB UAC2 callbacks
+// ---------------------------------------------------------------------------
 bool tud_audio_tx_done_pre_load_cb(uint8_t rhport,
                                    uint8_t func_id,
                                    uint8_t ep_in,
@@ -184,20 +316,9 @@ bool tud_audio_tx_done_post_load_cb(uint8_t rhport,
 
 bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_request)
 {
-    uint8_t const alt = (uint8_t)(p_request->wValue & 0xffu);
-    uint8_t const itf = (uint8_t)(p_request->wIndex & 0xffu);
-    printf("[%5lus] SET_INTERFACE iface=%u alt=%u\n",
-           (unsigned long)(time_us_64() / 1000000), itf, alt);
-    dbg_pulse(alt ? 2 : 1);
-    raw_puts("[CP-C] set_itf_cb returning true\n");
-    raw_flush();
-
-    // Guarantee the SET_INTERFACE status ZLP is sent now, before
-    // audiod_set_interface() tries to send it (which may fail due to
-    // EP0_IN busy race).  The second call from audiod_set_interface will
-    // silently fail (busy=1) which is fine — the ZLP is already queued.
-    tud_control_status(rhport, p_request);
-
+    (void)rhport;
+    (void)p_request;
+    // No printf/logging here — stdio mutex can deadlock with tud_task/USB control path.
     return true;
 }
 
@@ -263,7 +384,6 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport,
             audio_control_cur_4_t curf = { .bCur = current_sample_rate };
             return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &curf, sizeof(curf));
         }
-
         if (request->bRequest == AUDIO_CS_REQ_RANGE) {
             audio_control_range_4_n_t(1) rangef = {
                 .wNumSubRanges = 1,
@@ -290,7 +410,6 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport,
         request->bControlSelector == AUDIO_FU_CTRL_MUTE)
     {
         if (request->bRequest == AUDIO_CS_REQ_CUR) {
-            // All channels report the same master mute state.
             audio_control_cur_1_t cur_mute = { .bCur = master_mute };
             return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &cur_mute, sizeof(cur_mute));
         }
@@ -330,28 +449,23 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport,
     return false;
 }
 
-void dbg_pulse(uint8_t n);  // defined below main()
-
-void dbg_pulse(uint8_t n) {
-    for (uint8_t i = 0; i < n; i++) {
-        gpio_put(2, 1); for (volatile int d=0; d<5000; d++) {}
-        gpio_put(2, 0); for (volatile int d=0; d<5000; d++) {}
-    }
-}
-
+// ---------------------------------------------------------------------------
 int main(void)
 {
     stdio_init_all();
-    gpio_init(2); gpio_set_dir(2, GPIO_OUT);
-    dbg_pulse(3);  // 3 pulses = firmware started
-
-    printf("\n\n=== het68 UAC2 6ch diagnostic firmware ===\n");
-    printf("    Build : %s %s\n", __DATE__, __TIME__);
-    printf("    Audio : %d ch, %d Hz, %d bit, %d B/frame\n",
-           AUDIO_N_CHANNELS, AUDIO_SAMPLE_RATE,
-           AUDIO_SAMPLE_BYTES * 8, AUDIO_PACKET_SIZE);
     tusb_init();
-    printf("    TinyUSB 0.18.0 + PR#2937+4bfba6b patches\n");
+
+    printf("\n\n=== het68 UAC2 6ch microphone ===\n");
+    printf("    Build : %s %s\n", __DATE__, __TIME__);
+    printf("    Audio : %u ch, %u Hz, %u bit, %u B/frame\n",
+           (unsigned)AUDIO_N_CHANNELS, (unsigned)AUDIO_SAMPLE_RATE,
+           (unsigned)(AUDIO_SAMPLE_BYTES * 8), (unsigned)AUDIO_PACKET_SIZE);
+#if !HET68_USB_DIAG
+    printf("    Mode  : I2S capture (3× ICS-43434 stereo)\n");
+    i2s_capture_init(AUDIO_SAMPLE_RATE);
+#else
+    printf("    Mode  : USB diagnostic tones (I2S disabled)\n");
+#endif
     printf("==========================================\n");
 
     const uint led_pin = PICO_DEFAULT_LED_PIN;
@@ -359,18 +473,14 @@ int main(void)
     gpio_set_dir(led_pin, GPIO_OUT);
 
     bool led_state = false;
-    absolute_time_t next_led       = make_timeout_time_ms(500);
+    absolute_time_t next_led = make_timeout_time_ms(500);
     absolute_time_t next_heartbeat = make_timeout_time_ms(10000);
     uint32_t hb_count = 0;
 
     for (;;) {
         tud_task();
 
-        if (tud_audio_mounted()) {
-            usb_audio_feed_one_frame();
-        }
-
-        uint32_t blink_ms = tud_audio_mounted() ? 100 : 500;
+        uint32_t blink_ms = tud_audio_mounted() ? 100u : 500u;
         if (absolute_time_diff_us(get_absolute_time(), next_led) <= 0) {
             led_state = !led_state;
             gpio_put(led_pin, led_state);
@@ -379,10 +489,18 @@ int main(void)
 
         if (absolute_time_diff_us(get_absolute_time(), next_heartbeat) <= 0) {
             hb_count++;
-            printf("[%5lus] heartbeat #%lu  mounted=%d\n",
+#if !HET68_USB_DIAG
+            printf("[%5lus] heartbeat #%lu mounted=%d i2s=%d\n",
+                   (unsigned long)(time_us_64() / 1000000),
+                   (unsigned long)hb_count,
+                   (int)tud_audio_mounted(),
+                   (int)i2s_frame_ready);
+#else
+            printf("[%5lus] heartbeat #%lu mounted=%d\n",
                    (unsigned long)(time_us_64() / 1000000),
                    (unsigned long)hb_count,
                    (int)tud_audio_mounted());
+#endif
             next_heartbeat = make_timeout_time_ms(10000);
         }
     }

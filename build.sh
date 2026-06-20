@@ -7,6 +7,9 @@ set -x
 # log do souboru i na konzoli (při každém běhu se přepíše)
 exec > >(tee err_build.log) 2>&1
 
+# Apply TinyUSB patches (idempotent) before clean build
+python3 patches/apply_all.py
+
 # čistý build dir
 rm -rf build
 
