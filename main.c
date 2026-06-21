@@ -678,11 +678,13 @@ static void dbg_heartbeat(uint32_t hb_count)
     dbg_putu32(buzzer_beacon_count());
 #if !HET68_USB_DIAG
     {
-        extern volatile uint32_t g_doa_out, g_doa_nactive;
-        dbg_puts(" doa(out/act)=");
+        extern volatile uint32_t g_doa_out, g_doa_nactive, g_doa_iter;
+        dbg_puts(" doa(out/act/iter)=");
         dbg_putu32(g_doa_out);
         dbg_putc('/');
         dbg_putu32(g_doa_nactive);
+        dbg_putc('/');
+        dbg_putu32(g_doa_iter);
     }
 #endif
     dbg_putc('\n');
@@ -735,10 +737,9 @@ int main(void)
     dbg_puts("buzzer: PS1240 H-bridge GP6/GP7, 4kHz PN beacon\n");
 
 #if !HET68_USB_DIAG
-    // Direction-of-arrival analysis (3D TDOA, 512 mm cube standing on a vertex).
-    // Runs on core0, sliced across main-loop passes — see doa.c for why not core1.
-    doa_init();
-    dbg_puts("DOA: enabled (3D TDOA, 512mm cube on vertex, on core0)\n");
+    // Direction-of-arrival on core1 (het68_launch_core1 resets core1 after SWD flash).
+    doa_start();
+    dbg_puts("DOA: core1 launched (3D TDOA, 512mm cube on vertex)\n");
 #endif
 
     const uint led_pin = PICO_DEFAULT_LED_PIN;
@@ -761,12 +762,6 @@ int main(void)
 #endif
         // Audio frames are produced in tud_audio_tx_done_pre_load_cb(), driven by
         // the USB IN cadence — nothing to pump from the main loop here.
-
-#if !HET68_USB_DIAG
-        // One bounded slice of DOA work, interleaved with tud_task() above so
-        // the 1 ms USB audio feed is never starved.
-        doa_service();
-#endif
 
         uint32_t blink_ms = tud_audio_mounted() ? 100u : 500u;
         if (absolute_time_diff_us(get_absolute_time(), next_led) <= 0) {

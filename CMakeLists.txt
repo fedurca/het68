@@ -12,6 +12,7 @@ set(SRCS
     usb_descriptors.c
     debug_io.c
     buzzer.c
+    core1_launch.c
     doa.c
 )
 
@@ -61,6 +62,7 @@ target_link_options(pico_6mic_soundcard PRIVATE -Wl,--wrap=panic)
 
 target_link_libraries(pico_6mic_soundcard
     pico_stdlib
+    pico_multicore
     hardware_pio
     hardware_dma
     hardware_clocks
@@ -68,6 +70,9 @@ target_link_libraries(pico_6mic_soundcard
     tinyusb_device
     tinyusb_board
 )
+
+# core1 stack lives in SCRATCH_X (4 KiB on RP2350); default 2 KiB is enough because
+# DOA keeps large working buffers static (see s_corr in doa.c).
 
 # vyber si jednu z následujících dvou řádek:
 pico_enable_stdio_usb(pico_6mic_soundcard 0)
