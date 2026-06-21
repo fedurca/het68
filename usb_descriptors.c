@@ -25,7 +25,8 @@ uint8_t const* tud_descriptor_device_cb(void) {
 }
 
 // ---------- Config descriptor (UAC2, 6ch mic @ 48 kHz / 16-bit) ----------
-enum { ITF_NUM_AC = 0, ITF_NUM_AS = 1, ITF_NUM_CDC = 2, ITF_NUM_TOTAL = 4 };
+// AC=0, AS=1, CDC=2 — bNumInterfaces must match the highest interface index + 1.
+enum { ITF_NUM_AC = 0, ITF_NUM_AS = 1, ITF_NUM_CDC = 2, ITF_NUM_TOTAL = 3 };
 #define EPNUM_AUDIO_IN      0x01
 #define EP_ADDR_AUDIO_IN    (0x80 | EPNUM_AUDIO_IN)
 #define EPNUM_CDC_NOTIF     0x83
