@@ -1,25 +1,40 @@
-; I2S slave RX: read SD on rising edges of external SCK (GP1), MSB first.
-; WS (GP0) selects left/right phase. Clock SM must drive WS+SCK first.
-; Captures a full 32-bit slot per channel (24 data bits + padding); the
-; C side keeps the top 24 bits. Shift LEFT + autopush so the first bit
-; received (the sample MSB) ends up in the most-significant bit.
+; I2S slave RX, phase-locked to the on-chip master clock SM (i2s_clk).
+;
+; Rationale: gating `in` on the external SCK with `wait gpio` is unreliable here
+; because the data SM and the clock SM run at different clkdivs; the GPIO input
+; synchroniser races the short SCK-high window and we capture a varying number
+; of bits per slot (garbage / dropped bits / oversampling).
+;
+; Instead this program mirrors the clock SM cycle-for-cycle. Both SMs use the
+; SAME clkdiv and are started together with pio_enable_sm_mask_in_sync(), so they
+; stay in lock-step forever (neither stalls in steady state). We therefore know
+; exactly which SM cycle each SCK edge happens on and sample once per bit at a
+; fixed phase — fully deterministic, no GPIO waits.
+;
+; Cycle layout per channel bit (mirrors i2s_clk: nop side1 / nop side0 / jmp):
+;   c0: SCK rising  <- sample here ('in pins, 1')
+;   c1: SCK high/falling
+;   c2: SCK low (jmp)
+; Frame = 2 setup + 32*3 (left) + 2 setup + 32*3 (right) = 196 cycles, identical
+; to the clock SM, so the two programs never drift apart.
+;
+; MSB-first: shift LEFT + autopush(32) so the first sampled bit ends up in the
+; ISR MSB. A fixed whole-bit offset (I2S 1-bit delay) is corrected on the C side.
 .program i2s_rx
 .define public PIN_SCK 1
 
 .wrap_target
-    wait 0 pin 0                      ; WS == 0 (left)
-    set x, 31
+    nop                              ; mirror clk "set pins,0 side0" (WS low)
+    set x, 31                        ; mirror clk "set x,31"
 left_loop:
-    wait 1 gpio PIN_SCK
-    in pins, 1
-    wait 0 gpio PIN_SCK
-    jmp x-- left_loop
+    in pins, 1                       ; c0: sample SD at SCK rising edge
+    nop                              ; c1
+    jmp x-- left_loop                ; c2
 
-    wait 1 pin 0                      ; WS == 1 (right)
-    set x, 31
+    nop                              ; mirror clk "set pins,1 side0" (WS high)
+    set x, 31                        ; mirror clk "set x,31"
 right_loop:
-    wait 1 gpio PIN_SCK
-    in pins, 1
-    wait 0 gpio PIN_SCK
-    jmp x-- right_loop
+    in pins, 1                       ; c0: sample SD at SCK rising edge
+    nop                              ; c1
+    jmp x-- right_loop               ; c2
 .wrap

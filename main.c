@@ -184,7 +184,7 @@ static volatile uint32_t dbg_i2s_feed_miss;
 static volatile uint16_t dbg_i2s_peak[6];
 static volatile uint32_t dbg_i2s_raw[3];
 
-static void i2s_clk_sm_init(uint offset, uint32_t sample_rate) {
+static void i2s_clk_sm_init(uint offset, float div) {
     pio_gpio_init(i2s_pio, PIN_I2S_WS);
     pio_gpio_init(i2s_pio, PIN_I2S_SCK);
     pio_sm_set_consecutive_pindirs(i2s_pio, I2S_CLK_SM, PIN_I2S_WS, 1, true);
@@ -193,27 +193,23 @@ static void i2s_clk_sm_init(uint offset, uint32_t sample_rate) {
     pio_sm_config c = i2s_clk_program_get_default_config(offset);
     sm_config_set_set_pins(&c, PIN_I2S_WS, 1);
     sm_config_set_sideset_pins(&c, PIN_I2S_SCK);
-    // 64 BCLK per frame (32/channel), 3 SM cycles per bit, 2 setup instr per
-    // half → frame = 2*(2 + 32*3) = 196 SM cycles. Pick clkdiv so one frame
-    // takes 1/sample_rate. (Approximate: the 4 setup cycles add ~2% to the
-    // bit period; fine for capture, the host clocks via async feedback.)
-    float div = (float)clock_get_hz(clk_sys) / (196.0f * (float)sample_rate);
     sm_config_set_clkdiv(&c, div);
     pio_sm_init(i2s_pio, I2S_CLK_SM, offset, &c);
 }
 
-static void i2s_data_sm_init(uint sm, uint offset, uint pin_data) {
+static void i2s_data_sm_init(uint sm, uint offset, uint pin_data, float div) {
     pio_gpio_init(i2s_pio, pin_data);
     pio_sm_set_consecutive_pindirs(i2s_pio, sm, pin_data, 1, false);
 
     pio_sm_config c = i2s_rx_program_get_default_config(offset);
     sm_config_set_in_pins(&c, pin_data);
-    sm_config_set_jmp_pin(&c, PIN_I2S_WS);
     // MSB-first: shift LEFT so the first received bit (sample MSB) lands in the
     // ISR MSB; autopush a full 32-bit slot per channel.
     sm_config_set_in_shift(&c, false, true, 32);
-    // Fast enough to catch SCK edges driven by the clock SM.
-    sm_config_set_clkdiv(&c, 1.0f);
+    // CRITICAL: identical clkdiv to the clock SM so the two stay phase-locked
+    // when started together with pio_enable_sm_mask_in_sync(). The RX program
+    // mirrors the clock SM cycle-for-cycle and samples deterministically.
+    sm_config_set_clkdiv(&c, div);
     pio_sm_init(i2s_pio, sm, offset, &c);
 }
 
@@ -238,13 +234,18 @@ static void i2s_capture_init(uint32_t sample_rate) {
     uint offset_clk = pio_add_program(i2s_pio, &i2s_clk_program);
     uint offset_rx = pio_add_program(i2s_pio, &i2s_rx_program);
 
-    i2s_clk_sm_init(offset_clk, sample_rate);
+    // 64 BCLK per frame (32/channel), 3 SM cycles per bit, 2 setup instr per
+    // half → frame = 2*(2 + 32*3) = 196 SM cycles. Pick clkdiv so one frame
+    // takes 1/sample_rate. The clock SM and all data SMs use this SAME div so
+    // pio_enable_sm_mask_in_sync() leaves them phase-locked (deterministic RX).
+    float div = (float)clock_get_hz(clk_sys) / (196.0f * (float)sample_rate);
+    i2s_clk_sm_init(offset_clk, div);
 
     const uint pin_data[I2S_NUM_LINES] = { PIN_I2S_D01, PIN_I2S_D23, PIN_I2S_D45 };
 
     for (uint i = 0; i < I2S_NUM_LINES; i++) {
         i2s_sm[i] = i;
-        i2s_data_sm_init(i2s_sm[i], offset_rx, pin_data[i]);
+        i2s_data_sm_init(i2s_sm[i], offset_rx, pin_data[i], div);
 
         i2s_dma[i] = dma_claim_unused_channel(true);
         dma_channel_config c = dma_channel_get_default_config(i2s_dma[i]);
@@ -280,11 +281,17 @@ static void i2s_capture_init(uint32_t sample_rate) {
     dbg_putc('\n');
 }
 
-static int32_t i2s_word_to_s24(uint32_t raw) {
-    // The RX SM captures 32 bits MSB-first (first SCK after WS is the Philips
-    // 1-bit delay, the 24 data bits follow). Drop the delay bit, then arithmetic
-    // shift down to a sign-extended 24-bit value in the low 24 bits.
-    return ((int32_t)(raw << 1)) >> 8;
+// The RX SM captures 32 bits MSB-first per WS slot. Where the sample MSB lands
+// in that word was measured empirically against a 1 kHz lab reference (clean,
+// symmetric, low-THD only at these shifts):
+//   - RIGHT slot (WS=1): standard I2S 1-bit delay -> MSB at bit30 -> shift left 1
+//   - LEFT  slot (WS=0): arrives 3 BCLK later     -> MSB at bit27 -> shift left 4
+// After the left shift the MSB sits in bit31; an arithmetic >>8 then sign-extends
+// to a 24-bit value in the low 24 bits.
+#define I2S_LSHIFT_LEFT   4u
+#define I2S_LSHIFT_RIGHT  1u
+static inline int32_t i2s_word_to_s24(uint32_t raw, uint lshift) {
+    return ((int32_t)(raw << lshift)) >> 8;
 }
 
 static void build_usb_frame_from_i2s(void) {
@@ -304,7 +311,9 @@ static void build_usb_frame_from_i2s(void) {
         };
 
         for (int i = 0; i < 6; i++) {
-            int32_t s24 = i2s_word_to_s24(raww[i]);
+            // Even index = LEFT slot (WS=0), odd = RIGHT slot (WS=1).
+            uint lshift = (i & 1) ? I2S_LSHIFT_RIGHT : I2S_LSHIFT_LEFT;
+            int32_t s24 = i2s_word_to_s24(raww[i], lshift);
             int32_t v = s24 < 0 ? -s24 : s24;
             uint16_t a = (uint16_t)(v >> 8);   // track top 16 bits for the heartbeat
             if (a > peak[i]) peak[i] = a;
