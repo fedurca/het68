@@ -66,9 +66,15 @@ Projekt využívá PIO k implementaci I2S přijímačů a DMA k přenosu dat z P
         * Spojené `SD` výstupy -> `GP4` na Pico
 
 * **Debug UART (Raspberry Pi Debug Probe, nezávisle na I2S):**
-    * `GP8` (Pin 11) -> **UART TX** -> Probe **RX** (UART konektor „U“)
-    * `GP9` (Pin 12) -> **UART RX** <- Probe **TX**
-    * `GND` (Pin 13) -> společná zem s Debug Probe
+
+    Kabel k Debug Probe (konektor „U“) — tři barvy:
+
+    | Barva | Pico pin | GPIO | Signál | → Debug Probe „U“ |
+    |---|---|---|---|---|
+    | **žlutá** | Pin 11 | GP8 | UART TX | → Probe **RX** |
+    | **oranžová** | Pin 12 | GP9 | UART RX | ← Probe **TX** |
+    | **černá** | Pin 13 | GND | zem | GND |
+
     * Rychlost: **115200** baud (`./serial.sh`)
     * Poznámka: GP8/GP9 jsou **UART1**; I2S běží na GP0–GP4 bez kolize.
 

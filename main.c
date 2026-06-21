@@ -3,7 +3,7 @@
 // Pinout (see README.md / wiring_and_bom.md):
 //   GP0 = WS/LRCLK, GP1 = BCLK/SCK (Pico is I2S master)
 //   GP2 = SD pair 1+2, GP3 = SD pair 3+4, GP4 = SD pair 5+6
-//   GP8 = UART TX, GP9 = UART RX (Debug Probe: physical pins 11/12/13)
+//   GP8 = UART TX (žlutá, pin 11), GP9 = UART RX (oranžová, pin 12), GND (černá, pin 13)
 //
 // HET68_USB_DIAG=1 bypasses I2S and sends a simulated 1 kHz tone (bench test).
 

@@ -30,13 +30,13 @@ Breakout: https://www.aliexpress.com/item/1005008956861273.html
 
 ## Debug UART — Raspberry Pi Debug Probe
 
-Nezávislé na I2S (UART1, GP8/GP9):
+Nezávislé na I2S (UART1, GP8/GP9). Kabel: **žlutá**, **oranžová**, **černá**.
 
-| Pico | Pin | Debug Probe „U“ |
-|---|---|---|
-| GP8 | 11 | TX → Probe **RX** |
-| GP9 | 12 | RX ← Probe **TX** |
-| GND | 13 | GND |
+| Barva | Pico | Pin | Signál | Debug Probe „U“ |
+|---|---|---|---|---|
+| **žlutá** | GP8 | 11 | UART TX | → Probe **RX** |
+| **oranžová** | GP9 | 12 | UART RX | ← Probe **TX** |
+| **černá** | GND | 13 | zem | GND |
 
 ```bash
 ./serial.sh    # 115200 baud, /dev/ttyACM0
