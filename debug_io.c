@@ -71,3 +71,11 @@ void dbg_puthex8(uint8_t v) {
     dbg_putc(hex[v >> 4]);
     dbg_putc(hex[v & 0xF]);
 }
+
+void dbg_puthex32(uint32_t v) {
+    dbg_puts("0x");
+    dbg_puthex8((uint8_t)(v >> 24));
+    dbg_puthex8((uint8_t)(v >> 16));
+    dbg_puthex8((uint8_t)(v >> 8));
+    dbg_puthex8((uint8_t)v);
+}

@@ -22,6 +22,7 @@
 #include "tusb.h"
 #include "debug_io.h"
 #include "i2s_rx.pio.h"
+#include "i2s_clk.pio.h"
 
 // ---------------------------------------------------------------------------
 // Raw UART helpers — safe from fault context (no mutex).
@@ -144,6 +145,7 @@ void __attribute__((noreturn)) __wrap_panic(const char *fmt, ...) {
 #define PIN_I2S_D45   4
 
 #define I2S_NUM_LINES           3u
+#define I2S_CLK_SM              3u
 #define I2S_WORDS_PER_FRAME     (AUDIO_SAMPLES_PER_USB_FRAME * 2u)   // L+R per line
 #define I2S_PINGPONG_WORDS      (I2S_WORDS_PER_FRAME * 2u)
 
@@ -174,27 +176,39 @@ static uint32_t i2s_cap[I2S_NUM_LINES][I2S_PINGPONG_WORDS];
 static volatile uint8_t i2s_ready_half;
 static volatile bool i2s_frame_ready;
 static bool i2s_started;
-#endif
 
-#if !HET68_USB_DIAG
-static void i2s_sm_init(uint sm, uint offset, uint pin_data, uint32_t sample_rate) {
-    pio_gpio_init(i2s_pio, PIN_I2S_SCK);
+// I2S/DMA diagnostics (heartbeat + bring-up).
+static volatile uint32_t dbg_i2s_dma_irq;
+static volatile uint32_t dbg_i2s_feed_ok;
+static volatile uint32_t dbg_i2s_feed_miss;
+static volatile uint16_t dbg_i2s_peak[6];
+static volatile uint32_t dbg_i2s_raw[3];
+
+static void i2s_clk_sm_init(uint offset, uint32_t sample_rate) {
     pio_gpio_init(i2s_pio, PIN_I2S_WS);
-    pio_gpio_init(i2s_pio, pin_data);
+    pio_gpio_init(i2s_pio, PIN_I2S_SCK);
+    pio_sm_set_consecutive_pindirs(i2s_pio, I2S_CLK_SM, PIN_I2S_WS, 1, true);
+    pio_sm_set_consecutive_pindirs(i2s_pio, I2S_CLK_SM, PIN_I2S_SCK, 1, true);
 
-    pio_sm_set_consecutive_pindirs(i2s_pio, sm, PIN_I2S_SCK, 1, true);
-    pio_sm_set_consecutive_pindirs(i2s_pio, sm, PIN_I2S_WS, 1, false);
+    pio_sm_config c = i2s_clk_program_get_default_config(offset);
+    sm_config_set_set_pins(&c, PIN_I2S_WS, 1);
+    sm_config_set_sideset_pins(&c, PIN_I2S_SCK);
+    // 16-bit stereo @ fs: BCLK = 32*fs per channel, 2 toggles per bit → f_sm = 64*fs
+    float div = (float)clock_get_hz(clk_sys) / (64.0f * (float)sample_rate);
+    sm_config_set_clkdiv(&c, div);
+    pio_sm_init(i2s_pio, I2S_CLK_SM, offset, &c);
+}
+
+static void i2s_data_sm_init(uint sm, uint offset, uint pin_data) {
+    pio_gpio_init(i2s_pio, pin_data);
     pio_sm_set_consecutive_pindirs(i2s_pio, sm, pin_data, 1, false);
 
     pio_sm_config c = i2s_rx_program_get_default_config(offset);
-    sm_config_set_sideset_pins(&c, PIN_I2S_SCK);
     sm_config_set_in_pins(&c, pin_data);
     sm_config_set_jmp_pin(&c, PIN_I2S_WS);
     sm_config_set_in_shift(&c, true, false, 32);
-
-    // 16-bit stereo @ fs: BCLK = 32*fs, PIO toggles SCK every instruction → f_sm = 64*fs
-    float div = (float)clock_get_hz(clk_sys) / (64.0f * (float)sample_rate);
-    sm_config_set_clkdiv(&c, div);
+    // Fast enough to catch SCK edges driven by the clock SM.
+    sm_config_set_clkdiv(&c, 1.0f);
     pio_sm_init(i2s_pio, sm, offset, &c);
 }
 
@@ -208,6 +222,7 @@ static void i2s_dma_start_half(uint8_t half) {
 
 static void __isr i2s_dma_irq(void) {
     dma_hw->ints0 = (1u << i2s_dma[0]);
+    dbg_i2s_dma_irq++;
     i2s_ready_half = (uint8_t)(1u - i2s_ready_half);
     i2s_frame_ready = true;
     i2s_dma_start_half(i2s_ready_half);
@@ -215,13 +230,16 @@ static void __isr i2s_dma_irq(void) {
 
 static void i2s_capture_init(uint32_t sample_rate) {
     i2s_pio = pio0;
-    uint offset = pio_add_program(i2s_pio, &i2s_rx_program);
+    uint offset_clk = pio_add_program(i2s_pio, &i2s_clk_program);
+    uint offset_rx = pio_add_program(i2s_pio, &i2s_rx_program);
+
+    i2s_clk_sm_init(offset_clk, sample_rate);
 
     const uint pin_data[I2S_NUM_LINES] = { PIN_I2S_D01, PIN_I2S_D23, PIN_I2S_D45 };
 
     for (uint i = 0; i < I2S_NUM_LINES; i++) {
         i2s_sm[i] = i;
-        i2s_sm_init(i2s_sm[i], offset, pin_data[i], sample_rate);
+        i2s_data_sm_init(i2s_sm[i], offset_rx, pin_data[i]);
 
         i2s_dma[i] = dma_claim_unused_channel(true);
         dma_channel_config c = dma_channel_get_default_config(i2s_dma[i]);
@@ -246,9 +264,15 @@ static void i2s_capture_init(uint32_t sample_rate) {
 
     i2s_dma_start_half(0);
 
-    uint32_t mask = 0;
+    uint32_t mask = (1u << I2S_CLK_SM);
     for (uint i = 0; i < I2S_NUM_LINES; i++) mask |= (1u << i2s_sm[i]);
     pio_enable_sm_mask_in_sync(i2s_pio, mask);
+
+    dbg_puts("I2S started clk_sm=");
+    dbg_putu32(I2S_CLK_SM);
+    dbg_puts(" dma0=");
+    dbg_putu32((uint32_t)i2s_dma[0]);
+    dbg_putc('\n');
 }
 
 static int16_t i2s_word_to_sample(int32_t raw) {
@@ -261,6 +285,7 @@ static void build_usb_frame_from_i2s(void) {
     uint32_t base = (uint32_t)read_half * I2S_WORDS_PER_FRAME;
 
     int16_t *out = (int16_t *)usb_frame_buf;
+    uint16_t peak[6] = {0, 0, 0, 0, 0, 0};
     for (uint32_t s = 0; s < AUDIO_SAMPLES_PER_USB_FRAME; s++) {
         uint32_t w = base + s * 2u;
         int16_t ch0 = i2s_word_to_sample((int32_t)i2s_cap[0][w]);
@@ -269,6 +294,12 @@ static void build_usb_frame_from_i2s(void) {
         int16_t ch3 = i2s_word_to_sample((int32_t)i2s_cap[1][w + 1u]);
         int16_t ch4 = i2s_word_to_sample((int32_t)i2s_cap[2][w]);
         int16_t ch5 = i2s_word_to_sample((int32_t)i2s_cap[2][w + 1u]);
+
+        int16_t all[] = {ch0, ch1, ch2, ch3, ch4, ch5};
+        for (int i = 0; i < 6; i++) {
+            uint16_t a = (uint16_t)(all[i] < 0 ? -all[i] : all[i]);
+            if (a > peak[i]) peak[i] = a;
+        }
 
         if (master_mute) {
             ch0 = ch1 = ch2 = ch3 = ch4 = ch5 = 0;
@@ -282,6 +313,10 @@ static void build_usb_frame_from_i2s(void) {
         out[o + 4] = ch4;
         out[o + 5] = ch5;
     }
+    for (int i = 0; i < 6; i++) dbg_i2s_peak[i] = peak[i];
+    dbg_i2s_raw[0] = i2s_cap[0][base];
+    dbg_i2s_raw[1] = i2s_cap[1][base];
+    dbg_i2s_raw[2] = i2s_cap[2][base];
 }
 #endif  // !HET68_USB_DIAG
 
@@ -335,9 +370,11 @@ static inline void usb_audio_feed_one_frame(void) {
     build_diag_frame();
 #else
     if (i2s_frame_ready) {
+        dbg_i2s_feed_ok++;
         build_usb_frame_from_i2s();
         i2s_frame_ready = false;
     } else {
+        dbg_i2s_feed_miss++;
         // No fresh I2S frame yet: send silence rather than stalling the endpoint.
         // A continuously-fed ISO IN stream is what keeps the host streaming.
         memset(usb_frame_buf, 0, sizeof(usb_frame_buf));
@@ -558,6 +595,37 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport,
     return false;
 }
 
+#if !HET68_USB_DIAG
+static bool i2s_sm_stalled(uint sm) {
+    return (i2s_pio->fdebug & (1u << (PIO_FDEBUG_TXSTALL_LSB + sm))) != 0u;
+}
+
+static void dbg_heartbeat_i2s(void) {
+    dbg_puts(" dma=");
+    dbg_putu32(dbg_i2s_dma_irq);
+    dbg_puts(" ok=");
+    dbg_putu32(dbg_i2s_feed_ok);
+    dbg_puts(" miss=");
+    dbg_putu32(dbg_i2s_feed_miss);
+    dbg_puts(" pk=");
+    dbg_putu32((uint32_t)dbg_i2s_peak[0]);
+    dbg_putc(',');
+    dbg_putu32((uint32_t)dbg_i2s_peak[1]);
+    dbg_putc(',');
+    dbg_putu32((uint32_t)dbg_i2s_peak[2]);
+    dbg_puts(" raw=");
+    dbg_puthex32(dbg_i2s_raw[0]);
+    dbg_puts(" stall=");
+    if (i2s_started) {
+        dbg_putu32(i2s_sm_stalled(0) ? 1u : 0u);
+        dbg_putc('/');
+        dbg_putu32(i2s_sm_stalled(I2S_CLK_SM) ? 1u : 0u);
+    } else {
+        dbg_puts("na");
+    }
+}
+#endif
+
 static void dbg_heartbeat(uint32_t hb_count)
 {
     dbg_puts("[");
@@ -569,8 +637,7 @@ static void dbg_heartbeat(uint32_t hb_count)
     dbg_puts(" alt=");
     dbg_puthex8(dbg_last_alt);
 #if !HET68_USB_DIAG
-    dbg_puts(" i2s=");
-    dbg_putu32(i2s_frame_ready ? 1u : 0u);
+    dbg_heartbeat_i2s();
 #endif
     dbg_puts(" clk=");
     dbg_putu32(dbg_ctrl_clk_valid);
@@ -640,7 +707,6 @@ int main(void)
         if (tud_audio_mounted() && !i2s_started) {
             i2s_capture_init(AUDIO_SAMPLE_RATE);
             i2s_started = true;
-            dbg_puts("I2S started\n");
         }
 #endif
         // Audio frames are produced in tud_audio_tx_done_pre_load_cb(), driven by

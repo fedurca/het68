@@ -1,0 +1,21 @@
+; I2S master clock: WS on SET pin (GP0), SCK on side-set pin (GP1).
+; One SM drives shared clocks for all three SD data receivers.
+; 16 BCLK edges per channel @ fs → f_sm = 64 * sample_rate.
+.program i2s_clk
+.side_set 1
+
+.wrap_target
+    set pins, 0             side 0    ; WS low (left)
+    set x, 15               side 0
+bit_left:
+    nop                     side 1    ; SCK high
+    nop                     side 0    ; SCK low
+    jmp x-- bit_left        side 0
+
+    set pins, 1             side 0    ; WS high (right)
+    set x, 15               side 0
+bit_right:
+    nop                     side 1
+    nop                     side 0
+    jmp x-- bit_right       side 0
+.wrap

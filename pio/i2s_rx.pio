@@ -1,22 +1,26 @@
+; I2S slave RX: read SD on rising/falling edges of external SCK (GP1).
+; WS (GP0) selects left/right phase. Clock SM must drive WS+SCK first.
 .program i2s_rx
-.side_set 1
+.define public PIN_SCK 1
 
 .wrap_target
-    wait 0 pin 0            side 0    ; wait for WS==0 (left phase)
-    set x, 15               side 0    ; MODIFIED: Was 31
-
+    wait 0 pin 0                      ; WS == 0 (left)
+    set x, 15
 left_loop:
-    in pins, 1              side 0
-    nop                     side 1
-    jmp x-- left_loop       side 0
-push                        side 0    ; push 16b left word (will be zero-padded to 32b in ISR)
+    wait 1 gpio PIN_SCK
+    in pins, 1
+    wait 0 gpio PIN_SCK
+    jmp x-- left_loop
 
-    wait 1 pin 0            side 0    ; wait for WS==1 (right phase)
-    set x, 15               side 0    ; MODIFIED: Was 31
+push
 
+    wait 1 pin 0                      ; WS == 1 (right)
+    set x, 15
 right_loop:
-    in pins, 1              side 0
-    nop                     side 1
-    jmp x-- right_loop      side 0
-push                        side 0    ; push 16b right word
+    wait 1 gpio PIN_SCK
+    in pins, 1
+    wait 0 gpio PIN_SCK
+    jmp x-- right_loop
+
+push
 .wrap

@@ -17,6 +17,7 @@ add_executable(pico_6mic_soundcard ${SRCS})
 
 # PIO header po add_executable
 pico_generate_pio_header(pico_6mic_soundcard ${CMAKE_CURRENT_LIST_DIR}/pio/i2s_rx.pio)
+pico_generate_pio_header(pico_6mic_soundcard ${CMAKE_CURRENT_LIST_DIR}/pio/i2s_clk.pio)
 
 target_include_directories(pico_6mic_soundcard PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
