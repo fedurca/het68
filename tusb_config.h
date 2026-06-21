@@ -6,8 +6,8 @@ extern "C" {
 #endif
 
 // --- MCU & OS ---
-// Pico 2 / RP2350 s novým pico-sdk definuje PICO_RP2350.
-// Pokud používáš starší build nastavený pro RP2040, zůstane fallback RP2040.
+// Pico 2 / RP2350 with a recent pico-sdk defines PICO_RP2350.
+// Older builds configured for RP2040 fall back to the RP2040 MCU option.
 #ifndef CFG_TUSB_MCU
   #if defined(PICO_RP2350) && defined(OPT_MCU_RP2350)
     #define CFG_TUSB_MCU    OPT_MCU_RP2350
@@ -52,7 +52,7 @@ extern "C" {
 // 1ms frame: 48 kHz / 1000 * 6ch * 3 B = 864 B (< 1023 B FS iso limit)
 #define CFG_TUD_AUDIO_FUNC_1_EP_IN_SZ_MAX           (48000 / 1000 * 6 * 3)
 
-// Původně bylo 2× packet. Pro stabilnější isochronní IN stream zvětšeno na 8×.
+// Was 2x packet originally; widened to 8x for a more stable isochronous IN stream.
 #define CFG_TUD_AUDIO_FUNC_1_EP_IN_SW_BUF_SZ        (8 * CFG_TUD_AUDIO_FUNC_1_EP_IN_SZ_MAX)
 
 #ifndef CFG_TUD_AUDIO_ENABLE_EP_IN

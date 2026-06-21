@@ -1,50 +1,53 @@
-# Zapojení het68 na RP2350 (Pico 2)
+# het68 wiring on RP2350 (Pico 2)
 
-## Napájení mikrofonů ICS-43434
+6-channel USB sound card, 48 kHz / 24-bit (`S24_3LE`), six ICS-43434 microphones
+wired as three stereo pairs.
 
-**POZOR:** Napájení na **3V3 (OUT) Pin 36**, ne VSYS!
+## ICS-43434 microphone power
 
-| Signál | Pico | Mikrofony |
+**WARNING:** Power from **3V3 (OUT), Pin 36** — not VSYS!
+
+| Signal | Pico | Microphones |
 |---|---|---|
-| VDD | Pin 36 (3V3 OUT) | všech 6× VDD |
-| GND | Pin 38 (GND) | všech 6× GND |
+| VDD | Pin 36 (3V3 OUT) | all 6× VDD |
+| GND | Pin 38 (GND) | all 6× GND |
 
-## I2S — Pico je master
+## I2S — Pico is master
 
-| Pico | Signál | Kam |
+| Pico | Signal | To |
 |---|---|---|
-| GP0 (Pin 1) | WS / LRCLK | všechny mikrofony |
-| GP1 (Pin 2) | SCK / BCLK | všechny mikrofony |
-| GP2 (Pin 4) | SD | mikrofony 1+2 (sdílená datová linka) |
-| GP3 (Pin 5) | SD | mikrofony 3+4 |
-| GP4 (Pin 6) | SD | mikrofony 5+6 |
+| GP0 (Pin 1) | WS / LRCLK | all microphones |
+| GP1 (Pin 2) | SCK / BCLK | all microphones |
+| GP2 (Pin 4) | SD | mics 1+2 (shared data line) |
+| GP3 (Pin 5) | SD | mics 3+4 |
+| GP4 (Pin 6) | SD | mics 5+6 |
 
-### SEL (výběr kanálu L/R)
+### SEL (L/R channel select)
 
-| Mikrofon | SEL |
+| Microphone | SEL |
 |---|---|
-| 1, 3, 5 | GND (levý kanál) |
-| 2, 4, 6 | 3V3 (pravý kanál) |
+| 1, 3, 5 | GND (left channel) |
+| 2, 4, 6 | 3V3 (right channel) |
 
 Breakout: https://www.aliexpress.com/item/1005008956861273.html
 
 ## Debug UART — Raspberry Pi Debug Probe
 
-Nezávislé na I2S (UART1, GP8/GP9). Kabel: **žlutá**, **oranžová**, **černá**.
+Independent of I2S (UART1, GP8/GP9). Cable: **yellow**, **orange**, **black**.
 
-| Barva | Pico | Pin | Signál | Debug Probe „U“ |
+| Wire | Pico | Pin | Signal | Debug Probe "U" |
 |---|---|---|---|---|
-| **žlutá** | GP8 | 11 | UART TX | → Probe **RX** |
-| **oranžová** | GP9 | 12 | UART RX | ← Probe **TX** |
-| **černá** | GND | 13 | zem | GND |
+| **yellow** | GP8 | 11 | UART TX | → Probe **RX** |
+| **orange** | GP9 | 12 | UART RX | ← Probe **TX** |
+| **black** | GND | 13 | ground | GND |
 
 ```bash
 ./serial.sh    # 115200 baud, /dev/ttyACM0
 ```
 
-## Plánované periferie (I2C)
+## Planned peripherals (I2C)
 
-- BME280 — teplota, tlak, vlhkost
-- INA219 — jednokanálový proud/napětí
-- INA3221 — tříkanálový proud/napětí
-- HITPOINT PT-2038WQ — piezo (bez budiče)
+- BME280 — temperature, pressure, humidity
+- INA219 — single-channel current/voltage
+- INA3221 — three-channel current/voltage
+- HITPOINT PT-2038WQ — piezo (no driver)

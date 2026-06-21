@@ -14,7 +14,7 @@ set -u
 VIDPID="${VIDPID:-cafe:4066}"
 RATE="${RATE:-48000}"
 CHANNELS="${CHANNELS:-6}"
-FORMAT="${FORMAT:-S16_LE}"
+FORMAT="${FORMAT:-S24_3LE}"
 DURATION="${DURATION:-5}"
 OUT_BASE="${OUT_BASE:-/tmp}"
 TS="$(date +%Y%m%d_%H%M%S)"
