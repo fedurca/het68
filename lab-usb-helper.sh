@@ -8,6 +8,7 @@
 #   pico-on      — reauthorize Pico so it can enumerate again
 #   probe-reset  — usbreset Debug Probe (2e8a:000c), no unbind/bind cycle
 #   wait-probe   — wait until Debug Probe responds to lsusb (exit 0/1)
+#   grant-serial — ACL: let the lab user read the probe UART + Pico CDC ttyACMs
 
 set -euo pipefail
 
@@ -118,15 +119,36 @@ cmd_wait_probe() {
     return 1
 }
 
+cmd_grant_serial() {
+    # Grant the invoking lab user read/write on the debug serial ports so they
+    # can read firmware debug without sudo. ttyACM0 = probe UART, ttyACM1 = Pico
+    # CDC. ACLs are transient (cleared on replug) which is fine for a lab.
+    local user="${SUDO_USER:-}"
+    if [ -z "$user" ]; then
+        echo "grant-serial: SUDO_USER not set; run via sudo" >&2
+        return 1
+    fi
+    local t granted=0
+    for t in /dev/ttyACM*; do
+        [ -e "$t" ] || continue
+        if setfacl -m "u:${user}:rw" "$t" 2>/dev/null; then
+            echo "grant-serial: ${user} rw ${t}"
+            granted=1
+        fi
+    done
+    [ "$granted" = "1" ] || echo "grant-serial: no ttyACM* devices found"
+}
+
 usage() {
-    echo "Usage: $0 {pico-off|pico-on|probe-reset|wait-probe}" >&2
+    echo "Usage: $0 {pico-off|pico-on|probe-reset|wait-probe|grant-serial}" >&2
     exit 2
 }
 
 case "${1:-}" in
-    pico-off)    cmd_pico_off ;;
-    pico-on)     cmd_pico_on ;;
-    probe-reset) cmd_probe_reset ;;
-    wait-probe)  cmd_wait_probe ;;
-    *)           usage ;;
+    pico-off)     cmd_pico_off ;;
+    pico-on)      cmd_pico_on ;;
+    probe-reset)  cmd_probe_reset ;;
+    wait-probe)   cmd_wait_probe ;;
+    grant-serial) cmd_grant_serial ;;
+    *)            usage ;;
 esac

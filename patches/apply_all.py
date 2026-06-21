@@ -31,7 +31,10 @@ EXTERN_DECLS = (
 )
 
 
-def apply(path, old, new, name):
+def apply(path, old, new, name, upstream_ok=None):
+    """Apply patch. If neither old nor new is present but `upstream_ok` substring
+    is found, treat it as already satisfied by upstream (informational, not an
+    error)."""
     with open(path) as f: t = f.read()
     if old in t:
         with open(path, 'w') as f: f.write(t.replace(old, new, 1))
@@ -39,6 +42,9 @@ def apply(path, old, new, name):
         return True
     elif new.strip()[:40] in t:
         print(f"  = {name}  [already]")
+        return False
+    elif upstream_ok is not None and upstream_ok in t:
+        print(f"  = {name}  [satisfied upstream]")
         return False
     else:
         print(f"  ✗ {name}  [pattern not found]", file=sys.stderr)
@@ -279,14 +285,16 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
 
     apply(AC,
         "static bool audiod_set_interface(uint8_t rhport, tusb_control_request_t const *p_request) {",
-        ("#if CFG_TUD_AUDIO_ENABLE_EP_IN\n"
+        ("extern void dbg_puts(const char *s); // het68 UART debug (independent of USB)\n"
+         "#if CFG_TUD_AUDIO_ENABLE_EP_IN\n"
          "static void audiod_deferred_first_tx_cb(void* param) {\n"
+         "  dbg_puts(\"DEFER\\n\"); // non-blocking UART checkpoint\n"
          "  uint8_t func_id = (uint8_t)(uintptr_t)param;\n"
          "  audiod_tx_done_cb(_audiod_fct[func_id].rhport, &_audiod_fct[func_id]);\n"
          "}\n"
          "#endif\n\n"
          "static bool audiod_set_interface(uint8_t rhport, tusb_control_request_t const *p_request) {"),
-        "Fix 11c – audiod_deferred_first_tx_cb helper")
+        "Fix 11c – audiod_deferred_first_tx_cb helper + DEFER checkpoint")
 
     # Fix 13: Linux may address entity requests with AS interface (1) in wIndex, not only AC (0).
     apply(AC,
@@ -294,16 +302,24 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
          "    // Look for the correct driver by checking if the unique standard AC interface number fits\n"
          "    if (_audiod_fct[i].p_desc && ((tusb_desc_interface_t const *) _audiod_fct[i].p_desc)->bInterfaceNumber == itf) {"),
         ("  for (i = 0; i < CFG_TUD_AUDIO; i++) {\n"
-         "    // Fix 13: accept wIndex on any interface belonging to this audio function (IAD range)\n"
+         "    // Fix 13: accept wIndex addressed to the AC interface (original behavior)\n"
+         "    // OR to any interface inside this audio function's IAD range (some\n"
+         "    // hosts address class requests via the AS interface). Additive so a\n"
+         "    // bad IAD walk can never drop a request the original code accepted.\n"
          "    if (!_audiod_fct[i].p_desc) continue;\n"
          "    {\n"
-         "      uint8_t const *iad = _audiod_fct[i].p_desc - TUD_AUDIO_DESC_IAD_LEN;\n"
-         "      uint8_t const first = ((tusb_desc_interface_assoc_t const *) iad)->bFirstInterface;\n"
-         "      uint8_t const count = ((tusb_desc_interface_assoc_t const *) iad)->bInterfaceCount;\n"
-         "      if (itf < first || itf >= first + count) continue;\n"
+         "      uint8_t const ac_itf = ((tusb_desc_interface_t const *) _audiod_fct[i].p_desc)->bInterfaceNumber;\n"
+         "      bool match = (ac_itf == itf);\n"
+         "      if (!match) {\n"
+         "        uint8_t const *iad = _audiod_fct[i].p_desc - TUD_AUDIO_DESC_IAD_LEN;\n"
+         "        uint8_t const first = ((tusb_desc_interface_assoc_t const *) iad)->bFirstInterface;\n"
+         "        uint8_t const count = ((tusb_desc_interface_assoc_t const *) iad)->bInterfaceCount;\n"
+         "        if (itf >= first && itf < (uint8_t)(first + count)) match = true;\n"
+         "      }\n"
+         "      if (!match) continue;\n"
          "    }\n"
          "    {"),
-        "Fix 13 – audiod_verify_entity_exists accepts AS interface in wIndex")
+        "Fix 13 – audiod_verify_entity_exists accepts AC itf or IAD range in wIndex")
 
     # ────────────────────────────────────────────────────────────────────────
     print(f"\n── {os.path.basename(UD)}")
@@ -323,14 +339,17 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
          "      _usbd_dev.ep_status[0][TUSB_DIR_IN].claimed = 0;\n"
          "      _usbd_dev.ep_status[0][TUSB_DIR_OUT].busy   = 0;\n"
          "      _usbd_dev.ep_status[0][TUSB_DIR_OUT].claimed = 0;"),
-        "Fix 9  – clear EP0 busy/claimed on SETUP (prevent TU_ASSERT UB on clock query)")
+        "Fix 9  – clear EP0 busy/claimed on SETUP (prevent TU_ASSERT UB on clock query)",
+        upstream_ok="_usbd_dev.ep_status[0][TUSB_DIR_OUT].busy = 0;")
 
     # Fix 10: TU_ASSERT(!claimed && !busy) in usbd_edpt_claim is UB with -O3.
+    # Upstream now routes through tu_edpt_claim(), which is already safe.
     apply(UD,
         "  TU_ASSERT(!_usbd_dev.ep_status[epnum][dir].claimed && !_usbd_dev.ep_status[epnum][dir].busy);",
         ("  if (_usbd_dev.ep_status[epnum][dir].claimed ||\n"
          "      _usbd_dev.ep_status[epnum][dir].busy) { return false; } // Fix 10: no UB"),
-        "Fix 10 – replace TU_ASSERT in usbd_edpt_claim with safe if/return")
+        "Fix 10 – replace TU_ASSERT in usbd_edpt_claim with safe if/return",
+        upstream_ok="return tu_edpt_claim(ep_state, _usbd_mutex);")
 
     # Fix 6/12: TU_ASSERT(busy==0) in usbd_edpt_xfer / usbd_edpt_xfer_fifo causes UB
     # with -O3. Replace every occurrence with a well-defined if/return.
@@ -357,14 +376,16 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
         (USB, "TUSB_XFER_ISOCHRONOUS",       "1"),
         (USB, "if (ep->endpoint_control)",   "1"),
         (AC,  "// Fix 5a",                   "1"),
-        (AC,  "// Fix 5b",                   "1"),
+        # Note: Fix 5b/5c/5d comments live on call sites; Fix 11 overwrites the
+        # 5b site comment, so it is verified via Fix 11 below, not by name.
         (AC,  "// Fix 7b",                   "1"),
         (AC,  "// Fix 7c",                   "1"),
         (AC,  "// Fix 8",                    "1"),
         (AC,  "// Fix 11:",                  "1"),
         (AC,  "usbd_defer_func(audiod_deferred_first_tx_cb", "1"),
+        (AC,  "DEFER",                       "1"),
         (AC,  "Fix 13: accept wIndex",     "1"),
-        (UD,  "// Fix 6/12:",                "1"),
+        (UD,  "// Fix 6/12:",                "2"),
     ]
     all_ok = True
     for path, pattern, expect in checks:

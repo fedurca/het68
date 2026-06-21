@@ -23,12 +23,38 @@ target_include_directories(pico_6mic_soundcard PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-# UART stdio on GP16/GP17 — GP0/GP1 are I2S WS and BCLK.
-add_compile_definitions(
-    PICO_PANIC_FUNCTION=het68_panic
-    PICO_DEFAULT_UART_TX_PIN=16
-    PICO_DEFAULT_UART_RX_PIN=17
-)
+add_compile_definitions(PICO_PANIC_FUNCTION=het68_panic)
+
+# DIAG mode: mics are physically disconnected, so bypass I2S entirely and emit a
+# simulated constant 1 kHz tone. With I2S compiled out, GP0/GP1 are free, so the
+# UART debug uses the Debug Probe default pins (physical 1/2/3 = GP0 TX / GP1 RX).
+# Turn OFF to return to real I2S mics (UART debug then moves back to GP16/GP17,
+# because GP0/GP1 are the I2S WS/BCLK lines).
+#   HET68_USB_DIAG=OFF ./build.sh
+option(HET68_USB_DIAG "Bypass I2S, emit simulated tone; UART debug on GP0/GP1" ON)
+if(HET68_USB_DIAG)
+    add_compile_definitions(
+        HET68_USB_DIAG=1
+        PICO_DEFAULT_UART_TX_PIN=0
+        PICO_DEFAULT_UART_RX_PIN=1
+    )
+    message(STATUS "het68: USB DIAG mode (simulated tone) — UART debug on GP0/GP1 (pins 1/2)")
+else()
+    add_compile_definitions(
+        PICO_DEFAULT_UART_TX_PIN=16
+        PICO_DEFAULT_UART_RX_PIN=17
+    )
+    message(STATUS "het68: I2S mic mode — UART debug on GP16/GP17")
+endif()
+
+# Diagnostic: mirror debug output to the Pico's own USB CDC (ttyACM1) in
+# addition to the probe UART. Default OFF — the probe UART is the freeze-proof
+# primary channel. Enable to isolate firmware vs. UART wiring:
+#   HET68_DEBUG_CDC=1 ./build.sh
+option(HET68_DEBUG_CDC "Mirror debug to Pico USB CDC (ttyACM1)" OFF)
+if(HET68_DEBUG_CDC)
+    add_compile_definitions(HET68_DEBUG_CDC=1)
+endif()
 
 # Wrap panic at link time as belt-and-suspenders: some pico-sdk libraries may
 # have been pre-built without PICO_PANIC_FUNCTION, so --wrap catches those too.

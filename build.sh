@@ -16,6 +16,8 @@ rm -rf build
 # configure + zapni verbose makefiles (pomáhá hlavně u Make)
 cmake -S . -B build \
   -DPICO_BOARD="${PICO_BOARD:-pico2}" \
+  -DHET68_DEBUG_CDC="${HET68_DEBUG_CDC:-OFF}" \
+  -DHET68_USB_DIAG="${HET68_USB_DIAG:-ON}" \
   -DCMAKE_VERBOSE_MAKEFILE=ON
 
 # build ve verbose režimu (funguje pro Ninja i Make)

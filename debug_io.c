@@ -1,10 +1,25 @@
-// debug_io.c — UART (GP16) + USB CDC debug output.
+// debug_io.c — debug output. UART (pins set via PICO_DEFAULT_UART_*_PIN) is the
+// PRIMARY channel and is fully independent of the Pico USB stack, so it survives
+// a USB/UAC2 freeze.
+//
+// USB CDC mirroring is OPTIONAL (HET68_DEBUG_CDC) and is intentionally OFF by
+// default: when USB wedges, CDC writes are useless and must never delay the
+// UART path that we rely on to debug exactly that freeze.
 #include "debug_io.h"
 #include "tusb_config.h"
 #include "hardware/uart.h"
 #include "pico/stdlib.h"
-#if CFG_TUD_CDC
+
+// Mirror debug to USB CDC as a secondary channel. Off by default — see header.
+#ifndef HET68_DEBUG_CDC
+#define HET68_DEBUG_CDC 0
+#endif
+
+#if HET68_DEBUG_CDC && CFG_TUD_CDC
 #include "tusb.h"
+#define HET68_DEBUG_CDC_ACTIVE 1
+#else
+#define HET68_DEBUG_CDC_ACTIVE 0
 #endif
 
 void dbg_init(void) {
@@ -14,12 +29,17 @@ void dbg_init(void) {
 }
 
 void dbg_putc(char c) {
-    // Never block the main loop / tud_task() waiting for UART hardware.
-    for (int spin = 0; spin < 256 && !uart_is_writable(uart_default); spin++) { }
+    // UART first, and never blocked by USB state. Bounded spin so the main loop
+    // / tud_task() can never stall here even if the UART FIFO is wedged. The
+    // bound must exceed one byte time at the configured baud (~87 us @115200,
+    // i.e. tens of thousands of cycles) or the 32-byte TX FIFO overflows and we
+    // drop characters. The HW FIFO always drains at the baud rate even with no
+    // listener, so this can never hang in practice.
+    for (uint32_t spin = 0; spin < 200000u && !uart_is_writable(uart_default); spin++) { }
     if (uart_is_writable(uart_default)) {
         uart_putc_raw(uart_default, c);
     }
-#if CFG_TUD_CDC
+#if HET68_DEBUG_CDC_ACTIVE
     if (tud_cdc_connected()) {
         tud_cdc_write_char(c);
     }
@@ -27,7 +47,7 @@ void dbg_putc(char c) {
 }
 
 void dbg_flush(void) {
-#if CFG_TUD_CDC
+#if HET68_DEBUG_CDC_ACTIVE
     if (tud_cdc_connected()) {
         tud_cdc_write_flush();
     }
