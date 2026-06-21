@@ -93,10 +93,9 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   - Azimuth is compass degrees (0° = north, clockwise); elevation is ±90°.
   - A single node gives **direction only**; range needs triangulation from several
     synchronised nodes.
-  - The analysis is sliced into sub-millisecond steps in the main loop so it never
-    disturbs the 1 ms USB audio cadence. (It runs on core0: on this board a
-    `multicore_launch_core1` core stops ~300 µs after launch regardless of its
-    code, so core1 is not used — see the note at the top of `doa.c`.)
+  - The analysis runs on **core1** (full GCC loop). After OpenOCD/SWD flash,
+    core1 must be launched via `het68_launch_core1()` in `core1_launch.c`
+    (`multicore_reset_core1()` + 1 ms settle + verify); see `doa.c`.
 
 * **Array geometry.** A cube standing on a vertex, **512 mm** edge. Mics 1–3 are
   the three upper faces (mic 1 = north, then +120°, +240° azimuth, all at +35.26°
@@ -114,6 +113,44 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
 
 The Pico SDK is vendored at `./pico-sdk`; no environment variables are required.
 See `BUILDING.md` for details.
+
+### TinyUSB / pico-sdk patches
+
+Upstream **Pico SDK 2.2.0** (commit `a1438dff`) ships **TinyUSB 0.18.0**, which
+does not yet contain all fixes needed for stable RP2350 UAC2 6-channel streaming.
+This repo carries local patches under [`patches/`](patches/) — full rationale and
+per-fix notes are in [`PATCHES.md`](PATCHES.md).
+
+| What | Where |
+|---|---|
+| Patch script | [`patches/apply_all.py`](patches/apply_all.py) |
+| Detailed fix list | [`PATCHES.md`](PATCHES.md) |
+| Reference `.patch` (ISO activate, PR 2937) | [`patches/tinyusb-0.18.0-pr2937-iso-activate.patch`](patches/tinyusb-0.18.0-pr2937-iso-activate.patch) |
+
+**What they fix (summary):**
+
+- RP2350 USB device controller quirks (`EP_ABORT` spin, NULL EP0 control register)
+- `-O3` undefined behaviour from `TU_VERIFY` / `TU_ASSERT` in TinyUSB audio/stack code
+- UAC2 enumeration race on Linux (`SET_INTERFACE` vs. first ISO IN packet, `err -110`)
+- ISO endpoint busy-flag handling after abort
+
+**How to apply:**
+
+Patches are applied **automatically** on every `./build.sh` run (idempotent: reset
+patched files to git HEAD inside `pico-sdk/lib/tinyusb`, then re-apply). To apply
+manually:
+
+```bash
+python3 patches/apply_all.py
+```
+
+Expected output ends with `✓ All patches OK`. Do **not** edit files under
+`pico-sdk/` by hand — add changes to `patches/apply_all.py` or a patch file instead.
+
+**Target SDK version:** patches are written and tested against the vendored tree
+**Pico SDK 2.2.0** / **TinyUSB 0.18.0** (`pico-sdk/lib/tinyusb`). After upgrading
+the SDK submodule, re-run `apply_all.py` and check for `[pattern not found]` errors;
+see `PATCHES.md` for upstream-overlap notes (some fixes may already be merged).
 
 ```bash
 ./build.sh
@@ -140,6 +177,16 @@ HET68_USB_DIAG=ON ./build.sh
 
 * **Via UF2 / BOOTSEL:** hold `BOOTSEL` while plugging in the Pico, then copy
   `build/pico_6mic_soundcard.uf2` to the `RP2350` mass-storage volume.
+
+## Lab capture
+
+10-second 6-channel reference recording (stops PipeWire so `arecord` can open the
+device directly):
+
+```bash
+./record10s.sh                  # -> /tmp/lab_6ch_10s.wav
+./record10s.sh capture.wav      # custom path
+```
 
 ## Usage
 
