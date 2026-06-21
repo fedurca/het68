@@ -177,13 +177,21 @@ static uint i2s_sm[I2S_NUM_LINES];
 static int i2s_dma[I2S_NUM_LINES];
 static uint32_t i2s_cap[I2S_NUM_LINES][I2S_PINGPONG_WORDS];
 static volatile uint8_t i2s_ready_half;
-static volatile bool i2s_frame_ready;
+static volatile uint8_t i2s_completed_half;
+static volatile uint32_t i2s_frame_seq;
 static bool i2s_started;
+
+// USB-side I2S sync (1 ms frame sequence from DMA IRQ).
+static uint32_t usb_i2s_seq;
+static bool usb_have_frame;
+static uint8_t usb_last_frame[AUDIO_PACKET_SIZE];
 
 // I2S/DMA diagnostics (heartbeat + bring-up).
 static volatile uint32_t dbg_i2s_dma_irq;
 static volatile uint32_t dbg_i2s_feed_ok;
 static volatile uint32_t dbg_i2s_feed_miss;
+static volatile uint32_t dbg_i2s_feed_hold;
+static volatile uint32_t dbg_i2s_feed_late;
 static volatile uint16_t dbg_i2s_peak[6];
 static volatile uint32_t dbg_i2s_raw[3];
 
@@ -228,7 +236,8 @@ static void __isr i2s_dma_irq(void) {
     dma_hw->ints0 = (1u << i2s_dma[0]);
     dbg_i2s_dma_irq++;
     i2s_ready_half = (uint8_t)(1u - i2s_ready_half);
-    i2s_frame_ready = true;
+    i2s_completed_half = (uint8_t)(1u - i2s_ready_half);
+    i2s_frame_seq++;
     i2s_dma_start_half(i2s_ready_half);
 }
 
@@ -265,7 +274,10 @@ static void i2s_capture_init(uint32_t sample_rate) {
     }
 
     i2s_ready_half = 0;
-    i2s_frame_ready = false;
+    i2s_completed_half = 0;
+    i2s_frame_seq = 0;
+    usb_i2s_seq = 0;
+    usb_have_frame = false;
 
     dma_channel_set_irq0_enabled(i2s_dma[0], true);
     irq_set_exclusive_handler(DMA_IRQ_0, i2s_dma_irq);
@@ -294,11 +306,12 @@ static void i2s_capture_init(uint32_t sample_rate) {
 #define I2S_LSHIFT_LEFT   4u
 #define I2S_LSHIFT_RIGHT  1u
 static inline int32_t i2s_word_to_s24(uint32_t raw, uint lshift) {
-    return ((int32_t)(raw << lshift)) >> 8;
+    // 64-bit shift: 32-bit << lshift overflows for hot mic words and wraps to ±FS.
+    int64_t w = (int64_t)(((uint64_t)raw) << lshift);
+    return (int32_t)(w >> 8);
 }
 
-static void build_usb_frame_from_i2s(void) {
-    uint8_t read_half = (uint8_t)(1u - i2s_ready_half);
+static void build_usb_frame_from_i2s(uint8_t read_half) {
     uint32_t base = (uint32_t)read_half * I2S_WORDS_PER_FRAME;
 
     uint8_t *out = usb_frame_buf;
@@ -390,14 +403,28 @@ static inline void usb_audio_feed_one_frame(void) {
 #if HET68_USB_DIAG
     build_diag_frame();
 #else
-    if (i2s_frame_ready) {
+    uint32_t seq;
+    uint8_t half;
+    uint32_t irq_state = save_and_disable_interrupts();
+    seq = i2s_frame_seq;
+    half = i2s_completed_half;
+    restore_interrupts(irq_state);
+
+    if (seq != 0u && seq != usb_i2s_seq) {
+        if (seq > usb_i2s_seq + 1u) {
+            dbg_i2s_feed_late += seq - usb_i2s_seq - 1u;
+        }
+        build_usb_frame_from_i2s(half);
+        usb_i2s_seq = seq;
+        memcpy(usb_last_frame, usb_frame_buf, sizeof(usb_frame_buf));
+        usb_have_frame = true;
         dbg_i2s_feed_ok++;
-        build_usb_frame_from_i2s();
-        i2s_frame_ready = false;
+    } else if (usb_have_frame) {
+        dbg_i2s_feed_miss++;
+        dbg_i2s_feed_hold++;
+        memcpy(usb_frame_buf, usb_last_frame, sizeof(usb_frame_buf));
     } else {
         dbg_i2s_feed_miss++;
-        // No fresh I2S frame yet: send silence rather than stalling the endpoint.
-        // A continuously-fed ISO IN stream is what keeps the host streaming.
         memset(usb_frame_buf, 0, sizeof(usb_frame_buf));
     }
 #endif
@@ -449,6 +476,18 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_reques
     uint8_t alt = tu_u16_low(p_request->wValue);
     dbg_last_alt = alt;
     dbg_set_itf++;
+#if !HET68_USB_DIAG
+    // I2S runs from mount; align USB frame seq when streaming starts/stops so we
+    // do not treat pre-buffered DMA frames as "late" on the first ISO IN packet.
+    if (alt != 0u) {
+        uint32_t irq_state = save_and_disable_interrupts();
+        usb_i2s_seq = i2s_frame_seq;
+        restore_interrupts(irq_state);
+    } else {
+        usb_i2s_seq = 0u;
+        usb_have_frame = false;
+    }
+#endif
     // Non-blocking UART checkpoint: "SETIF <itf> <alt>"
     dbg_puts("SETIF ");
     dbg_puthex8(itf);
@@ -628,6 +667,10 @@ static void dbg_heartbeat_i2s(void) {
     dbg_putu32(dbg_i2s_feed_ok);
     dbg_puts(" miss=");
     dbg_putu32(dbg_i2s_feed_miss);
+    dbg_puts(" hold=");
+    dbg_putu32(dbg_i2s_feed_hold);
+    dbg_puts(" late=");
+    dbg_putu32(dbg_i2s_feed_late);
     dbg_puts(" pk=");
     dbg_putu32((uint32_t)dbg_i2s_peak[0]);
     dbg_putc(',');
