@@ -330,7 +330,7 @@ static void build_usb_frame_from_i2s(void) {
             *out++ = (uint8_t)((s24 >> 8) & 0xFF);
             *out++ = (uint8_t)((s24 >> 16) & 0xFF);
         }
-        // Publish this frame to the core1 DOA ring (lock-free, cheap).
+        // Publish this frame to the DOA analysis ring (cheap).
         doa_ring_push(ring6);
     }
     for (int i = 0; i < 6; i++) dbg_i2s_peak[i] = peak[i];
@@ -652,8 +652,8 @@ static void dbg_heartbeat_i2s(void) {
 
 static void dbg_heartbeat(uint32_t hb_count)
 {
-    // Lock the shared UART for the whole line so it can't interleave with the
-    // DOA line printed from core1.
+    // Serialise the whole line on the shared UART lock (same lock the DOA
+    // output uses) so lines never interleave.
     uint32_t lock = dbg_line_lock();
     dbg_puts("[");
     dbg_putu32((uint32_t)(time_us_64() / 1000000u));
