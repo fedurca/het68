@@ -296,31 +296,6 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
          "static bool audiod_set_interface(uint8_t rhport, tusb_control_request_t const *p_request) {"),
         "Fix 11c – audiod_deferred_first_tx_cb helper + DEFER checkpoint")
 
-    # Fix 13: Linux may address entity requests with AS interface (1) in wIndex, not only AC (0).
-    apply(AC,
-        ("  for (i = 0; i < CFG_TUD_AUDIO; i++) {\n"
-         "    // Look for the correct driver by checking if the unique standard AC interface number fits\n"
-         "    if (_audiod_fct[i].p_desc && ((tusb_desc_interface_t const *) _audiod_fct[i].p_desc)->bInterfaceNumber == itf) {"),
-        ("  for (i = 0; i < CFG_TUD_AUDIO; i++) {\n"
-         "    // Fix 13: accept wIndex addressed to the AC interface (original behavior)\n"
-         "    // OR to any interface inside this audio function's IAD range (some\n"
-         "    // hosts address class requests via the AS interface). Additive so a\n"
-         "    // bad IAD walk can never drop a request the original code accepted.\n"
-         "    if (!_audiod_fct[i].p_desc) continue;\n"
-         "    {\n"
-         "      uint8_t const ac_itf = ((tusb_desc_interface_t const *) _audiod_fct[i].p_desc)->bInterfaceNumber;\n"
-         "      bool match = (ac_itf == itf);\n"
-         "      if (!match) {\n"
-         "        uint8_t const *iad = _audiod_fct[i].p_desc - TUD_AUDIO_DESC_IAD_LEN;\n"
-         "        uint8_t const first = ((tusb_desc_interface_assoc_t const *) iad)->bFirstInterface;\n"
-         "        uint8_t const count = ((tusb_desc_interface_assoc_t const *) iad)->bInterfaceCount;\n"
-         "        if (itf >= first && itf < (uint8_t)(first + count)) match = true;\n"
-         "      }\n"
-         "      if (!match) continue;\n"
-         "    }\n"
-         "    {"),
-        "Fix 13 – audiod_verify_entity_exists accepts AC itf or IAD range in wIndex")
-
     # ────────────────────────────────────────────────────────────────────────
     print(f"\n── {os.path.basename(UD)}")
 
@@ -384,7 +359,6 @@ bool dcd_edpt_iso_activate(uint8_t rhport, tusb_desc_endpoint_t const * ep_desc)
         (AC,  "// Fix 11:",                  "1"),
         (AC,  "usbd_defer_func(audiod_deferred_first_tx_cb", "1"),
         (AC,  "DEFER",                       "1"),
-        (AC,  "Fix 13: accept wIndex",     "1"),
         (UD,  "// Fix 6/12:",                "2"),
     ]
     all_ok = True

@@ -163,23 +163,11 @@ static void audiod_deferred_first_tx_cb(void* param) {
 }
 ```
 
-### Fix 13 — `audiod_verify_entity_exists` přijme `wIndex` na AC i AS rozhraní
-Linux občas adresuje class požadavky přes **AS** rozhraní (1), ne jen přes **AC**
-(0). Patch je **aditivní**: matchne původní AC rozhraní, nebo jakékoli rozhraní
-v rozsahu IAD dané audio funkce — takže špatný IAD průchod nikdy nezahodí
-požadavek, který původní kód přijal.
-
-```c
-uint8_t const ac_itf = ((tusb_desc_interface_t const*)_audiod_fct[i].p_desc)->bInterfaceNumber;
-bool match = (ac_itf == itf);
-if (!match) {
-  uint8_t const *iad   = _audiod_fct[i].p_desc - TUD_AUDIO_DESC_IAD_LEN;
-  uint8_t const first  = ((tusb_desc_interface_assoc_t const*)iad)->bFirstInterface;
-  uint8_t const count  = ((tusb_desc_interface_assoc_t const*)iad)->bInterfaceCount;
-  if (itf >= first && itf < (uint8_t)(first + count)) match = true;
-}
-if (!match) continue;
-```
+### ~~Fix 13~~ — odstraněno (2026-06)
+Původně rozšiřovalo `audiod_verify_entity_exists()` na AS rozhraní v `wIndex`.
+Upstream review (#3720) a UAC2 spec potvrdily, že Linux posílá entity požadavky
+s **AC interface** v dolním bajtu (`wIndex=0x0400`). Po opravě `bNumInterfaces`
+v `usb_descriptors.c` patch není potřeba a není v `apply_all.py`.
 
 ---
 
@@ -242,5 +230,5 @@ if (_usbd_dev.ep_status[epnum][dir].busy) {
 - **Stack nepadá / nezamrzá**: Fix 1a/1b/1c (RP2350 abort), Fix 4 (NULL EP0 ctrl)
   a série odstranění `TU_VERIFY` / `TU_ASSERT` UB (5b–8, 6/10/12).
 - **Streaming se rozjede a drží**: Fix 3 (ISO ZLP), Fix 5a (busy flag),
-  Fix 13 (AS/AC wIndex) a na straně tohoto repa deterministické plnění FIFO
+  správný USB config deskriptor (`bNumInterfaces=3`) a deterministické plnění FIFO
   v `tud_audio_tx_done_pre_load_cb` (viz `main.c`).
