@@ -9,6 +9,7 @@
 #include "tusb_config.h"
 #include "hardware/uart.h"
 #include "pico/stdlib.h"
+#include "pico/sync.h"
 
 // Mirror debug to USB CDC as a secondary channel. Off by default — see header.
 #ifndef HET68_DEBUG_CDC
@@ -22,10 +23,25 @@
 #define HET68_DEBUG_CDC_ACTIVE 0
 #endif
 
+// Cross-core line lock. Claimed once in dbg_init(); both cores serialise full
+// debug lines through it so UART output never interleaves.
+static spin_lock_t *dbg_spin;
+
 void dbg_init(void) {
     uart_init(uart_default, 115200);
     gpio_set_function(PICO_DEFAULT_UART_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(PICO_DEFAULT_UART_RX_PIN, GPIO_FUNC_UART);
+    if (!dbg_spin) {
+        dbg_spin = spin_lock_init((uint)spin_lock_claim_unused(true));
+    }
+}
+
+uint32_t dbg_line_lock(void) {
+    return dbg_spin ? spin_lock_blocking(dbg_spin) : 0u;
+}
+
+void dbg_line_unlock(uint32_t saved) {
+    if (dbg_spin) spin_unlock(dbg_spin, saved);
 }
 
 void dbg_putc(char c) {

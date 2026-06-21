@@ -11,6 +11,8 @@ set(SRCS
     main.c
     usb_descriptors.c
     debug_io.c
+    buzzer.c
+    doa.c
 )
 
 add_executable(pico_6mic_soundcard ${SRCS})
@@ -62,6 +64,7 @@ target_link_libraries(pico_6mic_soundcard
     hardware_pio
     hardware_dma
     hardware_clocks
+    hardware_pwm
     tinyusb_device
     tinyusb_board
 )

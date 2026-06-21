@@ -21,6 +21,8 @@
 #include "hardware/irq.h"
 #include "tusb.h"
 #include "debug_io.h"
+#include "buzzer.h"
+#include "doa.h"
 #include "i2s_rx.pio.h"
 #include "i2s_clk.pio.h"
 
@@ -310,6 +312,7 @@ static void build_usb_frame_from_i2s(void) {
             i2s_cap[2][w], i2s_cap[2][w + 1u],
         };
 
+        int16_t ring6[6];
         for (int i = 0; i < 6; i++) {
             // Even index = LEFT slot (WS=0), odd = RIGHT slot (WS=1).
             uint lshift = (i & 1) ? I2S_LSHIFT_RIGHT : I2S_LSHIFT_LEFT;
@@ -319,12 +322,16 @@ static void build_usb_frame_from_i2s(void) {
             if (a > peak[i]) peak[i] = a;
             // Remember the raw 32-bit word at the loudest sample of each line.
             if (a > line_peak[i >> 1]) { line_peak[i >> 1] = a; raw_at_peak[i >> 1] = raww[i]; }
+            // Feed the DOA analysis with the unmuted top-16-bit sample.
+            ring6[i] = (int16_t)(s24 >> 8);
             if (master_mute) s24 = 0;
             // Pack signed 24-bit little-endian (S24_3LE).
             *out++ = (uint8_t)(s24 & 0xFF);
             *out++ = (uint8_t)((s24 >> 8) & 0xFF);
             *out++ = (uint8_t)((s24 >> 16) & 0xFF);
         }
+        // Publish this frame to the core1 DOA ring (lock-free, cheap).
+        doa_ring_push(ring6);
     }
     for (int i = 0; i < 6; i++) dbg_i2s_peak[i] = peak[i];
     dbg_i2s_raw[0] = raw_at_peak[0];
@@ -645,6 +652,9 @@ static void dbg_heartbeat_i2s(void) {
 
 static void dbg_heartbeat(uint32_t hb_count)
 {
+    // Lock the shared UART for the whole line so it can't interleave with the
+    // DOA line printed from core1.
+    uint32_t lock = dbg_line_lock();
     dbg_puts("[");
     dbg_putu32((uint32_t)(time_us_64() / 1000000u));
     dbg_puts("s] hb=");
@@ -664,7 +674,19 @@ static void dbg_heartbeat(uint32_t hb_count)
     dbg_putu32(dbg_set_itf);
     dbg_puts(" usb=");
     dbg_putu32(dbg_usb_frames);
+    dbg_puts(" bcn=");
+    dbg_putu32(buzzer_beacon_count());
+#if !HET68_USB_DIAG
+    {
+        extern volatile uint32_t g_doa_out, g_doa_nactive;
+        dbg_puts(" doa(out/act)=");
+        dbg_putu32(g_doa_out);
+        dbg_putc('/');
+        dbg_putu32(g_doa_nactive);
+    }
+#endif
     dbg_putc('\n');
+    dbg_line_unlock(lock);
 }
 
 void tud_mount_cb(void)
@@ -708,6 +730,17 @@ int main(void)
     irq_set_priority(DMA_IRQ_0, 0x80);
     irq_set_priority(USBCTRL_IRQ, 0x40);
 
+    // Piezo synchronisation beacon (PS1240 H-bridge on GP6/GP7).
+    buzzer_init();
+    dbg_puts("buzzer: PS1240 H-bridge GP6/GP7, 4kHz PN beacon\n");
+
+#if !HET68_USB_DIAG
+    // Direction-of-arrival analysis (3D TDOA, 512 mm cube standing on a vertex).
+    // Runs on core0, sliced across main-loop passes — see doa.c for why not core1.
+    doa_init();
+    dbg_puts("DOA: enabled (3D TDOA, 512mm cube on vertex, on core0)\n");
+#endif
+
     const uint led_pin = PICO_DEFAULT_LED_PIN;
     gpio_init(led_pin);
     gpio_set_dir(led_pin, GPIO_OUT);
@@ -728,6 +761,12 @@ int main(void)
 #endif
         // Audio frames are produced in tud_audio_tx_done_pre_load_cb(), driven by
         // the USB IN cadence — nothing to pump from the main loop here.
+
+#if !HET68_USB_DIAG
+        // One bounded slice of DOA work, interleaved with tud_task() above so
+        // the 1 ms USB audio feed is never starved.
+        doa_service();
+#endif
 
         uint32_t blink_ms = tud_audio_mounted() ? 100u : 500u;
         if (absolute_time_diff_us(get_absolute_time(), next_led) <= 0) {

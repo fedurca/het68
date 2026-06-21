@@ -54,6 +54,12 @@ arecord -D hw:<card>,0 -c 6 -r 48000 -f S24_3LE -d 3 capture.wav
     * **Channels 3 & 4 (GP3):** mic 3 `SEL`→`GND` (left), mic 4 `SEL`→`3V3` (right), joined `SD` → `GP3`
     * **Channels 5 & 6 (GP4):** mic 5 `SEL`→`GND` (left), mic 6 `SEL`→`3V3` (right), joined `SD` → `GP4`
 
+* **Sync beacon piezo (PS1240, software H-bridge)**
+    * One PS1240 passive piezo across `GP6` and `GP7`.
+    * The two pins are the A/B outputs of one PWM slice; channel B is driven with
+      inverted polarity, so the element sees ±VDD (≈ +6 dB vs. single-ended).
+    * No series resistor needed for a passive element; keep leads short.
+
 * **Debug UART (Raspberry Pi Debug Probe, independent of I2S)**
 
     Debug Probe cable (connector "U"), three wires:
@@ -68,6 +74,41 @@ arecord -D hw:<card>,0 -c 6 -r 48000 -f S24_3LE -d 3 capture.wav
     * Note: GP8/GP9 are **UART1**; I2S runs on GP0–GP4 with no conflict.
 
 See `wiring_and_bom.md` for the full pinout and bill of materials.
+
+## Drone detection (DOA + sync beacon)
+
+Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
+
+* **Direction of arrival (DOA).** The decoded 6-channel stream is fed into a ring
+  buffer and analysed continuously. A time-domain GCC (cross-correlation) over the
+  six microphones estimates the time differences of arrival, which are solved by
+  least squares into a 3D unit vector → **azimuth + elevation** of the loudest
+  broadband source, plus a confidence and level. Results are printed to the debug
+  UART, e.g.:
+
+  ```
+  DOA az=137.4 el=22.8 conf=0.7 lvl=-31.2dB ref=0 pairs=4
+  ```
+
+  - Azimuth is compass degrees (0° = north, clockwise); elevation is ±90°.
+  - A single node gives **direction only**; range needs triangulation from several
+    synchronised nodes.
+  - The analysis is sliced into sub-millisecond steps in the main loop so it never
+    disturbs the 1 ms USB audio cadence. (It runs on core0: on this board a
+    `multicore_launch_core1` core stops ~300 µs after launch regardless of its
+    code, so core1 is not used — see the note at the top of `doa.c`.)
+
+* **Array geometry.** A cube standing on a vertex, **512 mm** edge. Mics 1–3 are
+  the three upper faces (mic 1 = north, then +120°, +240° azimuth, all at +35.26°
+  elevation); mics 4–6 are the opposite lower faces (−35.26° elevation, azimuths
+  interleaved by 60°). Edit `MIC_DIR`/`DOA_EDGE_M` in `doa.c` to change it.
+
+* **Synchronisation beacon.** The PS1240 piezo emits a periodic BPSK-modulated
+  m-sequence burst on a ~4 kHz carrier (its resonance), driven differentially via
+  the GP6/GP7 software H-bridge. This pseudo-noise code is what neighbouring nodes
+  will cross-correlate (matched filter) for acoustic ranging / clock sync; the
+  receive/ranging side is a later phase. The beacon count appears in the heartbeat
+  (`bcn=`).
 
 ## Build
 
