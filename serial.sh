@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # serial.sh — read het68 firmware debug from the Raspberry Pi Debug Probe UART.
 #
-# The Pico firmware writes debug on UART GP16 (TX) @115200. The Debug Probe
-# bridges its UART connector to a host CDC ACM port — usually /dev/ttyACM0.
+# The Pico firmware writes debug on UART1 GP8 (TX) @115200. Wire the Debug Probe
+# UART connector: probe RX <- Pico GP8 (pin 11), probe TX -> Pico GP9 (pin 12),
+# GND pin 13. The probe bridges to a host CDC ACM port — usually /dev/ttyACM0.
 # This channel is independent of the Pico's own USB, so it keeps working even
 # when the UAC2 stack freezes.
 #

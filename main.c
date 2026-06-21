@@ -1,13 +1,11 @@
 // main.c — RP2350 UAC2 6ch microphone (3× ICS-43434 stereo pairs via PIO I2S RX + DMA)
 //
-// Pinout (see wiring_and_bom.md):
+// Pinout (see README.md / wiring_and_bom.md):
 //   GP0 = WS/LRCLK, GP1 = BCLK/SCK (Pico is I2S master)
 //   GP2 = SD pair 1+2, GP3 = SD pair 3+4, GP4 = SD pair 5+6
+//   GP8 = UART TX, GP9 = UART RX (Debug Probe: physical pins 11/12/13)
 //
-// Debug build (HET68_USB_DIAG=1, default): I2S is compiled out and a simulated
-// constant 1 kHz tone is sent instead, so UART debug runs on the Debug Probe
-// default pins GP0/GP1 (physical 1/2/3). With real I2S (HET68_USB_DIAG=0), UART
-// debug moves to GP16/GP17 because GP0/GP1 carry the I2S WS/BCLK clocks.
+// HET68_USB_DIAG=1 bypasses I2S and sends a simulated 1 kHz tone (bench test).
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -616,10 +614,10 @@ int main(void)
     dbg_puts(__TIME__);
     dbg_putc('\n');
 #if !HET68_USB_DIAG
-    dbg_puts("debug: UART GP16 -> Debug Probe UART RX (probe = /dev/ttyACM0)\n");
+    dbg_puts("debug: UART GP8 -> Debug Probe UART RX (pins 11/12/13)\n");
     dbg_puts("mode: I2S 3x stereo\n");
 #else
-    dbg_puts("debug: UART GP0 -> Debug Probe UART RX (probe = /dev/ttyACM0)\n");
+    dbg_puts("debug: UART GP8 -> Debug Probe UART RX (pins 11/12/13)\n");
     dbg_puts("mode: simulated 1kHz tone (I2S bypassed)\n");
 #endif
 

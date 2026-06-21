@@ -65,9 +65,17 @@ Projekt využívá PIO k implementaci I2S přijímačů a DMA k přenosu dat z P
         * Mikrofon 6: `SEL` na `3V3` (pravý kanál)
         * Spojené `SD` výstupy -> `GP4` na Pico
 
+* **Debug UART (Raspberry Pi Debug Probe, nezávisle na I2S):**
+    * `GP8` (Pin 11) -> **UART TX** -> Probe **RX** (UART konektor „U“)
+    * `GP9` (Pin 12) -> **UART RX** <- Probe **TX**
+    * `GND` (Pin 13) -> společná zem s Debug Probe
+    * Rychlost: **115200** baud (`./serial.sh`)
+    * Poznámka: GP8/GP9 jsou **UART1**; I2S běží na GP0–GP4 bez kolize.
 
-
-## Nastavení vývojového prostředí
+* **Bench test bez mikrofonů:** simulovaný 1 kHz tón:
+    ```bash
+    HET68_USB_DIAG=ON ./build.sh
+    ```
 
 1.  **Nainstalujte nástroje:** Ujistěte se, že máte nainstalovaný `arm-none-eabi-gcc` (kompilátor), `CMake`, a `make`.
 2.  **Stáhněte Pico SDK:** Naklonujte oficiální [pico-sdk](https://github.com/raspberrypi/pico-sdk) a nastavte cestu k němu v proměnné prostředí `PICO_SDK_PATH`.
