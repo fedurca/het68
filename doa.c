@@ -211,9 +211,22 @@ static void doa_process(uint32_t h) {
     g_doa_out++;
 }
 
-static void doa_core1_main(void) {
-    het68_core1_setup();
+static bool doa_core1_verify(void) {
+    extern volatile uint32_t g_doa_iter;
+    if (!g_core1_alive) {
+        return false;
+    }
+    uint32_t t0 = g_doa_iter;
+    sleep_ms(80);
+    uint32_t t1 = g_doa_iter;
+    if ((t1 - t0) < 50000u) {
+        return false;
+    }
+    sleep_ms(80);
+    return (g_doa_iter - t1) >= 50000u;
+}
 
+static void doa_core1_main(void) {
     for (int i = 0; i < 6; i++)
         for (int k = 0; k < 3; k++) MIC_POS[i][k] = MIC_DIR[i][k] * DOA_FACE_R;
 
@@ -231,5 +244,9 @@ static void doa_core1_main(void) {
 }
 
 void doa_start(void) {
-    het68_launch_core1(doa_core1_main);
+    if (!het68_launch_core1_verify(doa_core1_main, doa_core1_verify)) {
+        uint32_t s = dbg_line_lock();
+        dbg_puts("DOA: core1 launch FAILED\n");
+        dbg_line_unlock(s);
+    }
 }

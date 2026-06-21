@@ -23,6 +23,7 @@
 #include "debug_io.h"
 #include "buzzer.h"
 #include "doa.h"
+#include "core1_launch.h"
 #include "i2s_rx.pio.h"
 #include "i2s_clk.pio.h"
 
@@ -707,13 +708,16 @@ int main(void)
     dbg_init();
 
 #if HET68_USB_DIAG
-    // Precompute the tone table before USB can start streaming, so the first
-    // (deferred) IN packet is already valid and no float math runs inside the
-    // USB callback path.
     diag_build_lut();
 #endif
 
     tusb_init();
+
+#if HET68_CORE1_SETTLE_SCAN
+    dbg_puts("\n=== het68 core1 settle scan ===\n");
+    het68_core1_settle_scan();
+    for (;;) { tight_loop_contents(); }
+#endif
 
     dbg_puts("\n=== het68 UAC2 6ch ===\n");
     dbg_puts("build ");

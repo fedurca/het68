@@ -14,11 +14,18 @@ python3 patches/apply_all.py
 rm -rf build
 
 # configure + zapni verbose makefiles (pomáhá hlavně u Make)
-cmake -S . -B build \
-  -DPICO_BOARD="${PICO_BOARD:-pico2}" \
-  -DHET68_DEBUG_CDC="${HET68_DEBUG_CDC:-OFF}" \
-  -DHET68_USB_DIAG="${HET68_USB_DIAG:-OFF}" \
+CMAKE_ARGS=(
+  -S . -B build
+  -DPICO_BOARD="${PICO_BOARD:-pico2}"
+  -DHET68_DEBUG_CDC="${HET68_DEBUG_CDC:-OFF}"
+  -DHET68_USB_DIAG="${HET68_USB_DIAG:-OFF}"
+  -DHET68_CORE1_SETTLE_SCAN="${HET68_CORE1_SETTLE_SCAN:-OFF}"
   -DCMAKE_VERBOSE_MAKEFILE=ON
+)
+if [ -n "${HET68_CORE1_SETTLE_MS:-}" ]; then
+  CMAKE_ARGS+=(-DHET68_CORE1_SETTLE_MS="${HET68_CORE1_SETTLE_MS}")
+fi
+cmake "${CMAKE_ARGS[@]}"
 
 # build ve verbose režimu (funguje pro Ninja i Make)
 cmake --build build --parallel --verbose

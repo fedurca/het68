@@ -56,6 +56,19 @@ if(HET68_DEBUG_CDC)
     add_compile_definitions(HET68_DEBUG_CDC=1)
 endif()
 
+# One-shot lab sweep for minimum core1 settle delay after OpenOCD flash:
+#   HET68_CORE1_SETTLE_SCAN=ON ./build.sh && ./upload.sh
+# Optional override (ms): HET68_CORE1_SETTLE_MS=0 ./build.sh
+option(HET68_CORE1_SETTLE_SCAN "Run core1 settle delay scan at boot" OFF)
+if(HET68_CORE1_SETTLE_SCAN)
+    add_compile_definitions(HET68_CORE1_SETTLE_SCAN=1)
+    message(STATUS "het68: core1 settle scan mode (no audio/DOA)")
+endif()
+if(DEFINED HET68_CORE1_SETTLE_MS)
+    add_compile_definitions(HET68_CORE1_SETTLE_MS=${HET68_CORE1_SETTLE_MS})
+    message(STATUS "het68: core1 settle ms override=${HET68_CORE1_SETTLE_MS}")
+endif()
+
 # Wrap panic at link time as belt-and-suspenders: some pico-sdk libraries may
 # have been pre-built without PICO_PANIC_FUNCTION, so --wrap catches those too.
 target_link_options(pico_6mic_soundcard PRIVATE -Wl,--wrap=panic)
