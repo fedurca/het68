@@ -1,19 +1,21 @@
 ; I2S master clock: WS on SET pin (GP0), SCK on side-set pin (GP1).
 ; One SM drives shared clocks for all three SD data receivers.
-; 16 BCLK edges per channel @ fs → f_sm = 64 * sample_rate.
+; 32 BCLK edges per channel (64 per frame) so the full 24-bit ICS-43434
+; word is clocked out (24 data bits + padding). Each bit = 3 SM cycles,
+; so frame = 2*(2 + 32*3) = 196 SM cycles → f_sm = 196 * sample_rate.
 .program i2s_clk
 .side_set 1
 
 .wrap_target
     set pins, 0             side 0    ; WS low (left)
-    set x, 15               side 0
+    set x, 31               side 0
 bit_left:
     nop                     side 1    ; SCK high
     nop                     side 0    ; SCK low
     jmp x-- bit_left        side 0
 
     set pins, 1             side 0    ; WS high (right)
-    set x, 15               side 0
+    set x, 31               side 0
 bit_right:
     nop                     side 1
     nop                     side 0

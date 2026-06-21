@@ -37,7 +37,7 @@ extern "C" {
 #define CFG_TUD_VENDOR  0
 #define CFG_TUD_AUDIO   1
 
-// --- AUDIO (6ch mic: device -> host @ 48kHz/16-bit) ---
+// --- AUDIO (6ch mic: device -> host @ 48kHz/24-bit, packed S24_3LE) ---
 #define CFG_TUD_AUDIO_FUNC_1_CTRL_BUF_SZ            64
 #define CFG_TUD_AUDIO_FUNC_1_DESC_LEN               152
 #define CFG_TUD_AUDIO_FUNC_1_N_AS_INT               1
@@ -45,12 +45,12 @@ extern "C" {
 #define CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX          6
 #define CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX          0
 
-#define CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_TX  2
-#define CFG_TUD_AUDIO_FUNC_1_N_BITS_PER_SAMPLE_TX   16
+#define CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_TX  3
+#define CFG_TUD_AUDIO_FUNC_1_N_BITS_PER_SAMPLE_TX   24
 #define CFG_TUD_AUDIO_FUNC_1_MAX_SAMPLE_RATE        48000
 
-// 1ms frame: 48 kHz / 1000 * 6ch * 2 B = 576 B
-#define CFG_TUD_AUDIO_FUNC_1_EP_IN_SZ_MAX           (48000 / 1000 * 6 * 2)
+// 1ms frame: 48 kHz / 1000 * 6ch * 3 B = 864 B (< 1023 B FS iso limit)
+#define CFG_TUD_AUDIO_FUNC_1_EP_IN_SZ_MAX           (48000 / 1000 * 6 * 3)
 
 // Původně bylo 2× packet. Pro stabilnější isochronní IN stream zvětšeno na 8×.
 #define CFG_TUD_AUDIO_FUNC_1_EP_IN_SW_BUF_SZ        (8 * CFG_TUD_AUDIO_FUNC_1_EP_IN_SZ_MAX)

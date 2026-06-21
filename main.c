@@ -193,8 +193,11 @@ static void i2s_clk_sm_init(uint offset, uint32_t sample_rate) {
     pio_sm_config c = i2s_clk_program_get_default_config(offset);
     sm_config_set_set_pins(&c, PIN_I2S_WS, 1);
     sm_config_set_sideset_pins(&c, PIN_I2S_SCK);
-    // 16-bit stereo @ fs: BCLK = 32*fs per channel, 2 toggles per bit → f_sm = 64*fs
-    float div = (float)clock_get_hz(clk_sys) / (64.0f * (float)sample_rate);
+    // 64 BCLK per frame (32/channel), 3 SM cycles per bit, 2 setup instr per
+    // half → frame = 2*(2 + 32*3) = 196 SM cycles. Pick clkdiv so one frame
+    // takes 1/sample_rate. (Approximate: the 4 setup cycles add ~2% to the
+    // bit period; fine for capture, the host clocks via async feedback.)
+    float div = (float)clock_get_hz(clk_sys) / (196.0f * (float)sample_rate);
     sm_config_set_clkdiv(&c, div);
     pio_sm_init(i2s_pio, I2S_CLK_SM, offset, &c);
 }
@@ -206,7 +209,9 @@ static void i2s_data_sm_init(uint sm, uint offset, uint pin_data) {
     pio_sm_config c = i2s_rx_program_get_default_config(offset);
     sm_config_set_in_pins(&c, pin_data);
     sm_config_set_jmp_pin(&c, PIN_I2S_WS);
-    sm_config_set_in_shift(&c, true, false, 32);
+    // MSB-first: shift LEFT so the first received bit (sample MSB) lands in the
+    // ISR MSB; autopush a full 32-bit slot per channel.
+    sm_config_set_in_shift(&c, false, true, 32);
     // Fast enough to catch SCK edges driven by the clock SM.
     sm_config_set_clkdiv(&c, 1.0f);
     pio_sm_init(i2s_pio, sm, offset, &c);
@@ -275,48 +280,47 @@ static void i2s_capture_init(uint32_t sample_rate) {
     dbg_putc('\n');
 }
 
-static int16_t i2s_word_to_sample(int32_t raw) {
-    // PIO pushes 16-bit MSB-aligned samples in the lower 16 bits of each 32-bit FIFO word.
-    return (int16_t)(raw >> 16);
+static int32_t i2s_word_to_s24(uint32_t raw) {
+    // The RX SM captures 32 bits MSB-first (first SCK after WS is the Philips
+    // 1-bit delay, the 24 data bits follow). Drop the delay bit, then arithmetic
+    // shift down to a sign-extended 24-bit value in the low 24 bits.
+    return ((int32_t)(raw << 1)) >> 8;
 }
 
 static void build_usb_frame_from_i2s(void) {
     uint8_t read_half = (uint8_t)(1u - i2s_ready_half);
     uint32_t base = (uint32_t)read_half * I2S_WORDS_PER_FRAME;
 
-    int16_t *out = (int16_t *)usb_frame_buf;
+    uint8_t *out = usb_frame_buf;
     uint16_t peak[6] = {0, 0, 0, 0, 0, 0};
+    uint32_t raw_at_peak[3] = {0, 0, 0};
+    uint16_t line_peak[3] = {0, 0, 0};
     for (uint32_t s = 0; s < AUDIO_SAMPLES_PER_USB_FRAME; s++) {
         uint32_t w = base + s * 2u;
-        int16_t ch0 = i2s_word_to_sample((int32_t)i2s_cap[0][w]);
-        int16_t ch1 = i2s_word_to_sample((int32_t)i2s_cap[0][w + 1u]);
-        int16_t ch2 = i2s_word_to_sample((int32_t)i2s_cap[1][w]);
-        int16_t ch3 = i2s_word_to_sample((int32_t)i2s_cap[1][w + 1u]);
-        int16_t ch4 = i2s_word_to_sample((int32_t)i2s_cap[2][w]);
-        int16_t ch5 = i2s_word_to_sample((int32_t)i2s_cap[2][w + 1u]);
+        uint32_t raww[6] = {
+            i2s_cap[0][w], i2s_cap[0][w + 1u],
+            i2s_cap[1][w], i2s_cap[1][w + 1u],
+            i2s_cap[2][w], i2s_cap[2][w + 1u],
+        };
 
-        int16_t all[] = {ch0, ch1, ch2, ch3, ch4, ch5};
         for (int i = 0; i < 6; i++) {
-            uint16_t a = (uint16_t)(all[i] < 0 ? -all[i] : all[i]);
+            int32_t s24 = i2s_word_to_s24(raww[i]);
+            int32_t v = s24 < 0 ? -s24 : s24;
+            uint16_t a = (uint16_t)(v >> 8);   // track top 16 bits for the heartbeat
             if (a > peak[i]) peak[i] = a;
+            // Remember the raw 32-bit word at the loudest sample of each line.
+            if (a > line_peak[i >> 1]) { line_peak[i >> 1] = a; raw_at_peak[i >> 1] = raww[i]; }
+            if (master_mute) s24 = 0;
+            // Pack signed 24-bit little-endian (S24_3LE).
+            *out++ = (uint8_t)(s24 & 0xFF);
+            *out++ = (uint8_t)((s24 >> 8) & 0xFF);
+            *out++ = (uint8_t)((s24 >> 16) & 0xFF);
         }
-
-        if (master_mute) {
-            ch0 = ch1 = ch2 = ch3 = ch4 = ch5 = 0;
-        }
-
-        uint32_t o = s * AUDIO_N_CHANNELS;
-        out[o + 0] = ch0;
-        out[o + 1] = ch1;
-        out[o + 2] = ch2;
-        out[o + 3] = ch3;
-        out[o + 4] = ch4;
-        out[o + 5] = ch5;
     }
     for (int i = 0; i < 6; i++) dbg_i2s_peak[i] = peak[i];
-    dbg_i2s_raw[0] = i2s_cap[0][base];
-    dbg_i2s_raw[1] = i2s_cap[1][base];
-    dbg_i2s_raw[2] = i2s_cap[2][base];
+    dbg_i2s_raw[0] = raw_at_peak[0];
+    dbg_i2s_raw[1] = raw_at_peak[1];
+    dbg_i2s_raw[2] = raw_at_peak[2];
 }
 #endif  // !HET68_USB_DIAG
 
@@ -615,6 +619,10 @@ static void dbg_heartbeat_i2s(void) {
     dbg_putu32((uint32_t)dbg_i2s_peak[2]);
     dbg_puts(" raw=");
     dbg_puthex32(dbg_i2s_raw[0]);
+    dbg_putc(',');
+    dbg_puthex32(dbg_i2s_raw[1]);
+    dbg_putc(',');
+    dbg_puthex32(dbg_i2s_raw[2]);
     dbg_puts(" stall=");
     if (i2s_started) {
         dbg_putu32(i2s_sm_stalled(0) ? 1u : 0u);

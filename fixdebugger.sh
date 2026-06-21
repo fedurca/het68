@@ -83,7 +83,7 @@ if [ "${1:-}" = "--test" ]; then
     sleep 3
     CARD=$(arecord -l 2>/dev/null | awk '/Pico 6ch/{gsub(":","",$2); print $2; exit}')
     CARD=${CARD:-3}
-    arecord -D "hw:${CARD},0" -c 6 -r 48000 -f S16_LE --period-size=480 -d 3 /tmp/test_6ch.wav \
+    arecord -D "hw:${CARD},0" -c 6 -r 48000 -f S24_3LE --period-size=480 -d 3 /tmp/test_6ch.wav \
         && echo "=== CAPTURE OK ===" \
         || echo "=== CAPTURE FAILED ==="
 fi

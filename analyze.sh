@@ -34,7 +34,7 @@ trap cleanup EXIT
     fi
 
     echo "--- arecord primy test nahravani 3s (480 samples / 10 ms perioda) ---"
-    arecord -D "hw:${CARD},0" -f S16_LE -r 48000 -c 6 \
+    arecord -D "hw:${CARD},0" -f S24_3LE -r 48000 -c 6 \
         --period-size=480 --buffer-size=4800 -d 3 -v /tmp/pico_6ch.wav \
         && echo "=== CAPTURE OK ===" || echo "=== CAPTURE FAILED ==="
 
