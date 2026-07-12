@@ -1,10 +1,10 @@
 # het68 — 6-channel I2S USB sound card for Raspberry Pi Pico 2 (RP2350)
 
 This firmware turns a Raspberry Pi Pico 2 (RP2350) into a 6-channel USB audio
-input device (microphone). It captures three stereo I2S data lines from six
-ICS-43434 MEMS microphones (wired as three left/right pairs), moves the samples
-into memory with DMA, and streams them to the host over USB Audio Class 2.0
-(UAC2) using TinyUSB.
+input device (microphone). It captures six independent I2S data lines from six
+ICS-43434 MEMS microphones (SEL hardwired GND, left channel only), moves the
+samples into memory with DMA, and streams them to the host over USB Audio Class
+2.0 (UAC2) using TinyUSB.
 
 ## Audio format
 
@@ -28,11 +28,9 @@ arecord -D hw:<card>,0 -c 6 -r 48000 -f S24_3LE -d 3 capture.wav
 
 - The Pico is the I2S **master**. One PIO state machine generates the shared
   `WS`/`SCK` clocks for all six microphones.
-- Three more PIO state machines (one per data line) receive the serial data.
-  The RX state machines are **phase-locked** to the clock state machine: they use
-  the same clock divider and are started together with
-  `pio_enable_sm_mask_in_sync()`, so they sample deterministically without
-  racing the external `SCK` (no `wait gpio`).
+- Six PIO RX state machines (one per mic SD line on GP16/18/20/26/27/28) capture
+  serial data. Mics 1–3 use PIO0; mics 4–6 use PIO1 (same clkdiv, started
+  together). Each line reads the **left** I2S slot (SEL hardwired GND on modules).
 - DMA moves the captured 32-bit slots into a double-buffered memory region; the
   USB device task packs them into 24-bit `S24_3LE` frames.
 
@@ -42,16 +40,20 @@ Board: **Seeed Grove Shield for Pi Pico v1.0**. Set the shield power switch to
 **3.3 V** (never 5 V — destroys ICS-43434 mics).
 
 Each microphone uses **two** Grove cables: one on the shared **clock bus**, one
-for **power + SD + SEL**. See `wiring_and_bom.md` for the full connector map.
+for **power + SD** (SEL hardwired GND on the module). See `wiring_and_bom.md`.
 
 | Grove port | Function | GPIO |
 |---|---|---|
 | **UART0** | Debug UART → Debug Probe | GP0 TX, GP1 RX |
 | **UART1** | I2S clock bus — mics 1–3 (WS + SCK) | GP8 WS, GP9 SCK |
+| **I2C0** | I2S clock bus — mics 4–6 (same GP8/GP9) | GP8 WS, GP9 SCK |
 | **I2C1** | PS1240 sync beacon piezo | GP6, GP7 |
-| **D16 / D18 / D20** | Mic 1–3 data (SD + SEL) | GP16–GP21 |
-| **A0 / A1 / A2** | Mic 4–6 data (SD; SEL via header pigtail) | GP26–GP28, GP2–GP4 |
-| **I2C0** | I2S clock bus — mics 4–6 (same GP8/GP9 as UART1) | GP8 WS, GP9 SCK |
+| **D16** | Mic 1 SD | GP16 |
+| **D18** | Mic 2 SD | GP18 |
+| **D20** | Mic 3 SD | GP20 |
+| **A0** | Mic 4 SD (pin 1) | GP26 |
+| **A1** | Mic 5 SD (pin 1) | GP27 |
+| **A2** | Mic 6 SD (pin 1) | GP28 |
 
 * **Debug UART** — Grove **UART0** (or header pins 1/2/3):
 
@@ -67,14 +69,13 @@ for **power + SD + SEL**. See `wiring_and_bom.md` for the full connector map.
   share GP9 = SCK and GP8 = WS on the shield (parallel branches, not I2C). Daisy-chain
   CLK IN → CLK OUT within each branch. Pin 3 VCC unused on clock cables.
 
+* **Data (SD)** — one GPIO per mic: **D16/D18/D20** (GP16/18/20) and **A0/A1/A2
+  pin 1** (GP26/27/28). **SEL → GND** on every module; Grove data pin 2 unused.
+
 * **Piezo** — Grove **I2C1**: passive PS1240 between GP6 and GP7 (H-bridge PWM;
   pins 3/4 unused).
 
-* **Capture (current firmware)** — three shared SD lines on **GP2 / GP3 / GP4**
-  (stereo pairs on shield headers) until the six-mono PIO update. Target per-mic
-  Grove data ports are wired in `wiring_and_bom.md`.
-
-See `wiring_and_bom.md` for mic-module layout, SEL GPIO table, and BOM.
+See `wiring_and_bom.md` for clock chains, analog-port chaining, and BOM.
 
 ## Drone detection (DOA + sync beacon)
 

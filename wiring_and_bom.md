@@ -11,14 +11,14 @@ on a **Seeed Grove Shield for Pi Pico v1.0** (SKU 103100142).
 |---|---|---|---|
 | **UART0** | Debug UART → Debug Probe | GP0 TX, GP1 RX | |
 | **UART1** | I2S clock bus — mics 1–3 | GP9 SCK, GP8 WS | pin 3 (VCC) unused |
-| **I2C1** | PS1240 piezo (H-bridge) | GP6, GP7 | pins 3/4 unused |
-| **D16** | Mic 1 data cable | GP16 SD, GP17 SEL | |
-| **D18** | Mic 2 data cable | GP18 SD, GP19 SEL | |
-| **D20** | Mic 3 data cable | GP20 SD, GP21 SEL | |
-| **A0** | Mic 4 data cable | GP26 SD | SEL GP27 via pigtail → header |
-| **A1** | Mic 5 data cable | GP28 SD | SEL GP2 via pigtail → header |
-| **A2** | Mic 6 data cable | GP3 SD | SEL GP4 via pigtail → header |
 | **I2C0** | I2S clock bus — mics 4–6 | GP9 SCK, GP8 WS | same pins as UART1; not I2C |
+| **I2C1** | PS1240 piezo (H-bridge) | GP6, GP7 | pins 3/4 unused |
+| **D16** | Mic 1 data | GP16 SD | SEL → GND on module |
+| **D18** | Mic 2 data | GP18 SD | SEL → GND on module |
+| **D20** | Mic 3 data | GP20 SD | SEL → GND on module |
+| **A0** | Mic 4 data | GP26 SD (pin 1) | pin 2 = GP27 (shared with A1 pin 1) |
+| **A1** | Mic 5 data | GP27 SD (pin 1) | pin 2 = GP28 (shared with A2 pin 1) |
+| **A2** | Mic 6 data | GP28 SD (pin 1) | pin 2 unused |
 
 Standard Grove cable colours: **1 yellow, 2 white, 3 red, 4 black**.
 
@@ -44,9 +44,8 @@ Independent of I2S. Grove cable into **UART0**, or direct wires to header pins 1
 ## I2S clock bus — **UART1** + **I2C0** (GP8/GP9)
 
 Shared **WS** and **SCK** for all six microphones. Firmware drives **GP8** and
-**GP9** once; on the Grove Shield, connectors **UART1** and **I2C0** are wired
-in parallel to those same pins. Use both sockets as two branches of one clock bus
-— not as UART and I2C at the same time.
+**GP9** once; connectors **UART1** and **I2C0** are wired in parallel on the
+shield. Use both as two branches of one clock bus.
 
 **No power** on the clock cables — pin 3 is not used.
 
@@ -56,8 +55,6 @@ in parallel to those same pins. Use both sockets as two branches of one clock bu
 | 2 | white | **WS** | GP8 |
 | 3 | red | NC | — |
 | 4 | black | GND | GND |
-
-Recommended layout (clearer wiring — data ports already split at mic 4):
 
 ```
                     Pico (GP8 WS, GP9 SCK)
@@ -74,20 +71,17 @@ Recommended layout (clearer wiring — data ports already split at mic 4):
 | Mics 1–3 | **UART1** | `UART1 → Mic1 CLK → Mic2 CLK → Mic3 CLK` |
 | Mics 4–6 | **I2C0** | `I2C0 → Mic4 CLK → Mic5 CLK → Mic6 CLK` |
 
-A single cable from **UART1** through all six modules also works; the split is
-optional and only for neater cabling.
-
 ---
 
 ## Mic module (×6)
 
-Each module carries one ICS-43434, two Grove sockets, and optional pass-through
-for the clock bus.
+Each module carries one ICS-43434, two Grove sockets, and pass-through for the
+clock bus.
 
 ```
 [CLK IN] ──► ICS-43434 ──► [CLK OUT]     WS, SCK, GND pass through
                 │
-           [DATA] ─────────────► shield (SD, SEL, 3V3, GND)
+           [DATA] ─────────────► shield (SD, 3V3, GND)
 ```
 
 | ICS-43434 pin | Source |
@@ -95,42 +89,38 @@ for the clock bus.
 | VDD | red (3V3) on **data** cable |
 | GND | black on **data** cable |
 | WS, SCK | **clock** cable |
-| SD | yellow on **data** cable |
-| SEL | white on **data** cable → GPIO (set once at boot) |
+| SD | yellow on **data** cable (pin 1) |
+| SEL | **hardwired to GND** on the module (left channel only) |
 
-**SEL (L/R)** is driven by the Pico (not hardwired to GND/3V3). Example mapping:
+**SEL:** strap **SEL → GND** on every breakout (jumper or solder bridge). The
+white Grove wire (pin 2) on the data cable is **not used**. Firmware captures
+only the left I2S slot per mic.
 
-| Mic | USB ch | SEL GPIO | `sel_right` |
-|---|---|---|---|
-| 1 | 1 | GP17 | 0 (L) |
-| 2 | 2 | GP19 | 1 (R) |
-| 3 | 3 | GP21 | 0 |
-| 4 | 4 | GP27 | 1 |
-| 5 | 5 | GP2 | 0 |
-| 6 | 6 | GP4 | 1 |
+### Analog ports A0–A2 — shield chaining
 
-Breakout PCB: https://www.aliexpress.com/item/1005008956861273.html
+The Grove Shield chains secondary pins between adjacent analog connectors:
+
+| GPIO | Shield routing |
+|---|---|
+| **GP26** | A0 pin 1 only |
+| **GP27** | A0 pin 2 = A1 pin 1 (same net) |
+| **GP28** | A1 pin 2 = A2 pin 1 (same net) |
+
+Wire **one SD line per mic on pin 1 (yellow)** of each port. Do not use pin 2
+for independent signals — mic 4 uses only A0, mic 5 only A1, mic 6 only A2.
 
 ### Data cables — connector assignment
 
-| Mic | Shield connector | SD (pin 1) | SEL (pin 2) | 3V3 / GND |
-|---|---|---|---|---|
-| 1 | **D16** | GP16 | GP17 | pins 3/4 |
-| 2 | **D18** | GP18 | GP19 | pins 3/4 |
-| 3 | **D20** | GP20 | GP21 | pins 3/4 |
-| 4 | **A0** + pigtail | GP26 | GP27 on header | pins 3/4 |
-| 5 | **A1** + pigtail | GP28 | GP2 on header | pins 3/4 |
-| 6 | **A2** + pigtail | GP3 | GP4 on header | pins 3/4 |
+| Mic | USB ch | Shield | SD (pin 1) | SEL | 3V3 / GND |
+|---|---|---|---|---|---|
+| 1 | 1 | **D16** | GP16 | GND on module | pins 3/4 |
+| 2 | 2 | **D18** | GP18 | GND on module | pins 3/4 |
+| 3 | 3 | **D20** | GP20 | GND on module | pins 3/4 |
+| 4 | 4 | **A0** | GP26 | GND on module | pins 3/4 |
+| 5 | 5 | **A1** | GP27 | GND on module | pins 3/4 |
+| 6 | 6 | **A2** | GP28 | GND on module | pins 3/4 |
 
-Analog ports A0–A2 only route **pin 1** to the GPIO; run the white SEL wire
-from pins 4–6 as a short pigtail to the header pin listed above.
-
-### Firmware capture (current)
-
-PIO capture still uses **three shared SD lines** (stereo pairs) on **GP2 / GP3 /
-GP4** until the six-mono PIO update lands. For bring-up with the current
-firmware, wire pairs 1+2 → GP2, 3+4 → GP3, 5+6 → GP4 on the shield **female
-headers**, with SEL hardwired (odd mics → GND, even → 3V3) as before.
+Breakout PCB: https://www.aliexpress.com/item/1005008956861273.html
 
 ---
 
@@ -153,8 +143,7 @@ No series resistor; keep leads short.
 
 ## Planned peripherals (I2C on headers)
 
-Future sensors on free header pins (e.g. GP2/GP3 as I2C1 after the six-mono
-mic migration):
+Future sensors on free header pins (e.g. GP2/GP3 as I2C1):
 
 - BME280 — temperature, pressure, humidity
 - INA219 — single-channel current/voltage

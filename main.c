@@ -1,8 +1,9 @@
-// main.c — RP2350 UAC2 6ch microphone (3× ICS-43434 stereo pairs via PIO I2S RX + DMA)
+// main.c — RP2350 UAC2 6ch microphone (6× ICS-43434 mono via PIO I2S RX + DMA)
 //
 // Pinout (see README.md / wiring_and_bom.md, Grove Shield):
-//   GP8 = WS/LRCLK, GP9 = BCLK/SCK (Grove UART1 clock bus)
-//   GP2 = SD pair 1+2, GP3 = SD pair 3+4, GP4 = SD pair 5+6
+//   GP8 = WS/LRCLK, GP9 = BCLK/SCK (Grove UART1 / I2C0 clock bus)
+//   GP16/18/20 = SD mics 1–3 (Grove D16/D18/D20)
+//   GP26/27/28 = SD mics 4–6 (Grove A0/A1/A2 pin 1); SEL hardwired GND on modules
 //   GP0 = UART TX, GP1 = UART RX (Grove UART0 → Debug Probe)
 //   GP6/GP7 = piezo H-bridge (Grove I2C1)
 //
@@ -144,14 +145,15 @@ void __attribute__((noreturn)) __wrap_panic(const char *fmt, ...) {
 // ---------------------------------------------------------------------------
 #define PIN_I2S_WS    8
 #define PIN_I2S_SCK   9
-#define PIN_I2S_D01   2
-#define PIN_I2S_D23   3
-#define PIN_I2S_D45   4
 
-#define I2S_NUM_LINES           3u
+#define I2S_NUM_LINES           6u
 #define I2S_CLK_SM              3u
-#define I2S_WORDS_PER_FRAME     (AUDIO_SAMPLES_PER_USB_FRAME * 2u)   // L+R per line
+#define I2S_PIO_CLK             pio0
+#define I2S_WORDS_PER_FRAME     (AUDIO_SAMPLES_PER_USB_FRAME * 2u)   // L+R slots per line
 #define I2S_PINGPONG_WORDS      (I2S_WORDS_PER_FRAME * 2u)
+
+// One SD GPIO per mic (Grove data port pin 1). SEL hardwired to GND on each module.
+static const uint PIN_I2S_SD[I2S_NUM_LINES] = { 16, 18, 20, 26, 27, 28 };
 
 static uint8_t usb_frame_buf[AUDIO_PACKET_SIZE] __attribute__((aligned(4)));
 
@@ -171,10 +173,10 @@ static volatile uint8_t  dbg_last_alt;
 static uint32_t diag_frame_counter;
 #else
 // ---------------------------------------------------------------------------
-// I2S capture: 3 PIO SMs + 3 DMA channels, ping-pong per line
+// I2S capture: 1 clock SM + 6 RX SMs (pio0: mics 1–3, pio1: mics 4–6) + DMA
 // ---------------------------------------------------------------------------
-static PIO i2s_pio;
 static uint i2s_sm[I2S_NUM_LINES];
+static PIO i2s_pio_line[I2S_NUM_LINES];
 static int i2s_dma[I2S_NUM_LINES];
 static uint32_t i2s_cap[I2S_NUM_LINES][I2S_PINGPONG_WORDS];
 static volatile uint8_t i2s_ready_half;
@@ -194,35 +196,33 @@ static volatile uint32_t dbg_i2s_feed_miss;
 static volatile uint32_t dbg_i2s_feed_hold;
 static volatile uint32_t dbg_i2s_feed_late;
 static volatile uint16_t dbg_i2s_peak[6];
-static volatile uint32_t dbg_i2s_raw[3];
+static volatile uint32_t dbg_i2s_raw[6];
 
-static void i2s_clk_sm_init(uint offset, float div) {
-    pio_gpio_init(i2s_pio, PIN_I2S_WS);
-    pio_gpio_init(i2s_pio, PIN_I2S_SCK);
-    pio_sm_set_consecutive_pindirs(i2s_pio, I2S_CLK_SM, PIN_I2S_WS, 1, true);
-    pio_sm_set_consecutive_pindirs(i2s_pio, I2S_CLK_SM, PIN_I2S_SCK, 1, true);
+static void i2s_clk_sm_init(PIO pio, uint offset, float div) {
+    pio_gpio_init(pio, PIN_I2S_WS);
+    pio_gpio_init(pio, PIN_I2S_SCK);
+    pio_sm_set_consecutive_pindirs(pio, I2S_CLK_SM, PIN_I2S_WS, 1, true);
+    pio_sm_set_consecutive_pindirs(pio, I2S_CLK_SM, PIN_I2S_SCK, 1, true);
 
     pio_sm_config c = i2s_clk_program_get_default_config(offset);
     sm_config_set_set_pins(&c, PIN_I2S_WS, 1);
     sm_config_set_sideset_pins(&c, PIN_I2S_SCK);
     sm_config_set_clkdiv(&c, div);
-    pio_sm_init(i2s_pio, I2S_CLK_SM, offset, &c);
+    pio_sm_init(pio, I2S_CLK_SM, offset, &c);
 }
 
-static void i2s_data_sm_init(uint sm, uint offset, uint pin_data, float div) {
-    pio_gpio_init(i2s_pio, pin_data);
-    pio_sm_set_consecutive_pindirs(i2s_pio, sm, pin_data, 1, false);
+static void i2s_data_sm_init(PIO pio, uint sm, uint offset, uint pin_data, float div) {
+    pio_gpio_init(pio, pin_data);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_data, 1, false);
 
     pio_sm_config c = i2s_rx_program_get_default_config(offset);
     sm_config_set_in_pins(&c, pin_data);
     // MSB-first: shift LEFT so the first received bit (sample MSB) lands in the
     // ISR MSB; autopush a full 32-bit slot per channel.
     sm_config_set_in_shift(&c, false, true, 32);
-    // CRITICAL: identical clkdiv to the clock SM so the two stay phase-locked
-    // when started together with pio_enable_sm_mask_in_sync(). The RX program
-    // mirrors the clock SM cycle-for-cycle and samples deterministically.
+    // Identical clkdiv to the clock SM (phase-locked within each PIO block).
     sm_config_set_clkdiv(&c, div);
-    pio_sm_init(i2s_pio, sm, offset, &c);
+    pio_sm_init(pio, sm, offset, &c);
 }
 
 static void i2s_dma_start_half(uint8_t half) {
@@ -243,33 +243,33 @@ static void __isr i2s_dma_irq(void) {
 }
 
 static void i2s_capture_init(uint32_t sample_rate) {
-    i2s_pio = pio0;
-    uint offset_clk = pio_add_program(i2s_pio, &i2s_clk_program);
-    uint offset_rx = pio_add_program(i2s_pio, &i2s_rx_program);
+    PIO pio_lo = pio0;
+    PIO pio_hi = pio1;
 
-    // 64 BCLK per frame (32/channel), 3 SM cycles per bit, 2 setup instr per
-    // half → frame = 2*(2 + 32*3) = 196 SM cycles. Pick clkdiv so one frame
-    // takes 1/sample_rate. The clock SM and all data SMs use this SAME div so
-    // pio_enable_sm_mask_in_sync() leaves them phase-locked (deterministic RX).
+    uint offset_clk = pio_add_program(pio_lo, &i2s_clk_program);
+    uint offset_rx_lo = pio_add_program(pio_lo, &i2s_rx_program);
+    uint offset_rx_hi = pio_add_program(pio_hi, &i2s_rx_program);
+
     float div = (float)clock_get_hz(clk_sys) / (196.0f * (float)sample_rate);
-    i2s_clk_sm_init(offset_clk, div);
-
-    const uint pin_data[I2S_NUM_LINES] = { PIN_I2S_D01, PIN_I2S_D23, PIN_I2S_D45 };
+    i2s_clk_sm_init(pio_lo, offset_clk, div);
 
     for (uint i = 0; i < I2S_NUM_LINES; i++) {
-        i2s_sm[i] = i;
-        i2s_data_sm_init(i2s_sm[i], offset_rx, pin_data[i], div);
+        PIO pio = (i < 3u) ? pio_lo : pio_hi;
+        uint offset = (i < 3u) ? offset_rx_lo : offset_rx_hi;
+        i2s_pio_line[i] = pio;
+        i2s_sm[i] = i % 3u;
+        i2s_data_sm_init(pio, i2s_sm[i], offset, PIN_I2S_SD[i], div);
 
         i2s_dma[i] = dma_claim_unused_channel(true);
         dma_channel_config c = dma_channel_get_default_config(i2s_dma[i]);
         channel_config_set_transfer_data_size(&c, DMA_SIZE_32);
         channel_config_set_read_increment(&c, false);
         channel_config_set_write_increment(&c, true);
-        channel_config_set_dreq(&c, pio_get_dreq(i2s_pio, i2s_sm[i], false));
+        channel_config_set_dreq(&c, pio_get_dreq(pio, i2s_sm[i], false));
         dma_channel_configure(
             i2s_dma[i], &c,
             &i2s_cap[i][0],
-            &i2s_pio->rxf[i2s_sm[i]],
+            &pio->rxf[i2s_sm[i]],
             I2S_WORDS_PER_FRAME,
             false);
     }
@@ -286,11 +286,12 @@ static void i2s_capture_init(uint32_t sample_rate) {
 
     i2s_dma_start_half(0);
 
-    uint32_t mask = (1u << I2S_CLK_SM);
-    for (uint i = 0; i < I2S_NUM_LINES; i++) mask |= (1u << i2s_sm[i]);
-    pio_enable_sm_mask_in_sync(i2s_pio, mask);
+    uint32_t irq_state = save_and_disable_interrupts();
+    pio_enable_sm_mask_in_sync(pio_lo, 0xFu);
+    pio_enable_sm_mask_in_sync(pio_hi, 0x7u);
+    restore_interrupts(irq_state);
 
-    dbg_puts("I2S started clk_sm=");
+    dbg_puts("I2S started 6x mono clk_sm=");
     dbg_putu32(I2S_CLK_SM);
     dbg_puts(" dma0=");
     dbg_putu32((uint32_t)i2s_dma[0]);
@@ -300,12 +301,9 @@ static void i2s_capture_init(uint32_t sample_rate) {
 // The RX SM captures 32 bits MSB-first per WS slot. Where the sample MSB lands
 // in that word was measured empirically against a 1 kHz lab reference (clean,
 // symmetric, low-THD only at these shifts):
-//   - RIGHT slot (WS=1): standard I2S 1-bit delay -> MSB at bit30 -> shift left 1
 //   - LEFT  slot (WS=0): arrives 3 BCLK later     -> MSB at bit27 -> shift left 4
-// After the left shift the MSB sits in bit31; an arithmetic >>8 then sign-extends
-// to a 24-bit value in the low 24 bits.
+// All mics have SEL hardwired GND, so only the left slot carries audio.
 #define I2S_LSHIFT_LEFT   4u
-#define I2S_LSHIFT_RIGHT  1u
 static inline int32_t i2s_word_to_s24(uint32_t raw, uint lshift) {
     // 64-bit shift: 32-bit << lshift overflows for hot mic words and wraps to ±FS.
     int64_t w = (int64_t)(((uint64_t)raw) << lshift);
@@ -317,41 +315,32 @@ static void build_usb_frame_from_i2s(uint8_t read_half) {
 
     uint8_t *out = usb_frame_buf;
     uint16_t peak[6] = {0, 0, 0, 0, 0, 0};
-    uint32_t raw_at_peak[3] = {0, 0, 0};
-    uint16_t line_peak[3] = {0, 0, 0};
+    uint32_t raw_at_peak[6] = {0, 0, 0, 0, 0, 0};
     for (uint32_t s = 0; s < AUDIO_SAMPLES_PER_USB_FRAME; s++) {
         uint32_t w = base + s * 2u;
-        uint32_t raww[6] = {
-            i2s_cap[0][w], i2s_cap[0][w + 1u],
-            i2s_cap[1][w], i2s_cap[1][w + 1u],
-            i2s_cap[2][w], i2s_cap[2][w + 1u],
-        };
 
         int16_t ring6[6];
         for (int i = 0; i < 6; i++) {
-            // Even index = LEFT slot (WS=0), odd = RIGHT slot (WS=1).
-            uint lshift = (i & 1) ? I2S_LSHIFT_RIGHT : I2S_LSHIFT_LEFT;
-            int32_t s24 = i2s_word_to_s24(raww[i], lshift);
+            uint32_t raw = i2s_cap[i][w];   // left slot (SEL=GND)
+            int32_t s24 = i2s_word_to_s24(raw, I2S_LSHIFT_LEFT);
             int32_t v = s24 < 0 ? -s24 : s24;
-            uint16_t a = (uint16_t)(v >> 8);   // track top 16 bits for the heartbeat
-            if (a > peak[i]) peak[i] = a;
-            // Remember the raw 32-bit word at the loudest sample of each line.
-            if (a > line_peak[i >> 1]) { line_peak[i >> 1] = a; raw_at_peak[i >> 1] = raww[i]; }
-            // Feed the DOA analysis with the unmuted top-16-bit sample.
+            uint16_t a = (uint16_t)(v >> 8);
+            if (a > peak[i]) {
+                peak[i] = a;
+                raw_at_peak[i] = raw;
+            }
             ring6[i] = (int16_t)(s24 >> 8);
             if (master_mute) s24 = 0;
-            // Pack signed 24-bit little-endian (S24_3LE).
             *out++ = (uint8_t)(s24 & 0xFF);
             *out++ = (uint8_t)((s24 >> 8) & 0xFF);
             *out++ = (uint8_t)((s24 >> 16) & 0xFF);
         }
-        // Publish this frame to the DOA analysis ring (cheap).
         doa_ring_push(ring6);
     }
-    for (int i = 0; i < 6; i++) dbg_i2s_peak[i] = peak[i];
-    dbg_i2s_raw[0] = raw_at_peak[0];
-    dbg_i2s_raw[1] = raw_at_peak[1];
-    dbg_i2s_raw[2] = raw_at_peak[2];
+    for (int i = 0; i < 6; i++) {
+        dbg_i2s_peak[i] = peak[i];
+        dbg_i2s_raw[i] = raw_at_peak[i];
+    }
 }
 #endif  // !HET68_USB_DIAG
 
@@ -657,8 +646,8 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport,
 }
 
 #if !HET68_USB_DIAG
-static bool i2s_sm_stalled(uint sm) {
-    return (i2s_pio->fdebug & (1u << (PIO_FDEBUG_TXSTALL_LSB + sm))) != 0u;
+static bool i2s_sm_stalled(PIO pio, uint sm) {
+    return (pio->fdebug & (1u << (PIO_FDEBUG_TXSTALL_LSB + sm))) != 0u;
 }
 
 static void dbg_heartbeat_i2s(void) {
@@ -673,22 +662,15 @@ static void dbg_heartbeat_i2s(void) {
     dbg_puts(" late=");
     dbg_putu32(dbg_i2s_feed_late);
     dbg_puts(" pk=");
-    dbg_putu32((uint32_t)dbg_i2s_peak[0]);
-    dbg_putc(',');
-    dbg_putu32((uint32_t)dbg_i2s_peak[1]);
-    dbg_putc(',');
-    dbg_putu32((uint32_t)dbg_i2s_peak[2]);
-    dbg_puts(" raw=");
-    dbg_puthex32(dbg_i2s_raw[0]);
-    dbg_putc(',');
-    dbg_puthex32(dbg_i2s_raw[1]);
-    dbg_putc(',');
-    dbg_puthex32(dbg_i2s_raw[2]);
+    for (int i = 0; i < 6; i++) {
+        if (i) dbg_putc(',');
+        dbg_putu32((uint32_t)dbg_i2s_peak[i]);
+    }
     dbg_puts(" stall=");
     if (i2s_started) {
-        dbg_putu32(i2s_sm_stalled(0) ? 1u : 0u);
+        dbg_putu32(i2s_sm_stalled(pio0, 0) ? 1u : 0u);
         dbg_putc('/');
-        dbg_putu32(i2s_sm_stalled(I2S_CLK_SM) ? 1u : 0u);
+        dbg_putu32(i2s_sm_stalled(I2S_PIO_CLK, I2S_CLK_SM) ? 1u : 0u);
     } else {
         dbg_puts("na");
     }
@@ -771,7 +753,7 @@ int main(void)
     dbg_putc('\n');
 #if !HET68_USB_DIAG
     dbg_puts("debug: UART GP0/GP1 Grove UART0 (pins 1/2/3)\n");
-    dbg_puts("mode: I2S 3x stereo\n");
+    dbg_puts("mode: I2S 6x mono (SEL=GND)\n");
 #else
     dbg_puts("debug: UART GP0/GP1 Grove UART0 (pins 1/2/3)\n");
     dbg_puts("mode: simulated 1kHz tone (I2S bypassed)\n");
