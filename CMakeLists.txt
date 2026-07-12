@@ -33,18 +33,18 @@ add_compile_definitions(PICO_PANIC_FUNCTION=het68_panic)
 #   HET68_USB_DIAG=ON ./build.sh
 option(HET68_USB_DIAG "Bypass I2S, emit simulated tone" OFF)
 
-# UART debug on GP8/GP9 (physical pins 11/12; GND on pin 13). These are UART1
-# pins and do not conflict with I2S on GP0–GP4. Same wiring for probe and mics.
+# UART debug on Grove Shield UART0: GP0 TX, GP1 RX (header pins 1/2; GND pin 3).
+# I2S clocks are on GP8/GP9 (Grove UART1) — no conflict.
 add_compile_definitions(
-    PICO_DEFAULT_UART=1
-    PICO_DEFAULT_UART_TX_PIN=8
-    PICO_DEFAULT_UART_RX_PIN=9
+    PICO_DEFAULT_UART=0
+    PICO_DEFAULT_UART_TX_PIN=0
+    PICO_DEFAULT_UART_RX_PIN=1
 )
 if(HET68_USB_DIAG)
     add_compile_definitions(HET68_USB_DIAG=1)
-    message(STATUS "het68: USB DIAG mode (simulated tone) — UART debug on GP8/GP9 (pins 11/12)")
+    message(STATUS "het68: USB DIAG mode (simulated tone) — UART debug on GP0/GP1 (Grove UART0)")
 else()
-    message(STATUS "het68: I2S mic mode — UART debug on GP8/GP9 (pins 11/12)")
+    message(STATUS "het68: I2S mic mode — UART debug on GP0/GP1 (Grove UART0)")
 endif()
 
 # Diagnostic: mirror debug output to the Pico's own USB CDC (ttyACM1) in

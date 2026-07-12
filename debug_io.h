@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 
-// UART (GP16) + optional USB CDC debug output.
+// UART (GP0/GP1 via PICO_DEFAULT_UART_*_PIN) + optional USB CDC debug output.
 void dbg_init(void);
 void dbg_putc(char c);
 void dbg_flush(void);

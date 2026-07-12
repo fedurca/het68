@@ -36,44 +36,44 @@ arecord -D hw:<card>,0 -c 6 -r 48000 -f S24_3LE -d 3 capture.wav
 - DMA moves the captured 32-bit slots into a double-buffered memory region; the
   USB device task packs them into 24-bit `S24_3LE` frames.
 
-## Hardware wiring
+## Hardware wiring (Grove Shield for Pi Pico)
 
-> **WARNING:** Power the microphones from **3V3 (OUT), Pin 36** — **not** VSYS,
-> or you will destroy them.
+Board: **Seeed Grove Shield for Pi Pico v1.0**. Set the shield power switch to
+**3.3 V** (never 5 V — destroys ICS-43434 mics).
 
-* **Power**
-    * `VDD` of all 6 mics → **3V3 (OUT)**, Pico Pin 36
-    * `GND` of all 6 mics → `GND`, Pico Pin 38
+Each microphone uses **two** Grove cables: one on the shared **clock bus**, one
+for **power + SD + SEL**. See `wiring_and_bom.md` for the full connector map.
 
-* **Shared clocks (Pico is master)**
-    * `GP0` → `WS` (word select / LRCLK) on all 6 mics
-    * `GP1` → `SCK` (serial / bit clock) on all 6 mics
+| Grove port | Function | GPIO |
+|---|---|---|
+| **UART0** | Debug UART → Debug Probe | GP0 TX, GP1 RX |
+| **UART1** | I2S clock bus (WS + SCK, daisy-chain) | GP8 WS, GP9 SCK |
+| **I2C1** | PS1240 sync beacon piezo | GP6, GP7 |
+| **D16 / D18 / D20** | Mic 1–3 data (SD + SEL) | GP16–GP21 |
+| **A0 / A1 / A2** | Mic 4–6 data (SD; SEL via header pigtail) | GP26–GP28, GP2–GP4 |
+| **I2C0** | *unused* (same pins as UART1) | — |
 
-* **Data lines (3 stereo pairs)**
-    * **Channels 1 & 2 (GP2):** mic 1 `SEL`→`GND` (left), mic 2 `SEL`→`3V3` (right), joined `SD` → `GP2`
-    * **Channels 3 & 4 (GP3):** mic 3 `SEL`→`GND` (left), mic 4 `SEL`→`3V3` (right), joined `SD` → `GP3`
-    * **Channels 5 & 6 (GP4):** mic 5 `SEL`→`GND` (left), mic 6 `SEL`→`3V3` (right), joined `SD` → `GP4`
+* **Debug UART** — Grove **UART0** (or header pins 1/2/3):
 
-* **Sync beacon piezo (PS1240, software H-bridge)**
-    * One PS1240 passive piezo across `GP6` and `GP7`.
-    * The two pins are the A/B outputs of one PWM slice; channel B is driven with
-      inverted polarity, so the element sees ±VDD (≈ +6 dB vs. single-ended).
-    * No series resistor needed for a passive element; keep leads short.
+    | Grove pin | GPIO | Signal | → Debug Probe "U" |
+    |---|---|---|---|
+    | white (2) | GP0 | UART TX | → Probe **RX** (yellow) |
+    | yellow (1) | GP1 | UART RX | ← Probe **TX** (orange) |
+    | black (4) | GND | ground | GND |
 
-* **Debug UART (Raspberry Pi Debug Probe, independent of I2S)**
+    Baud rate: **115200** (`./serial.sh`).
 
-    Debug Probe cable (connector "U"), three wires:
+* **I2S clocks** — Grove **UART1**, daisy-chained to all mic modules: GP9 = SCK,
+  GP8 = WS (pin 3 VCC unused on the clock cable).
 
-    | Wire | Pico pin | GPIO | Signal | → Debug Probe "U" |
-    |---|---|---|---|---|
-    | **yellow** | Pin 11 | GP8 | UART TX | → Probe **RX** |
-    | **orange** | Pin 12 | GP9 | UART RX | ← Probe **TX** |
-    | **black** | Pin 13 | GND | ground | GND |
+* **Piezo** — Grove **I2C1**: passive PS1240 between GP6 and GP7 (H-bridge PWM;
+  pins 3/4 unused).
 
-    * Baud rate: **115200** (`./serial.sh`)
-    * Note: GP8/GP9 are **UART1**; I2S runs on GP0–GP4 with no conflict.
+* **Capture (current firmware)** — three shared SD lines on **GP2 / GP3 / GP4**
+  (stereo pairs on shield headers) until the six-mono PIO update. Target per-mic
+  Grove data ports are wired in `wiring_and_bom.md`.
 
-See `wiring_and_bom.md` for the full pinout and bill of materials.
+See `wiring_and_bom.md` for mic-module layout, SEL GPIO table, and BOM.
 
 ## Drone detection (DOA + sync beacon)
 

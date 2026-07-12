@@ -21,7 +21,7 @@
 ; MSB-first: shift LEFT + autopush(32) so the first sampled bit ends up in the
 ; ISR MSB. A fixed whole-bit offset (I2S 1-bit delay) is corrected on the C side.
 .program i2s_rx
-.define public PIN_SCK 1
+.define public PIN_SCK 9
 
 .wrap_target
     nop                              ; mirror clk "set pins,0 side0" (WS low)

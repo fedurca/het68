@@ -1,9 +1,10 @@
 // main.c — RP2350 UAC2 6ch microphone (3× ICS-43434 stereo pairs via PIO I2S RX + DMA)
 //
-// Pinout (see README.md / wiring_and_bom.md):
-//   GP0 = WS/LRCLK, GP1 = BCLK/SCK (Pico is I2S master)
+// Pinout (see README.md / wiring_and_bom.md, Grove Shield):
+//   GP8 = WS/LRCLK, GP9 = BCLK/SCK (Grove UART1 clock bus)
 //   GP2 = SD pair 1+2, GP3 = SD pair 3+4, GP4 = SD pair 5+6
-//   GP8 = UART TX (yellow, pin 11), GP9 = UART RX (orange, pin 12), GND (black, pin 13)
+//   GP0 = UART TX, GP1 = UART RX (Grove UART0 → Debug Probe)
+//   GP6/GP7 = piezo H-bridge (Grove I2C1)
 //
 // HET68_USB_DIAG=1 bypasses I2S and sends a simulated 1 kHz tone (bench test).
 
@@ -139,10 +140,10 @@ void __attribute__((noreturn)) __wrap_panic(const char *fmt, ...) {
 #endif
 
 // ---------------------------------------------------------------------------
-// I2S pins — must match wiring_and_bom.md / README_v24.txt
+// I2S pins — must match wiring_and_bom.md (Grove UART1 clock bus)
 // ---------------------------------------------------------------------------
-#define PIN_I2S_WS    0
-#define PIN_I2S_SCK   1
+#define PIN_I2S_WS    8
+#define PIN_I2S_SCK   9
 #define PIN_I2S_D01   2
 #define PIN_I2S_D23   3
 #define PIN_I2S_D45   4
@@ -769,10 +770,10 @@ int main(void)
     dbg_puts(__TIME__);
     dbg_putc('\n');
 #if !HET68_USB_DIAG
-    dbg_puts("debug: UART GP8 -> Debug Probe UART RX (pins 11/12/13)\n");
+    dbg_puts("debug: UART GP0/GP1 Grove UART0 (pins 1/2/3)\n");
     dbg_puts("mode: I2S 3x stereo\n");
 #else
-    dbg_puts("debug: UART GP8 -> Debug Probe UART RX (pins 11/12/13)\n");
+    dbg_puts("debug: UART GP0/GP1 Grove UART0 (pins 1/2/3)\n");
     dbg_puts("mode: simulated 1kHz tone (I2S bypassed)\n");
 #endif
 

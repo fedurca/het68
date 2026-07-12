@@ -1,4 +1,4 @@
-; I2S master clock: WS on SET pin (GP0), SCK on side-set pin (GP1).
+; I2S master clock: WS on SET pin, SCK on side-set pin (Grove UART1: GP8/GP9).
 ; One SM drives shared clocks for all three SD data receivers.
 ; 32 BCLK edges per channel (64 per frame) so the full 24-bit ICS-43434
 ; word is clocked out (24 data bits + padding). Each bit = 3 SM cycles,
