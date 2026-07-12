@@ -36,46 +36,118 @@ arecord -D hw:<card>,0 -c 6 -r 48000 -f S24_3LE -d 3 capture.wav
 
 ## Hardware wiring (Grove Shield for Pi Pico)
 
-Board: **Seeed Grove Shield for Pi Pico v1.0**. Set the shield power switch to
-**3.3 V** (never 5 V — destroys ICS-43434 mics).
+Board: **Seeed Grove Shield for Pi Pico v1.0**. Shield power switch → **3.3 V**
+(never 5 V — destroys ICS-43434).
 
-Each microphone uses **two** Grove cables: one on the shared **clock bus**, one
-for **power + SD** (SEL hardwired GND on the module). See `wiring_and_bom.md`.
+Each microphone needs **two** 4-pin Grove cables (clock + data). **Cable colours are
+the same on every cable** — only the shield socket and mic socket change.
+
+### Grove 4-pin cable — wire colours
+
+| Pin | Wire colour | Usual name |
+|-----|-------------|------------|
+| **1** | **white** | signal (lower-number pin) |
+| **2** | **yellow** | signal (higher-number pin) |
+| **3** | **red** | VCC (3.3 V from shield) |
+| **4** | **black** | GND |
+
+On the mic breakout, strap **SEL → GND** (left channel only). The **yellow** wire
+(pin 2) on the **data** cable is not connected on the module.
+
+### Wiring overview
+
+```
+Shield                          Each mic module (×6)
+────────                        ────────────────────
+[UART0]─────── Debug Probe      (no mic cable)
+[UART1]──clock──► Mic1 CLK IN ──► CLK OUT ──► Mic2 ──► Mic3
+[I2C0]──clock───► Mic4 CLK IN ──► CLK OUT ──► Mic5 ──► Mic6
+[D16]──data─────► Mic1 DATA
+[D18]──data─────► Mic2 DATA
+[D20]──data─────► Mic3 DATA
+[A0]──data──────► Mic4 DATA
+[A1]──data──────► Mic5 DATA
+[A2]──data──────► Mic6 DATA
+[I2C1]────────── PS1240 piezo (no mic)
+```
+
+### Clock cable (7× Grove cable — same colours on every clock cable)
+
+From shield into **CLK IN** on mic 1 (branch A) and mic 4 (branch B); daisy-chain
+**CLK OUT → CLK IN** along each branch. **Do not use red (pin 3)** on clock cables.
+
+| Pin | Wire | Shield / mic signal | GPIO |
+|-----|------|---------------------|------|
+| 1 | **white** | **SCK** | GP9 |
+| 2 | **yellow** | **WS** | GP8 |
+| 3 | red | *not used* | — |
+| 4 | **black** | **GND** | GND |
+
+| Branch | Plug shield clock socket into | Then daisy-chain |
+|--------|------------------------------|------------------|
+| Mics 1–3 | **UART1** | Mic1 → Mic2 → Mic3 |
+| Mics 4–6 | **I2C0** | Mic4 → Mic5 → Mic6 |
+
+*(UART1 and I2C0 are the same GP8/GP9 on the PCB — two sockets, one clock bus.)*
+
+### Data cable (6× Grove cable — identical colours on every mic)
+
+Plug shield end into the port in the **Mic** column; plug mic end into **DATA**.
+Use **pin 1 (white)** for SD on analog ports A0–A2 (do not use pin 2 there).
+
+| Pin | Wire | Mic module (ICS-43434) | Shield port |
+|-----|------|------------------------|-------------|
+| 1 | **white** | **SD** (serial data) | see table below |
+| 2 | yellow | *not used* (SEL = GND on PCB) | — |
+| 3 | **red** | **VDD** (3.3 V) | same socket |
+| 4 | **black** | **GND** | same socket |
+
+| Mic | USB ch | Shield **data** socket | SD GPIO (pin 1 white) |
+|-----|--------|------------------------|------------------------|
+| 1 | 1 | **D16** | GP16 |
+| 2 | 2 | **D18** | GP18 |
+| 3 | 3 | **D20** | GP20 |
+| 4 | 4 | **A0** | GP26 |
+| 5 | 5 | **A1** | GP27 |
+| 6 | 6 | **A2** | GP28 |
+
+**Analog ports A0–A2:** the shield ties A0 pin 2 to A1 pin 1 (GP27) and A1 pin 2
+to A2 pin 1 (GP28). Use only **pin 1 (white)** on each port — one mic per socket.
+
+### Debug UART — Grove **UART0** → Raspberry Pi Debug Probe
+
+| Pin | Wire | GPIO | Signal | → Probe connector **U** |
+|-----|------|------|--------|-------------------------|
+| 1 | **white** | GP1 | UART RX | ← Probe **TX** (orange) |
+| 2 | **yellow** | GP0 | UART TX | → Probe **RX** (yellow) |
+| 3 | red | — | not used | — |
+| 4 | **black** | GND | ground | GND |
+
+Baud rate: **115200** (`./serial.sh`).
+
+### Sync beacon — Grove **I2C1** → PS1240 piezo
+
+Passive piezo between the two signal wires. **Do not use red or black** on this cable.
+
+| Pin | Wire | GPIO | Signal |
+|-----|------|------|--------|
+| 1 | **white** | GP7 | Piezo B |
+| 2 | **yellow** | GP6 | Piezo A |
+| 3 | red | — | not used |
+| 4 | black | — | not used |
+
+### GPIO quick reference
 
 | Grove port | Function | GPIO |
-|---|---|---|
-| **UART0** | Debug UART → Debug Probe | GP0 TX, GP1 RX |
-| **UART1** | I2S clock bus — mics 1–3 (WS + SCK) | GP8 WS, GP9 SCK |
-| **I2C0** | I2S clock bus — mics 4–6 (same GP8/GP9) | GP8 WS, GP9 SCK |
-| **I2C1** | PS1240 sync beacon piezo | GP6, GP7 |
-| **D16** | Mic 1 SD | GP16 |
-| **D18** | Mic 2 SD | GP18 |
-| **D20** | Mic 3 SD | GP20 |
-| **A0** | Mic 4 SD (pin 1) | GP26 |
-| **A1** | Mic 5 SD (pin 1) | GP27 |
-| **A2** | Mic 6 SD (pin 1) | GP28 |
+|------------|----------|------|
+| **UART0** | Debug UART | GP0 TX, GP1 RX |
+| **UART1** | Clock branch mics 1–3 | GP9 SCK, GP8 WS |
+| **I2C0** | Clock branch mics 4–6 | GP9 SCK, GP8 WS |
+| **I2C1** | Piezo beacon | GP6, GP7 |
+| **D16 / D18 / D20** | Mic 1–3 SD | GP16 / GP18 / GP20 |
+| **A0 / A1 / A2** | Mic 4–6 SD (pin 1) | GP26 / GP27 / GP28 |
 
-* **Debug UART** — Grove **UART0** (or header pins 1/2/3):
-
-    | Grove pin | GPIO | Signal | → Debug Probe "U" |
-    |---|---|---|---|
-    | white (2) | GP0 | UART TX | → Probe **RX** (yellow) |
-    | yellow (1) | GP1 | UART RX | ← Probe **TX** (orange) |
-    | black (4) | GND | ground | GND |
-
-    Baud rate: **115200** (`./serial.sh`).
-
-* **I2S clocks** — **UART1** (mics 1–3) and **I2C0** (mics 4–6): both connectors
-  share GP9 = SCK and GP8 = WS on the shield (parallel branches, not I2C). Daisy-chain
-  CLK IN → CLK OUT within each branch. Pin 3 VCC unused on clock cables.
-
-* **Data (SD)** — one GPIO per mic: **D16/D18/D20** (GP16/18/20) and **A0/A1/A2
-  pin 1** (GP26/27/28). **SEL → GND** on every module; Grove data pin 2 unused.
-
-* **Piezo** — Grove **I2C1**: passive PS1240 between GP6 and GP7 (H-bridge PWM;
-  pins 3/4 unused).
-
-See `wiring_and_bom.md` for clock chains, analog-port chaining, and BOM.
+BOM and module layout: `wiring_and_bom.md`.
 
 ## Drone detection (DOA + sync beacon)
 
