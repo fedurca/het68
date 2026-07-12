@@ -10,7 +10,7 @@ on a **Seeed Grove Shield for Pi Pico v1.0** (SKU 103100142).
 | Connector | Use | GPIO | Notes |
 |---|---|---|---|
 | **UART0** | Debug UART → Debug Probe | GP0 TX, GP1 RX | |
-| **UART1** | I2S clock bus (daisy-chain) | GP9 SCK, GP8 WS | pin 3 (VCC) unused |
+| **UART1** | I2S clock bus — mics 1–3 | GP9 SCK, GP8 WS | pin 3 (VCC) unused |
 | **I2C1** | PS1240 piezo (H-bridge) | GP6, GP7 | pins 3/4 unused |
 | **D16** | Mic 1 data cable | GP16 SD, GP17 SEL | |
 | **D18** | Mic 2 data cable | GP18 SD, GP19 SEL | |
@@ -18,7 +18,7 @@ on a **Seeed Grove Shield for Pi Pico v1.0** (SKU 103100142).
 | **A0** | Mic 4 data cable | GP26 SD | SEL GP27 via pigtail → header |
 | **A1** | Mic 5 data cable | GP28 SD | SEL GP2 via pigtail → header |
 | **A2** | Mic 6 data cable | GP3 SD | SEL GP4 via pigtail → header |
-| **I2C0** | *do not use* | GP8/GP9 | same pins as UART1 |
+| **I2C0** | I2S clock bus — mics 4–6 | GP9 SCK, GP8 WS | same pins as UART1; not I2C |
 
 Standard Grove cable colours: **1 yellow, 2 white, 3 red, 4 black**.
 
@@ -41,11 +41,14 @@ Independent of I2S. Grove cable into **UART0**, or direct wires to header pins 1
 
 ---
 
-## I2S clock bus — connector **UART1** (GP8/GP9)
+## I2S clock bus — **UART1** + **I2C0** (GP8/GP9)
 
-Shared **WS** and **SCK** for all six microphones. One Grove cable from **UART1**,
-then daisy-chained through each mic module (CLK IN → CLK OUT). **No power** on
-this bus — pin 3 is not used.
+Shared **WS** and **SCK** for all six microphones. Firmware drives **GP8** and
+**GP9** once; on the Grove Shield, connectors **UART1** and **I2C0** are wired
+in parallel to those same pins. Use both sockets as two branches of one clock bus
+— not as UART and I2C at the same time.
+
+**No power** on the clock cables — pin 3 is not used.
 
 | Grove pin | Colour | Signal | GPIO |
 |---|---|---|---|
@@ -54,7 +57,25 @@ this bus — pin 3 is not used.
 | 3 | red | NC | — |
 | 4 | black | GND | GND |
 
-Chain: `Shield UART1 → Mic1 CLK → Mic2 CLK → … → Mic6 CLK`.
+Recommended layout (clearer wiring — data ports already split at mic 4):
+
+```
+                    Pico (GP8 WS, GP9 SCK)
+                           │
+                    ┌──────┴──────┐
+                    │   Shield    │
+                 [UART1]      [I2C0]
+                    │              │
+              Mic1→Mic2→Mic3   Mic4→Mic5→Mic6
+```
+
+| Branch | Shield connector | Clock chain |
+|---|---|---|
+| Mics 1–3 | **UART1** | `UART1 → Mic1 CLK → Mic2 CLK → Mic3 CLK` |
+| Mics 4–6 | **I2C0** | `I2C0 → Mic4 CLK → Mic5 CLK → Mic6 CLK` |
+
+A single cable from **UART1** through all six modules also works; the split is
+optional and only for neater cabling.
 
 ---
 
@@ -148,6 +169,6 @@ mic migration):
 | Raspberry Pi Pico 2 (RP2350) | 1 |
 | Grove Shield for Pi Pico v1.0 | 1 |
 | ICS-43434 breakout / mic module | 6 |
-| Grove cable 4-pin | 7+ (1 clock chain + 6 data) |
+| Grove cable 4-pin | 8+ (2 clock branches + 6 data) |
 | PS1240 passive piezo | 1 |
 | Raspberry Pi Debug Probe | 1 |

@@ -47,11 +47,11 @@ for **power + SD + SEL**. See `wiring_and_bom.md` for the full connector map.
 | Grove port | Function | GPIO |
 |---|---|---|
 | **UART0** | Debug UART → Debug Probe | GP0 TX, GP1 RX |
-| **UART1** | I2S clock bus (WS + SCK, daisy-chain) | GP8 WS, GP9 SCK |
+| **UART1** | I2S clock bus — mics 1–3 (WS + SCK) | GP8 WS, GP9 SCK |
 | **I2C1** | PS1240 sync beacon piezo | GP6, GP7 |
 | **D16 / D18 / D20** | Mic 1–3 data (SD + SEL) | GP16–GP21 |
 | **A0 / A1 / A2** | Mic 4–6 data (SD; SEL via header pigtail) | GP26–GP28, GP2–GP4 |
-| **I2C0** | *unused* (same pins as UART1) | — |
+| **I2C0** | I2S clock bus — mics 4–6 (same GP8/GP9 as UART1) | GP8 WS, GP9 SCK |
 
 * **Debug UART** — Grove **UART0** (or header pins 1/2/3):
 
@@ -63,8 +63,9 @@ for **power + SD + SEL**. See `wiring_and_bom.md` for the full connector map.
 
     Baud rate: **115200** (`./serial.sh`).
 
-* **I2S clocks** — Grove **UART1**, daisy-chained to all mic modules: GP9 = SCK,
-  GP8 = WS (pin 3 VCC unused on the clock cable).
+* **I2S clocks** — **UART1** (mics 1–3) and **I2C0** (mics 4–6): both connectors
+  share GP9 = SCK and GP8 = WS on the shield (parallel branches, not I2C). Daisy-chain
+  CLK IN → CLK OUT within each branch. Pin 3 VCC unused on clock cables.
 
 * **Piezo** — Grove **I2C1**: passive PS1240 between GP6 and GP7 (H-bridge PWM;
   pins 3/4 unused).
