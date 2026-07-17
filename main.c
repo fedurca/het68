@@ -772,12 +772,18 @@ int main(void)
     dbg_puts("DOA: core1 launched (3D TDOA, 512mm cube on vertex)\n");
 #endif
 
+    // Heartbeat LED. Boards whose LED is on a wireless module (e.g. Pico W /
+    // Pico Plus 2 W) do not define PICO_DEFAULT_LED_PIN; skip the blink there —
+    // the UART heartbeat (dbg_heartbeat) remains the primary liveness signal and
+    // we avoid pulling in the CYW43 driver just to toggle an LED.
+#ifdef PICO_DEFAULT_LED_PIN
     const uint led_pin = PICO_DEFAULT_LED_PIN;
     gpio_init(led_pin);
     gpio_set_dir(led_pin, GPIO_OUT);
 
     bool led_state = false;
     absolute_time_t next_led = make_timeout_time_ms(500);
+#endif
     absolute_time_t next_heartbeat = make_timeout_time_ms(2000);
     uint32_t hb_count = 0;
 
@@ -793,12 +799,14 @@ int main(void)
         // Audio frames are produced in tud_audio_tx_done_pre_load_cb(), driven by
         // the USB IN cadence — nothing to pump from the main loop here.
 
+#ifdef PICO_DEFAULT_LED_PIN
         uint32_t blink_ms = tud_audio_mounted() ? 100u : 500u;
         if (absolute_time_diff_us(get_absolute_time(), next_led) <= 0) {
             led_state = !led_state;
             gpio_put(led_pin, led_state);
             next_led = make_timeout_time_ms(blink_ms);
         }
+#endif
 
         if (absolute_time_diff_us(get_absolute_time(), next_heartbeat) <= 0) {
             hb_count++;
