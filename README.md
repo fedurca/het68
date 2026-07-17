@@ -174,7 +174,10 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
 * **Array geometry.** A cube standing on a vertex, **512 mm** edge. Mics 1–3 are
   the three upper faces (mic 1 = north, then +120°, +240° azimuth, all at +35.26°
   elevation); mics 4–6 are the opposite lower faces (−35.26° elevation, azimuths
-  interleaved by 60°). Edit `MIC_DIR`/`DOA_EDGE_M` in `doa.c` to change it.
+  interleaved by 60°). Set `DOA_EDGE_MM` in `doa.c` to change the size (`DOA_MAXLAG`
+  derives from it automatically). How to physically build the cube, what to build it
+  from, and a full 128 / 256 / 512 / 1024 mm edge-length trade-off analysis
+  (accuracy, speed, compute) are in [`array_cube_design.md`](array_cube_design.md).
 
 * **Synchronisation beacon.** The PS1240 piezo emits a periodic BPSK-modulated
   m-sequence burst on a ~4 kHz carrier (its resonance), driven differentially via
