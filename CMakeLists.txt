@@ -69,6 +69,15 @@ if(DEFINED HET68_CORE1_SETTLE_MS)
     message(STATUS "het68: core1 settle ms override=${HET68_CORE1_SETTLE_MS}")
 endif()
 
+# Acoustic array cube edge length in millimetres. Any integer edge is supported
+# (e.g. 50/100/128/150/200/256/512); DOA_MAXLAG and the comparison window
+# auto-derive from it in doa.c. Default (unset) is 512 mm.
+#   HET68_DOA_EDGE_MM=150 ./build.sh
+if(DEFINED HET68_DOA_EDGE_MM)
+    add_compile_definitions(HET68_DOA_EDGE_MM=${HET68_DOA_EDGE_MM})
+    message(STATUS "het68: DOA cube edge=${HET68_DOA_EDGE_MM} mm")
+endif()
+
 # Wrap panic at link time as belt-and-suspenders: some pico-sdk libraries may
 # have been pre-built without PICO_PANIC_FUNCTION, so --wrap catches those too.
 target_link_options(pico_6mic_soundcard PRIVATE -Wl,--wrap=panic)

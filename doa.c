@@ -17,13 +17,19 @@
 // Array geometry — cube standing on a vertex, mics at the six face centres
 // (an octahedron). See README and array_cube_design.md.
 //
-// DOA_EDGE_MM is the ONE knob for the array size: DOA_MAXLAG and the window
-// guard below derive from it, so the same firmware can drive any edge length
-// (128 / 256 / 512 / 1024 mm ...). MIC_DIR stays the same — only the scale
-// changes. Edge is an integer in millimetres so the derivation is a valid
-// integer constant expression usable in the #if guard.
+// DOA_EDGE_MM is the ONE knob for the array size: DOA_MAXLAG and the comparison
+// window below derive from it, so the same firmware can drive any integer edge
+// length (e.g. 50 / 100 / 128 / 150 / 200 / 256 / 512 / 1024 mm). MIC_DIR stays
+// the same — only the scale changes. Edge is an integer in millimetres so the
+// derivation is a valid integer constant expression usable in the #if tiers.
+//
+// Override at build time (default 512 mm):  HET68_DOA_EDGE_MM=150 ./build.sh
 // ---------------------------------------------------------------------------
+#ifdef HET68_DOA_EDGE_MM
+#define DOA_EDGE_MM     HET68_DOA_EDGE_MM
+#else
 #define DOA_EDGE_MM     512
+#endif
 #define DOA_EDGE_M      (DOA_EDGE_MM * 0.001f)
 #define DOA_FACE_R      (DOA_EDGE_M * 0.5f)
 
@@ -45,18 +51,26 @@ static float MIC_POS[6][3];
 #define DOA_FS           ((float)DOA_FS_HZ)
 #define DOA_C_SOUND      (DOA_C_MM_S * 0.001f)
 
-#define DOA_N            256u
-
 // Longest baseline = full edge (opposite faces). One integer sample of TDOA is
 // c/Fs = 343000/48000 = 7.15 mm of path difference, so cover ceil(edge / 7.15)
 // samples plus 2 for the sub-sample parabolic interpolation headroom.
 #define DOA_MAXLAG       ((DOA_EDGE_MM * DOA_FS_HZ + DOA_C_MM_S - 1) / DOA_C_MM_S + 2)
 
-// The GCC core correlates over DOA_N - 2*DOA_MAXLAG samples. Keep the usable
-// window at least as long as the lag search (DOA_N >= 3*DOA_MAXLAG); below that
-// the estimate degrades and can underflow. Raise DOA_N or shrink DOA_EDGE_MM.
-#if (DOA_N) < 3 * (DOA_MAXLAG)
-#error "DOA_N too small for DOA_EDGE_MM: increase DOA_N or reduce the cube edge"
+// Comparison window. The GCC core correlates over DOA_N - 2*DOA_MAXLAG samples,
+// so the window must grow with the cube — a bigger array means a longer maximum
+// delay to search. Auto-pick the smallest power-of-two window that keeps the
+// usable span at least as long as the lag search (DOA_N >= 3*DOA_MAXLAG). This
+// is the only DOA buffer that scales with edge length (g_work = 6*DOA_N floats,
+// i.e. 24*DOA_N bytes); the ring buffer is fixed. Edge crossovers: 256 samples
+// up to ~600 mm, 512 up to ~1200 mm, 1024 up to ~2400 mm.
+#if   DOA_MAXLAG <= 85
+#define DOA_N            256u
+#elif DOA_MAXLAG <= 170
+#define DOA_N            512u
+#elif DOA_MAXLAG <= 341
+#define DOA_N            1024u
+#else
+#error "DOA_EDGE_MM too large: add a larger DOA_N tier in doa.c"
 #endif
 
 #define DOA_OUT_SAMPLES  9600u
@@ -66,6 +80,11 @@ static float MIC_POS[6][3];
 // SPSC ring: core0 producer, core1 consumer.
 #define DOA_RING_SZ     2048u
 #define DOA_RING_MASK   (DOA_RING_SZ - 1u)
+// The consumer reads the most recent DOA_N samples while the producer keeps
+// writing; keep at least 2x headroom so a window is never overwritten mid-read.
+#if DOA_RING_SZ < 2u * DOA_N
+#error "DOA_RING_SZ too small for DOA_N: increase DOA_RING_SZ"
+#endif
 static volatile int16_t  g_ring[DOA_RING_SZ][6];
 static volatile uint32_t g_head;
 

@@ -25,6 +25,9 @@ CMAKE_ARGS=(
 if [ -n "${HET68_CORE1_SETTLE_MS:-}" ]; then
   CMAKE_ARGS+=(-DHET68_CORE1_SETTLE_MS="${HET68_CORE1_SETTLE_MS}")
 fi
+if [ -n "${HET68_DOA_EDGE_MM:-}" ]; then
+  CMAKE_ARGS+=(-DHET68_DOA_EDGE_MM="${HET68_DOA_EDGE_MM}")
+fi
 cmake "${CMAKE_ARGS[@]}"
 
 # build ve verbose režimu (funguje pro Ninja i Make)
