@@ -291,3 +291,16 @@ device directly):
 After reset the Pico enumerates as a standard 6-channel 48 kHz / 24-bit USB audio
 device on Windows, macOS and Linux. Select it as the input device in any audio
 application and record from all six microphones at once.
+
+## License
+
+Copyright (C) 2025-2026 het68 project contributors.
+
+This program is free software: you can redistribute it and/or modify it under the
+terms of the **GNU General Public License v3.0** as published by the Free Software
+Foundation. This program is distributed WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+full license text in [`LICENSE`](LICENSE) or <https://www.gnu.org/licenses/gpl-3.0.html>.
+
+Note: the vendored `pico-sdk/` and the TinyUSB patches under `patches/` carry their
+own upstream licenses (BSD-3-Clause / MIT) and are not covered by this project's GPLv3.
