@@ -367,3 +367,76 @@ run at 1.8 V (set the pad `VOLTAGE_SELECT` bit), **but `USB_OTP_VDD` needs a nom
 USB** (data over Wi-Fi) with 1.8 V flash and a 1.8 V PSRAM part (e.g. APS6404L
 1.8 V variant). The ICS-43434 mics are 1.8 V-capable, but their IO must match the
 board `IOVDD`.
+
+---
+
+## 10. Worked build — 200 mm node from ALUPA K20 extrusion
+
+A concrete, orderable frame for a compact **200 mm** node (four of them for a
+multi-node set). Supplier: **ALUPA / ehlinik.cz**, construction system **K20**
+(20×20 mm slotted profile). Cut-to-length service is available in the shop
+(min. 50 mm), so you can skip cutting at home.
+
+- K20 category (all parts below, searchable by the "Čís. prof." code):
+  <https://www.ehlinik.cz/stavebnicovy-system-k20/kat-GXWD000101.html>
+- K2020 profile (cut-to-length):
+  <https://www.ehlinik.cz/hlinikovy-profil-k2020-stribrny-elox/pro-ULK2200101.html>
+
+### Geometry and how it maps to the firmware
+
+- Join the 12 edges with **3D corner cubes** (`RK200301`). Each cube occupies 20 mm
+  per axis, so for a 200 mm outer cube the **profiles are cut to 160 mm**
+  (200 − 20 − 20). This avoids any 45° mitre cutting and gives exact right angles.
+  (Verify the corner cube is 20 mm/axis; adjust the cut length if not.)
+- **Mics go at the six face CENTRES, not on the edges.** Sliding a T-nut onto an
+  edge profile would put the mic on an edge and break the geometry the firmware
+  assumes (`MIC_DIR` in [`doa.c`](doa.c)). Instead mount each mic on a small
+  **3D-printed standoff arm** that reaches the centre of its face (100 mm from the
+  cube centre along the face normal), fixed to the frame with a rotating T-nut
+  (`MT200604`). One arm per face → six per cube.
+- Build the firmware for this size: `HET68_DOA_EDGE_MM=200 ./build.sh` (verified;
+  uses the 256-sample window, `DOA_MAXLAG` 30, ~2.05° raw resolution — fine for a
+  multi-node node where the inter-node baseline sets the position accuracy).
+- Seat on the lower vertex via the bottom corner cube: an **adjustable ball foot**
+  (`NO065040`) for a bench, or an **eye bolt** (`SO990617`) / a 1/4"-tapped adapter
+  for a **tripod** (recommended — a cube balanced on one point is otherwise tippy).
+- On assembly, orient one body diagonal vertical and **map each face to the correct
+  mic channel** per `MIC_DIR` (upper 3 at +35.26°, lower 3 at −35.26°); label the
+  faces, or azimuth/elevation will come out rotated.
+
+### K20 bill of materials (prices Kč, ex-VAT; verify current prices on the shop)
+
+| Part (catalog name) | Čís. prof. | Qty / cube | Qty ×4 | Kč/ks | Total ×4 |
+|---|---|---|---|---|---|
+| Hliníkový profil K2020, cut to 160 mm | `9251` | 12 | 48 (=7.68 m) | 99.90 / bm | ~767 |
+| Rohová spojka kostka 3D K20 | `RK200301` | 8 | 32 | 45 | 1 440 |
+| Šroub válcová hlava M6×12 (fix into corner cubes) | `SV990612` | 24 | 96 | 2 | 192 |
+| Kámen otočný M4 K20 (mic-arm mount) | `MT200604` | 6 | 24 | 3 | 72 |
+| Šroub půlkulatá hlava M4×8 (mic arm → stone) | `SP990408` | 6 | 24 | 2 | 48 |
+| Stavitelná noha otočná s patkou ⌀40 M6×50 (lower vertex) | `NO065040` | 1 | 4 | 50 | 200 |
+| *alt:* Šroub závěsný s okem M6 (tripod/hanging) | `SO990617` | (1) | (4) | 25 | (100) |
+
+**Frame material total (4 cubes): ≈ 2 720 Kč ex-VAT (≈ 3 290 Kč incl. 21% VAT)**,
+or ~2 750 Kč if you buy the profile in whole metres rather than as cut pieces.
+Per cube ≈ 680 Kč ex-VAT.
+
+**Not included** (add separately): the electronics (per node: 1× Pico 2 / Pico
+Plus 2 W, 6× ICS-43434, Grove/clock cabling — this is the bulk of the real cost and
+build time, see [`wiring_and_bom.md`](wiring_and_bom.md)), the 3D-printed mic arms
++ pods (6/cube, ~filament only), rubber grommets and foam windscreens (6/cube), and
+cable clips.
+
+### Labour
+
+- **Cutting:** 0 if ordered pre-cut; ~45 min + deburring if cut at home.
+- **Fixing profiles to corner cubes:** the `M6` screw goes into the profile core.
+  **Check whether the K20 core takes a self-tapping M6** — many do, which removes the
+  tapping step entirely; otherwise tap 96 ends (2 per profile), ~30-60 min, or order
+  pre-tapped. (A tap-free alternative is the hidden **Vnitřní spojka 3D K20**
+  `RI200301`, which uses set screws — different corner geometry/cut lengths.)
+- **Assembly:** ~1 h for four cubes (Allen key).
+- **Mic arms + mics + grommets + windscreens + cabling:** ~1.5-2 h (24 mics total,
+  two Grove cables each) — the real time sink, on top of the frame.
+
+So the four **frames** are an easy afternoon (~2-3 h); a fully wired four-node set is
+more like 4-6 h including the electronics integration.
