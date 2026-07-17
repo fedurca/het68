@@ -177,7 +177,38 @@ The correlation core sums over `DOA_N - 2·DOA_MAXLAG` samples. With the current
   and the wavefront must traverse the whole array *within* one window — a plain
   physical consequence of a bigger aperture.
 
-### 5.5 Compute load
+### 5.5 Memory footprint
+
+Bigger cube ⇒ longer maximum delay to search ⇒ **larger comparison window**. In
+`doa.c` the window `DOA_N` auto-scales in power-of-two tiers so the usable span
+stays ≥ the lag search. Only two DOA buffers depend on the edge:
+
+- `g_work[6][DOA_N]` (float) = **24 × DOA_N bytes** — the comparison window; the
+  dominant size-dependent buffer.
+- `s_corr[2·DOA_MAXLAG+1]` (float) — the correlation scratch; a few hundred bytes.
+
+Everything else is fixed: the input ring `g_ring[2048][6]` (int16) = **24576 B**
+regardless of edge, plus `g_energy[6]`.
+
+Per edge (DOA total = ring + `g_work` + `s_corr` + `g_energy`):
+
+- **50 mm** → N=256, `g_work` 6.1 kB, DOA total ~30.1 kB
+- **100 mm** → N=256, `g_work` 6.1 kB, ~30.2 kB
+- **150 mm** → N=256, `g_work` 6.1 kB, ~30.2 kB
+- **200 mm** → N=256, `g_work` 6.1 kB, ~30.3 kB
+- **256 mm** → N=256, ~30.3 kB
+- **512 mm** → N=256, ~30.6 kB
+- **700 mm** → N=512, `g_work` 12.3 kB, ~36.8 kB
+- **1300 mm** → N=1024, `g_work` 24.6 kB, ~49.5 kB
+
+Key point: **memory is stepped, not smooth**. Every edge from ~50 mm up to ~600 mm
+lands in the same N=256 tier, so **50 / 100 / 150 / 200 mm all cost essentially the
+same RAM** (they differ only by the sub-kB `s_corr`). The window doubles only when
+the edge crosses ~600 mm (→512) and ~1200 mm (→1024). Against the RP2350's 520 kB
+SRAM even the 1024-sample tier is negligible. So a bigger cube *does* need a bigger
+window — but the jump is discrete and only matters for the large (>600 mm) builds.
+
+### 5.6 Compute load
 
 MACs per window per pair = `(2·maxlag + 1) · (N − 2·maxlag)`; up to 5 pairs per
 solve, at the ~5 Hz update rate (`DOA_OUT_SAMPLES = 9600`):
@@ -195,7 +226,7 @@ decorrelation** across a long baseline (outdoor coherence between mics drops as 
 baseline grows, which *raises* the delay noise and eats into the theoretical
 resolution gain).
 
-### 5.6 Summary of the trade-off
+### 5.7 Summary of the trade-off
 
 - Bigger edge → **better angular resolution** (linear), but **lower aliasing
   frequency**, **longer window/latency**, **larger & floppier structure**, and
@@ -242,19 +273,25 @@ mechanical rigidity stop limiting you.
 The geometry lives in [`doa.c`](doa.c):
 
 - `DOA_EDGE_MM` — **the one knob**: cube edge in millimetres (integer). Positions
-  scale by `edge/2`; `DOA_MAXLAG` derives from it.
+  scale by `edge/2`; `DOA_MAXLAG` and `DOA_N` derive from it. Default 512 mm.
 - `MIC_DIR[6][3]` — the six face-centre unit directions (unchanged when you only
   scale the cube).
 - `DOA_MAXLAG` — auto-derived as `ceil(edge / 7.15 mm) + 2` samples (the +2 is
   interpolation headroom); no longer a hand-set literal.
-- `DOA_N` — window length; a compile-time guard enforces `DOA_N ≥ 3·DOA_MAXLAG`
-  so the usable correlation window (`DOA_N − 2·DOA_MAXLAG`) stays at least as long
-  as the lag search.
+- `DOA_N` — comparison window; **auto-scales** in power-of-two tiers so the usable
+  span (`DOA_N − 2·DOA_MAXLAG`) stays ≥ the lag search: 256 up to ~600 mm, 512 up
+  to ~1200 mm, 1024 up to ~2400 mm. Above that the build stops with a clear
+  `#error`.
 
-To test a different edge, set only `DOA_EDGE_MM`. If the cube is too large for the
-window the build fails with a clear `#error` telling you to raise `DOA_N` (e.g.
-1024 mm needs `DOA_N ≥ 512`) or shrink the cube. After any change, rebuild with
-`./build.sh` per [`AGENTS.md`](AGENTS.md).
+Any integer edge is supported. Select it at build time without editing source:
+
+```bash
+HET68_DOA_EDGE_MM=150 ./build.sh     # 50 / 100 / 128 / 150 / 200 / 256 / 512 ...
+./build.sh                            # default 512 mm
+```
+
+Rebuild per [`AGENTS.md`](AGENTS.md). The compact sizes (50-200 mm) all share the
+256-sample window, so switching between them changes no buffer size (see §5.5).
 
 ---
 
