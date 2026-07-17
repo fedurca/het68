@@ -14,9 +14,17 @@
 #include <math.h>
 
 // ---------------------------------------------------------------------------
-// Array geometry — 512 mm cube on vertex (see README).
+// Array geometry — cube standing on a vertex, mics at the six face centres
+// (an octahedron). See README and array_cube_design.md.
+//
+// DOA_EDGE_MM is the ONE knob for the array size: DOA_MAXLAG and the window
+// guard below derive from it, so the same firmware can drive any edge length
+// (128 / 256 / 512 / 1024 mm ...). MIC_DIR stays the same — only the scale
+// changes. Edge is an integer in millimetres so the derivation is a valid
+// integer constant expression usable in the #if guard.
 // ---------------------------------------------------------------------------
-#define DOA_EDGE_M      0.512f
+#define DOA_EDGE_MM     512
+#define DOA_EDGE_M      (DOA_EDGE_MM * 0.001f)
 #define DOA_FACE_R      (DOA_EDGE_M * 0.5f)
 
 static const float MIC_DIR[6][3] = {
@@ -30,10 +38,27 @@ static const float MIC_DIR[6][3] = {
 
 static float MIC_POS[6][3];
 
-#define DOA_FS           48000.0f
-#define DOA_C_SOUND      343.0f
+// Sample rate and speed of sound, kept in one place as both integer forms (for
+// the DOA_MAXLAG / #if derivation) and float forms (for the estimator maths).
+#define DOA_FS_HZ        48000
+#define DOA_C_MM_S       343000
+#define DOA_FS           ((float)DOA_FS_HZ)
+#define DOA_C_SOUND      (DOA_C_MM_S * 0.001f)
+
 #define DOA_N            256u
-#define DOA_MAXLAG       72
+
+// Longest baseline = full edge (opposite faces). One integer sample of TDOA is
+// c/Fs = 343000/48000 = 7.15 mm of path difference, so cover ceil(edge / 7.15)
+// samples plus 2 for the sub-sample parabolic interpolation headroom.
+#define DOA_MAXLAG       ((DOA_EDGE_MM * DOA_FS_HZ + DOA_C_MM_S - 1) / DOA_C_MM_S + 2)
+
+// The GCC core correlates over DOA_N - 2*DOA_MAXLAG samples. Keep the usable
+// window at least as long as the lag search (DOA_N >= 3*DOA_MAXLAG); below that
+// the estimate degrades and can underflow. Raise DOA_N or shrink DOA_EDGE_MM.
+#if (DOA_N) < 3 * (DOA_MAXLAG)
+#error "DOA_N too small for DOA_EDGE_MM: increase DOA_N or reduce the cube edge"
+#endif
+
 #define DOA_OUT_SAMPLES  9600u
 #define DOA_RMS_ACTIVE   4.0f
 #define DOA_TDOA_SIGN    (+1.0f)

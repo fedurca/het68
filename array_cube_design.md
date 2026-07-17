@@ -241,15 +241,20 @@ mechanical rigidity stop limiting you.
 
 The geometry lives in [`doa.c`](doa.c):
 
-- `DOA_EDGE_M` — cube edge in metres (positions scale by `edge/2`).
+- `DOA_EDGE_MM` — **the one knob**: cube edge in millimetres (integer). Positions
+  scale by `edge/2`; `DOA_MAXLAG` derives from it.
 - `MIC_DIR[6][3]` — the six face-centre unit directions (unchanged when you only
   scale the cube).
-- `DOA_MAXLAG` — must cover `edge / delta_d` samples.
-- `DOA_N` — must keep `DOA_N − 2·DOA_MAXLAG` usable (roughly ≥ half the window).
+- `DOA_MAXLAG` — auto-derived as `ceil(edge / 7.15 mm) + 2` samples (the +2 is
+  interpolation headroom); no longer a hand-set literal.
+- `DOA_N` — window length; a compile-time guard enforces `DOA_N ≥ 3·DOA_MAXLAG`
+  so the usable correlation window (`DOA_N − 2·DOA_MAXLAG`) stays at least as long
+  as the lag search.
 
-To test a different edge, set `DOA_EDGE_M`; `DOA_MAXLAG` and `DOA_N` are derived
-from it and range-checked at compile time (see the `DOA_EDGE_M` block in `doa.c`).
-After any change, rebuild with `./build.sh` per [`AGENTS.md`](AGENTS.md).
+To test a different edge, set only `DOA_EDGE_MM`. If the cube is too large for the
+window the build fails with a clear `#error` telling you to raise `DOA_N` (e.g.
+1024 mm needs `DOA_N ≥ 512`) or shrink the cube. After any change, rebuild with
+`./build.sh` per [`AGENTS.md`](AGENTS.md).
 
 ---
 
