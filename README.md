@@ -1,5 +1,9 @@
 # het68 — 6-channel I2S USB sound card for Raspberry Pi Pico 2 (RP2350)
 
+<p align="center">
+  <img src="PoC.png" alt="het68 — acoustic drone-detection proof of concept (project visualization)" width="80%">
+</p>
+
 This firmware turns a Raspberry Pi Pico 2 (RP2350) into a 6-channel USB audio
 input device (microphone). It captures six independent I2S data lines from six
 ICS-43434 MEMS microphones (SEL hardwired GND, left channel only), moves the
