@@ -192,6 +192,26 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
 The Pico SDK is vendored at `./pico-sdk`; no environment variables are required.
 See `BUILDING.md` for details.
 
+### Target board
+
+The default board is `pico2` (Raspberry Pi Pico 2, RP2350A, 4 MB flash, no PSRAM).
+Select a different board with `PICO_BOARD`:
+
+```bash
+./build.sh                                          # default: pico2
+PICO_BOARD=pimoroni_pico_plus2_w_rp2350 ./build.sh  # 16 MB flash, 8 MB PSRAM, Wi-Fi/BT
+```
+
+The **Pimoroni Pico Plus 2 W** (RP2350B) is the recommended upgrade for multi-node
+work: 16 MB flash, 8 MB PSRAM (headroom for recording / on-device detection), and
+2.4 GHz Wi-Fi + Bluetooth for networking nodes. It keeps the Pico footprint and all
+firmware GPIOs fit (RP2350B has 48 GPIO; PSRAM CS is GP47, no conflict). Boards
+whose LED lives on a wireless module do not define `PICO_DEFAULT_LED_PIN`, so the
+heartbeat LED is skipped there (the UART heartbeat still runs). Rationale, PSRAM
+sizing, power (all these boards are 3.3 V designs; USB needs 3.3 V `USB_OTP_VDD`, so
+a fully-1.8 V node is custom-hardware only), and alternatives are in
+[`array_cube_design.md`](array_cube_design.md).
+
 ### TinyUSB / pico-sdk patches
 
 Upstream **Pico SDK 2.2.0** (commit `a1438dff`) ships **TinyUSB 0.18.0**, which

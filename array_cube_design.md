@@ -309,3 +309,61 @@ Adds to the electronics BOM in [`wiring_and_bom.md`](wiring_and_bom.md).
 | Pico + Grove shield mounting bracket | 1 | printed; bottom corner or centre |
 | M5 T-nuts + button-head screws | ~40 | 2020 assembly |
 | Cable clips / adhesive mounts | as needed | strain relief + routing along rails |
+
+---
+
+## 9. Node hardware — board options
+
+The default target is `pico2` (RP2350A, 4 MB flash, **no PSRAM**). For a networked
+multi-node build, or to add on-device recording/detection, move to an RP2350B board
+with flash + PSRAM + wireless. Build for it with `PICO_BOARD` (no source change):
+
+```bash
+PICO_BOARD=pimoroni_pico_plus2_w_rp2350 ./build.sh
+```
+
+Recommended and off-the-shelf candidates (all RP2350B, 16 MB flash + 8 MB PSRAM):
+
+- **Pimoroni Pico Plus 2 W** — **recommended.** Only one with **2.4 GHz Wi-Fi +
+  Bluetooth (RM2)**, which is what the multi-node plan needs. Pico footprint,
+  USB-C. SDK board: `pimoroni_pico_plus2_w_rp2350`. (Non-W variant
+  `pimoroni_pico_plus2_rp2350` if wireless is not needed.)
+- **SparkFun Pro Micro RP2350**, **Adafruit Metro RP2350 (w/ PSRAM)**,
+  **Olimex RP2350-PICO2-BB48R** — same memory, no wireless.
+- **Solder Party Stamp XL / Waveshare RP2350-PiZero** — PSRAM footprint unpopulated
+  (you solder your own), so not turnkey.
+
+### PSRAM sizing — 8 MB is enough
+
+The DOA path uses ~31 kB of the 520 kB SRAM (see §5.5), so **8 MB PSRAM is ample**
+for edge detection: ~9.7 s of raw 6-channel/48 k/24-bit look-back, large FFT /
+spectrogram buffers, or a 0.1-2 MB on-device classifier, many times over. The
+bottleneck for detection is compute (M33 @ 150 MHz), not capacity. **A custom 16 MB
+PSRAM board is not worth it** — 128 Mbit QSPI PSRAM is essentially unobtainium
+(would need an RP2354B with 2× 8 MB on both chip-selects, i.e. bespoke hardware).
+Note PSRAM is XIP-cached QSPI and slower than SRAM: use it for capacity (recording,
+models, batch spectral work), keep the realtime correlation loop in SRAM.
+
+### Multi-node gains (why wireless matters)
+
+One node gives **direction only**. Two or more time-synchronised nodes give **3-D
+position + range + tracking** — the big qualitative jump. Localisation accuracy is
+set by the inter-node baseline (tens of metres, ~100× the cube), not the cube size;
+optimal fusion of N nodes also adds up to `10·log10(N)` dB detection SNR (≈+6 dB /
+~1.4-2× range at 4 nodes) plus ~N× coverage. Transport role: **Wi-Fi** carries data
+and coarse sync (PTP / 802.11mc gets to ~µs); **Bluetooth** is fine for
+control/telemetry but too jittery for sample-level TDOA; the on-board **acoustic
+beacon** provides the fine sub-sample sync/ranging. So the transport does not
+improve detection by itself — it enables fusion, and only if it carries adequate
+time sync.
+
+### Power / 1.8 V
+
+All the boards above are **3.3 V designs** (fixed 3.3 V regulator, 3.3 V-populated
+flash/PSRAM, wireless). The RP2350 core is 1.1 V and its `IOVDD`/`QSPI_IOVDD` can
+run at 1.8 V (set the pad `VOLTAGE_SELECT` bit), **but `USB_OTP_VDD` needs a nominal
+3.3 V for the USB full-speed PHY** — so a USB sound-card node cannot run fully on
+1.8 V. A fully-1.8 V node is custom-hardware only, and only viable if it **drops
+USB** (data over Wi-Fi) with 1.8 V flash and a 1.8 V PSRAM part (e.g. APS6404L
+1.8 V variant). The ICS-43434 mics are 1.8 V-capable, but their IO must match the
+board `IOVDD`.
