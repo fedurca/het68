@@ -157,35 +157,35 @@ BOM and module layout: `wiring_and_bom.md`.
 
 Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
 
-* **Multi-source DOA (drone + single walker with diarization).** core1 runs two
-  parallel front-ends on the same 6-channel stream:
+* **Multi-source DOA (drone + vehicle + single walker) with flash diarization.**
+  core1 runs three parallel front-ends:
 
   | Class | Band | Cue | Tracks |
   |---|---|---|---|
-  | **drone** | ~800 Hz–6 kHz | continuous energy, wind gate, crest limit | up to **2** (primary + SIC residual) |
-  | **walker** | ~150 Hz–600 Hz | footstep **onset** bout (≥3 steps) | **1** walking entity |
+  | **drone** | ~800 Hz–6 kHz | continuous, wind gate, crest limit | up to **2** |
+  | **vehicle** | ~80 Hz–2.5 kHz | continuous pass-by → **ICE** / **EV** | up to **2** |
+  | **walker** | ~150 Hz–600 Hz | footstep onset bout (≥3 steps) → human/cat/dog | **1** |
 
-  After a quiet gap (~2.5 s) the bout is classified as **human / cat / dog** from
-  cadence + spectral ratios (low 150–250 Hz vs high 400–600 Hz) + impact level,
-  then matched against an on-device **entity gallery** (up to 8 signatures) for
-  simple re-identification (`entity=` id, `match=` 0–1). Walkers are also
-  projected onto the **ground plane** using the array centre height (default
-  `edge·√3/2`; override with `HET68_DOA_HEIGHT_MM`) → `rng` / `x` / `y`. UART:
+  Recognised walkers/vehicles are stored in a flash-backed **entity gallery**
+  (last 4 KiB sector, up to 16 signatures — see `entity_store.c`). On boot the
+  gallery is listed on UART (`=== entity store (flash) ===`). Re-ID uses
+  `entity=` + heuristic `match=` 0–1. Walkers also get ground `rng`/`x`/`y`
+  (height: `edge·√3/2` or `HET68_DOA_HEIGHT_MM`). UART example:
 
   ```
+  === entity store (flash) n=2 next_id=3 ===
+  ENT id=1 class=human hits=4 cadence=1.80Hz low=0.48 mid=0.00 high=0.14 lvl=-40.00dB
+  ENT id=2 class=ice hits=1 cadence=0.50Hz low=0.52 mid=0.28 high=0.20 lvl=-28.00dB
+  === end entity store ===
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB
-  ENTITY id=3 class=human steps=5 cadence=1.80Hz match=0.82 low=0.48 high=0.14
-  SRC class=human entity=3 az=45.0 el=-32.1 conf=0.5 lvl=-40.0dB match=0.82 cadence=1.80Hz rng=1.8m x=1.3 y=1.2
-  TRACKS drone=1 walker=1 entity=3
+  ENTITY id=2 class=ice frames=5 match=0.00 low=0.52 mid=0.28 high=0.20 daz=40.0deg
+  SRC class=human entity=1 az=45.0 el=-32.1 conf=0.5 lvl=-40.0dB match=0.82 cadence=1.80Hz rng=1.8m x=1.3 y=1.2
+  TRACKS drone=1 vehicle=1 walker=1 entity=1
   ```
 
-  - Azimuth is compass degrees (0° = north, clockwise); elevation is ±90°.
-  - Drone + walker run **at the same time**; walker tracking assumes **one**
-    walking entity (by design for reliable species/diarization cues).
-  - Species / re-ID is best-effort acoustic heuristics — not a trained model.
-    Same animal on a different surface, or two similar dogs, can confuse the gallery.
-  - After OpenOCD/SWD flash, core1 must be launched via `het68_launch_core1()`;
-    see `doa.c`.
+  - Flash saves use `flash_safe_execute` (may briefly glitch USB audio; rare).
+  - Species / ICE·EV / re-ID are best-effort heuristics, not a trained model.
+  - Walker tracking assumes **one** walking entity at a time.
 
 * **Array geometry.** A cube standing on a vertex, **512 mm** edge. Mics 1–3 are
   the three upper faces (mic 1 = north, then +120°, +240° azimuth, all at +35.26°

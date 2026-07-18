@@ -14,6 +14,7 @@ set(SRCS
     buzzer.c
     core1_launch.c
     doa.c
+    entity_store.c
 )
 
 add_executable(pico_6mic_soundcard ${SRCS})
@@ -92,6 +93,8 @@ target_link_options(pico_6mic_soundcard PRIVATE -Wl,--wrap=panic)
 target_link_libraries(pico_6mic_soundcard
     pico_stdlib
     pico_multicore
+    pico_flash
+    hardware_flash
     hardware_pio
     hardware_dma
     hardware_clocks

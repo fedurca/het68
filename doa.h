@@ -1,4 +1,4 @@
-// doa.h — multi-source DOA, walker species + entity diarization. See doa.c.
+// doa.h — multi-source DOA, walker/vehicle diarization. See doa.c.
 #pragma once
 #include <stdint.h>
 
@@ -11,4 +11,5 @@ extern volatile uint32_t g_doa_nactive;    // mics active in last drone-band sol
 extern volatile uint32_t g_doa_iter;       // core1 loop iterations (alive check)
 extern volatile uint32_t g_doa_ndrone;     // live drone tracks
 extern volatile uint32_t g_doa_nwalker;    // 0/1 — single walking entity track
-extern volatile uint32_t g_doa_entity_id;  // gallery id of current/last walker (0=none)
+extern volatile uint32_t g_doa_nvehicle;   // live vehicle tracks (ICE/EV)
+extern volatile uint32_t g_doa_entity_id;  // gallery id of current/last entity (0=none)
