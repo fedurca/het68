@@ -1,8 +1,9 @@
 // doa.c — 3D direction-of-arrival on core1. See doa.h.
 //
 // core0 pushes each 6-channel frame via doa_ring_push() from the USB/I2S feed.
-// core1 consumes windows, estimates direction by time-domain cross-correlation
-// (TDOA) and prints azimuth/elevation on the debug UART.
+// core1 consumes windows, bandpass-filters into the drone-relevant band
+// (rejecting wind-dominated LF), estimates direction by time-domain
+// cross-correlation (TDOA) and prints azimuth/elevation on the debug UART.
 //
 // core1 must be launched with het68_launch_core1() (see core1_launch.c): after
 // OpenOCD SWD flash, multicore_launch_core1() alone leaves core1 in a bad state.
@@ -74,8 +75,23 @@ static float MIC_POS[6][3];
 #endif
 
 #define DOA_OUT_SAMPLES  9600u
-#define DOA_RMS_ACTIVE   4.0f
+// Bandpass-domain RMS gate (int16 scale). Lower than the old broadband gate
+// because wind LF is removed before the threshold.
+#define DOA_RMS_ACTIVE   2.5f
 #define DOA_TDOA_SIGN    (+1.0f)
+
+// Skip filter transient at the start of each analysis window (~1 ms @ 48 kHz).
+#define DOA_FILT_SETTLE  48u
+#define DOA_CORR_LO      (DOA_MAXLAG + DOA_FILT_SETTLE)
+#define DOA_CORR_HI      (DOA_N - DOA_MAXLAG)
+#if DOA_CORR_LO >= DOA_CORR_HI
+#error "DOA window too small for filter settle + lag search"
+#endif
+
+// Wind vs drone energy gate: require bandpass energy >= ratio * wind-band energy.
+// Wind is concentrated well below ~300 Hz; multirotor prop/motor content is
+// typically strong from ~0.8–6 kHz (blade-pass harmonics + broadband hiss).
+#define DOA_WIND_RATIO   0.35f
 
 // SPSC ring: core0 producer, core1 consumer.
 #define DOA_RING_SZ     2048u
@@ -129,6 +145,42 @@ static bool solve3(const float M[3][3], const float b[3], float x[3]) {
     return true;
 }
 
+// ---------------------------------------------------------------------------
+// Fixed biquads @ 48 kHz (Butterworth 2nd-order, bilinear). No malloc; DF2T.
+// Drone band ≈ 800 Hz–6 kHz (prop BPF harmonics + motor hiss).
+// Wind monitor ≈ DC–250 Hz.
+// ---------------------------------------------------------------------------
+typedef struct {
+    float b0, b1, b2, a1, a2;
+} biquad_coef_t;
+
+typedef struct {
+    float z1, z2;
+} biquad_mem_t;
+
+// HPF 800 Hz
+static const biquad_coef_t k_hpf800 = {
+    9.2862377786e-01f, -1.8572475557e+00f, 9.2862377786e-01f,
+    -1.8521464854e+00f, 8.6234862603e-01f
+};
+// LPF 6000 Hz
+static const biquad_coef_t k_lpf6000 = {
+    9.7631072938e-02f, 1.9526214588e-01f, 9.7631072938e-02f,
+    -9.4280904158e-01f, 3.3333333333e-01f
+};
+// LPF 250 Hz (wind / rumble energy probe)
+static const biquad_coef_t k_lpf250 = {
+    2.6165269507e-04f, 5.2330539013e-04f, 2.6165269507e-04f,
+    -1.9537279491e+00f, 9.5477455992e-01f
+};
+
+static inline float biquad_step(const biquad_coef_t *c, biquad_mem_t *s, float x) {
+    float y = c->b0 * x + s->z1;
+    s->z1 = c->b1 * x - c->a1 * y + s->z2;
+    s->z2 = c->b2 * x - c->a2 * y;
+    return y;
+}
+
 static float g_work[6][DOA_N];
 static float g_energy[6];
 static float s_corr[2 * DOA_MAXLAG + 1];
@@ -140,7 +192,7 @@ static float xcorr_delay(int ref, int i, float eref, float *conf) {
     int   bestlag = 0;
     for (int lag = -DOA_MAXLAG; lag <= DOA_MAXLAG; lag++) {
         float s = 0.0f;
-        for (uint32_t n = DOA_MAXLAG; n < DOA_N - DOA_MAXLAG; n++) s += a[n] * b[n + lag];
+        for (uint32_t n = DOA_CORR_LO; n < DOA_CORR_HI; n++) s += a[n] * b[n + lag];
         s_corr[lag + DOA_MAXLAG] = s;
         if (s > best) { best = s; bestlag = lag; }
     }
@@ -155,6 +207,7 @@ static float xcorr_delay(int ref, int i, float eref, float *conf) {
             if (d > -1.0f && d < 1.0f) lagf += d;
         }
     }
+    // Normalize by the same lag-trimmed energy used in the correlation sum.
     float norm = sqrtf(eref * g_energy[i]) + 1e-6f;
     float c = best / norm;
     *conf = c < 0.0f ? 0.0f : (c > 1.0f ? 1.0f : c);
@@ -170,22 +223,46 @@ static void doa_process(uint32_t h) {
 
     int nactive = 0;
     bool active[6];
+    float wind_ratio_sum = 0.0f;
+    int wind_ratio_n = 0;
+
     for (int c = 0; c < 6; c++) {
         float mean = 0.0f;
         for (uint32_t n = 0; n < DOA_N; n++) mean += g_work[c][n];
         mean /= (float)DOA_N;
-        float prev = 0.0f, e = 0.0f, raw_e = 0.0f;
+
+        biquad_mem_t hp = {0}, lp = {0}, wind = {0};
+        float e_bp = 0.0f, e_wind = 0.0f;
         for (uint32_t n = 0; n < DOA_N; n++) {
             float x = g_work[c][n] - mean;
-            raw_e += x * x;
-            float y = x - 0.97f * prev;
-            prev = x;
+            float w = biquad_step(&k_lpf250, &wind, x);
+            float y = biquad_step(&k_hpf800, &hp, x);
+            y = biquad_step(&k_lpf6000, &lp, y);
             g_work[c][n] = y;
-            e += y * y;
+            if (n >= DOA_FILT_SETTLE) {
+                e_bp += y * y;
+                e_wind += w * w;
+            }
         }
-        g_energy[c] = e;
-        active[c] = (sqrtf(raw_e / (float)DOA_N) > DOA_RMS_ACTIVE);
+
+        // Correlation energy over the same trimmed span as xcorr_delay.
+        float e_corr = 0.0f;
+        for (uint32_t n = DOA_CORR_LO; n < DOA_CORR_HI; n++) {
+            float y = g_work[c][n];
+            e_corr += y * y;
+        }
+        g_energy[c] = e_corr;
+
+        uint32_t n_power = DOA_N - DOA_FILT_SETTLE;
+        float rms_bp = sqrtf(e_bp / (float)n_power);
+        bool loud = rms_bp > DOA_RMS_ACTIVE;
+        bool not_wind = e_bp >= DOA_WIND_RATIO * (e_wind + 1e-6f);
+        active[c] = loud && not_wind;
         if (active[c]) nactive++;
+        if (e_wind > 1e-3f) {
+            wind_ratio_sum += e_bp / e_wind;
+            wind_ratio_n++;
+        }
     }
     g_doa_nactive = (uint32_t)nactive;
 
@@ -193,13 +270,20 @@ static void doa_process(uint32_t h) {
         uint32_t s = dbg_line_lock();
         dbg_puts("DOA: insufficient mics active=");
         dbg_putu32((uint32_t)nactive);
-        dbg_putc('\n');
+        dbg_puts(" (wind/band gate)\n");
         dbg_line_unlock(s);
         return;
     }
 
     int ref = -1;
-    for (int c = 0; c < 6; c++) if (active[c]) { ref = c; break; }
+    float eref_best = -1.0f;
+    for (int c = 0; c < 6; c++) {
+        if (!active[c]) continue;
+        if (g_energy[c] > eref_best) {
+            eref_best = g_energy[c];
+            ref = c;
+        }
+    }
     float eref = g_energy[ref];
 
     float AtA[3][3] = {{0}};
@@ -240,15 +324,17 @@ static void doa_process(uint32_t h) {
     if (az < 0.0f) az += 360.0f;
     float el = asinf(d[2]) * (180.0f / 3.14159265f);
     float conf = conf_n ? conf_sum / (float)conf_n : 0.0f;
-    float rms_ref = sqrtf(eref / (float)DOA_N);
+    float rms_ref = sqrtf(eref / (float)(DOA_CORR_HI - DOA_CORR_LO));
     float dbfs = 20.0f * log10f((rms_ref + 1e-6f) / 32768.0f);
+    float wrat = wind_ratio_n ? (wind_ratio_sum / (float)wind_ratio_n) : 0.0f;
 
     uint32_t s = dbg_line_lock();
     dbg_puts("DOA az=");   put_f1(az);
     dbg_puts(" el=");      put_f1(el);
     dbg_puts(" conf=");    put_f1(conf);
     dbg_puts(" lvl=");     put_f1(dbfs);
-    dbg_puts("dB ref=");   dbg_putu32((uint32_t)ref);
+    dbg_puts("dB wrat=");  put_f1(wrat);
+    dbg_puts(" ref=");     dbg_putu32((uint32_t)ref);
     dbg_puts(" pairs=");   dbg_putu32((uint32_t)conf_n);
     dbg_putc('\n');
     dbg_line_unlock(s);
