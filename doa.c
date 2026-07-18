@@ -77,11 +77,12 @@ static float MIC_POS[6][3];
 #endif
 
 #define DOA_DRONE_RMS       2.5f
-#define DOA_WIND_RATIO      0.35f
+#define DOA_WIND_RATIO      0.38f    // slightly stricter LF wind reject for drones
 #define DOA_WIND_RMS_MIN    12.0f   // report wind when LF energy exceeds this
 #define DOA_WALK_RMS        3.0f
-#define DOA_WALK_CREST      3.5f
-#define DOA_DRONE_CREST_MAX 6.0f
+#define DOA_WALK_CREST      3.7f    // footsteps are impulsive
+#define DOA_DRONE_CREST_MAX 5.5f    // reject more impulse-like false drones
+#define DOA_DRONE_CONF_MIN  0.28f   // ignore weak TDOA locks
 #define DOA_ONSET_K         4.0f
 #define DOA_ONSET_ABS       40.0f
 #define DOA_REFRACTORY      4800u    // ~100 ms — allows cat/dog cadence
@@ -89,20 +90,25 @@ static float MIC_POS[6][3];
 #define DOA_BOUT_GAP        120000u  // ~2.5 s silence ends a walking bout
 #define DOA_BOUT_MIN_STEPS  3u
 #define DOA_BOUT_MAX_STEPS  16u
+#define DOA_WALK_CAD_MIN_HZ 0.95f
+#define DOA_WALK_CAD_MAX_HZ 5.8f
+#define DOA_WALK_EL_MAX     25.0f   // walkers near horizon / below
 
 #define DOA_MAX_DRONE       2
 #define DOA_MAX_VEHICLE     2
 #define DOA_MAX_BIRD        2
 #define DOA_GATE_DEG        30.0f
 #define DOA_TRACK_TTL       12u
-#define DOA_VEH_MIN_FRAMES  4u       // ~0.8 s continuous before vehicle entity
+#define DOA_VEH_MIN_FRAMES  5u       // ~1.0 s continuous before vehicle entity
 #define DOA_VEH_GAP_FRAMES  3u
-#define DOA_VEH_RMS         6.0f
-#define DOA_VEH_CREST_MAX   4.5f     // continuous pass-by, not footfall spikes
-#define DOA_BIRD_RMS        2.0f
+#define DOA_VEH_RMS         6.5f
+#define DOA_VEH_CREST_MAX   4.2f     // continuous pass-by, not footfall spikes
+#define DOA_VEH_CREST_MIN   1.2f     // reject near-DC / clipped weirdness
+#define DOA_BIRD_RMS        2.2f
 #define DOA_BIRD_MIN_FRAMES 3u
 #define DOA_BIRD_GAP_FRAMES 2u
-#define DOA_BIRD_CREST_MIN  2.8f     // tonal / chirpy
+#define DOA_BIRD_CREST_MIN  3.0f     // tonal / chirpy
+#define DOA_CLASS_MARGIN    0.45f    // min score gap to prefer a specific subclass
 
 #define DOA_RING_SZ         2048u
 #define DOA_RING_MASK       (DOA_RING_SZ - 1u)
@@ -774,57 +780,119 @@ typedef struct {
 
 static bout_t g_bout;
 
-static src_class_t classify_species(float cadence_hz, float low_r, float high_r,
-                                    float peak_db, float crest) {
+// Soft membership helpers for class scores (0..1 ramps).
+static float score_above(float x, float lo, float hi) {
+    if (x <= lo) return 0.0f;
+    if (x >= hi) return 1.0f;
+    return (x - lo) / (hi - lo);
+}
+static float score_below(float x, float lo, float hi) {
+    if (x >= hi) return 0.0f;
+    if (x <= lo) return 1.0f;
+    return (hi - x) / (hi - lo);
+}
+static float score_band(float x, float a, float b, float c, float d) {
+    // 0 outside [a,d], 1 inside [b,c], linear ramps a→b and c→d.
+    if (x <= a || x >= d) return 0.0f;
+    if (x < b) return (x - a) / (b - a + 1e-6f);
+    if (x > c) return (d - x) / (d - c + 1e-6f);
+    return 1.0f;
+}
+
+typedef struct {
+    float cadence_hz;
+    float ipi_cv;     // inter-onset interval coef. of variation (regularity)
+    float low_r;
+    float mid_r;
+    float high_r;
+    float peak_db;
+    float crest;
+    float el_deg;
+} walk_cls_feat_t;
+
+static void walk_feats_from_bout(const bout_t *b, walk_cls_feat_t *f) {
+    memset(f, 0, sizeof(*f));
+    float ipi_sum = 0.0f, ipi2 = 0.0f;
+    uint32_t nipi = 0;
+    for (uint32_t i = 1; i < b->n_steps; i++) {
+        uint32_t d = b->onset_pos[i] - b->onset_pos[i - 1];
+        if (d > 3000u && d < 90000u) { // ~60 ms … ~1.9 s
+            float x = (float)d;
+            ipi_sum += x;
+            ipi2 += x * x;
+            nipi++;
+        }
+    }
+    float ipi = nipi ? (ipi_sum / (float)nipi) : (float)DOA_FS_HZ;
+    f->cadence_hz = DOA_FS / (ipi + 1.0f);
+    if (nipi >= 2u) {
+        float mean = ipi_sum / (float)nipi;
+        float var = ipi2 / (float)nipi - mean * mean;
+        if (var < 0.0f) var = 0.0f;
+        f->ipi_cv = sqrtf(var) / (mean + 1e-6f);
+    } else {
+        f->ipi_cv = 1.0f; // unknown → no regularity bonus
+    }
+    float n = (float)b->n_steps;
+    float peak = b->peak_sum / n;
+    f->peak_db = 20.0f * log10f((peak + 1e-6f) / 32768.0f);
+    f->low_r = b->e_low / (b->e_full + 1e-6f);
+    f->high_r = b->e_high / (b->e_full + 1e-6f);
+    f->mid_r = fmaxf(0.0f, 1.0f - f->low_r - f->high_r);
+    f->crest = b->crest_sum / n;
+    f->el_deg = b->el_sum / n;
+}
+
+static src_class_t classify_species(const walk_cls_feat_t *f) {
     float sh = 0.0f, sd = 0.0f, sc = 0.0f;
 
-    // Cadence priors (walking): human slower, cat faster, dog in between.
-    if (cadence_hz >= 1.1f && cadence_hz <= 2.4f) sh += 2.5f;
-    if (cadence_hz >= 1.8f && cadence_hz <= 4.2f) sd += 2.0f;
-    if (cadence_hz >= 2.6f && cadence_hz <= 5.5f) sc += 2.5f;
+    // Cadence: soft bands (human slow, dog mid, cat fast).
+    sh += 3.0f * score_band(f->cadence_hz, 1.0f, 1.3f, 2.2f, 2.7f);
+    sd += 2.6f * score_band(f->cadence_hz, 1.6f, 2.0f, 3.4f, 4.4f);
+    sc += 3.0f * score_band(f->cadence_hz, 2.4f, 3.0f, 4.8f, 5.8f);
 
-    // Spectral: humans thumpier (low), cats lighter/clickier (high).
-    if (low_r > 0.42f) sh += 2.0f;
-    if (low_r > 0.30f && low_r <= 0.45f) sd += 1.0f;
-    if (high_r > 0.32f) sc += 2.0f;
-    if (high_r > 0.22f && high_r <= 0.35f) sd += 1.5f;
-    if (high_r < 0.18f && low_r > 0.40f) sh += 1.0f;
+    // Regular gait → human/dog; irregular light steps → cat.
+    sh += 1.4f * score_below(f->ipi_cv, 0.12f, 0.28f);
+    sd += 0.8f * score_band(f->ipi_cv, 0.15f, 0.22f, 0.40f, 0.55f);
+    sc += 1.2f * score_above(f->ipi_cv, 0.28f, 0.50f);
 
-    // Level / crest: humans louder impacts; cats softer.
-    if (peak_db > -38.0f) sh += 1.5f;
-    if (peak_db <= -38.0f && peak_db > -48.0f) sd += 1.0f;
-    if (peak_db <= -45.0f) sc += 1.5f;
-    if (crest > 5.0f) { sh += 0.5f; sd += 0.5f; }
-    if (crest > 6.5f && peak_db <= -42.0f) sc += 0.5f;
+    // Spectral: human LF thump, dog balanced, cat HF click/patter.
+    sh += 2.2f * score_above(f->low_r, 0.34f, 0.50f);
+    sh += 1.0f * score_below(f->high_r, 0.10f, 0.22f);
+    sd += 1.6f * score_band(f->low_r, 0.22f, 0.30f, 0.42f, 0.52f);
+    sd += 1.4f * score_band(f->high_r, 0.16f, 0.22f, 0.34f, 0.42f);
+    sc += 2.4f * score_above(f->high_r, 0.28f, 0.42f);
+    sc += 1.0f * score_below(f->low_r, 0.18f, 0.32f);
+    sd += 0.6f * score_band(f->mid_r, 0.10f, 0.18f, 0.35f, 0.45f);
+
+    // Level / crest.
+    sh += 1.6f * score_above(f->peak_db, -42.0f, -32.0f);
+    sd += 1.2f * score_band(f->peak_db, -50.0f, -44.0f, -36.0f, -30.0f);
+    sc += 1.8f * score_below(f->peak_db, -52.0f, -42.0f);
+    sh += 0.6f * score_above(f->crest, 4.2f, 6.0f);
+    sc += 0.8f * score_above(f->crest, 5.5f, 8.0f);
+
+    // Geometry prior: walkers near/below horizon.
+    float el_ok = score_below(fabsf(f->el_deg), 8.0f, DOA_WALK_EL_MAX);
+    sh += 0.8f * el_ok;
+    sd += 0.8f * el_ok;
+    sc += 0.5f * el_ok;
 
     if (sh >= sd && sh >= sc) return CLS_HUMAN;
     if (sd >= sc) return CLS_DOG;
     return CLS_CAT;
 }
 
-static void sig_from_bout(const bout_t *b, entity_sig_t *s) {
-    float ipi_sum = 0.0f;
-    uint32_t nipi = 0;
-    for (uint32_t i = 1; i < b->n_steps; i++) {
-        uint32_t d = b->onset_pos[i] - b->onset_pos[i - 1];
-        if (d > 3000u && d < 90000u) { // ~60 ms … ~1.9 s
-            ipi_sum += (float)d;
-            nipi++;
-        }
-    }
-    float ipi = nipi ? (ipi_sum / (float)nipi) : (float)DOA_FS_HZ;
-    s->cadence_hz = DOA_FS / (ipi + 1.0f);
-    float n = (float)b->n_steps;
-    float peak = b->peak_sum / n;
-    s->peak_db = 20.0f * log10f((peak + 1e-6f) / 32768.0f);
-    s->low_ratio = b->e_low / (b->e_full + 1e-6f);
-    s->high_ratio = b->e_high / (b->e_full + 1e-6f);
-    s->mid_ratio = 0.0f;
-    s->crest = b->crest_sum / n;
-    float az = b->az_sum / n;
-    float el = b->el_sum / n;
-    s->az_n = az / 360.0f;
-    s->el_n = (el + 90.0f) / 180.0f;
+static void sig_from_walk_feat(const walk_cls_feat_t *f, entity_sig_t *s) {
+    s->cadence_hz = f->cadence_hz;
+    s->peak_db = f->peak_db;
+    s->low_ratio = f->low_r;
+    s->high_ratio = f->high_r;
+    s->mid_ratio = f->mid_r;
+    s->crest = f->crest;
+    // Pack regularity into az_n unused? Keep az/el from bout averages separately.
+    s->az_n = 0.0f;
+    s->el_n = (f->el_deg + 90.0f) / 180.0f;
 }
 
 static void finalize_bout_if_needed(uint32_t now, bool force) {
@@ -837,19 +905,30 @@ static void finalize_bout_if_needed(uint32_t now, bool force) {
         return;
     }
 
-    entity_sig_t sig;
-    sig_from_bout(&g_bout, &sig);
-    src_class_t cls = classify_species(sig.cadence_hz, sig.low_ratio, sig.high_ratio,
-                                       sig.peak_db, sig.crest);
-
-    float match = 0.0f;
-    uint32_t eid = entity_store_match_or_create((entity_class_t)cls, &sig, &match);
-
+    walk_cls_feat_t wf;
+    walk_feats_from_bout(&g_bout, &wf);
     float n = (float)g_bout.n_steps;
     float az = g_bout.az_sum / n;
     float el = g_bout.el_sum / n;
     float conf = g_bout.conf_sum / n;
     float lvl = g_bout.lvl_sum / n;
+
+    // Reject non-walker bouts (cadence / elevation outside walking priors).
+    if (wf.cadence_hz < DOA_WALK_CAD_MIN_HZ || wf.cadence_hz > DOA_WALK_CAD_MAX_HZ ||
+        el > DOA_WALK_EL_MAX) {
+        g_bout.active = false;
+        g_bout.n_steps = 0;
+        return;
+    }
+
+    src_class_t cls = classify_species(&wf);
+    entity_sig_t sig;
+    sig_from_walk_feat(&wf, &sig);
+    sig.az_n = az / 360.0f;
+    sig.el_n = (el + 90.0f) / 180.0f;
+
+    float match = 0.0f;
+    uint32_t eid = entity_store_match_or_create((entity_class_t)cls, &sig, &match);
 
     g_walker.used = true;
     g_walker.cls = cls;
@@ -1063,28 +1142,38 @@ static veh_feat_t prepare_vehicle_band(bool active[6]) {
     }
     f.crest = peak_all / (rms_all + 1e-6f);
     f.env_var = env_n ? (env_d2 / (float)env_n) : 0.0f;
-    // Reject impulsive (footsteps) and too-quiet windows.
-    if (f.crest > DOA_VEH_CREST_MAX) {
+    // Reject impulsive (footsteps) and near-empty / pathological crest.
+    if (f.crest > DOA_VEH_CREST_MAX || f.crest < DOA_VEH_CREST_MIN) {
         for (int c = 0; c < 6; c++) active[c] = false;
     }
     return f;
 }
 
 static src_class_t classify_vehicle(float low_r, float mid_r, float high_r,
-                                    float peak_db, float env_var) {
+                                    float peak_db, float env_var, float crest,
+                                    float daz_deg) {
+    // Soft ICE vs EV scores + pass-by / continuity cues.
     float s_ice = 0.0f, s_ev = 0.0f;
-    // ICE: stronger LF rumble / engine; often rougher envelope.
-    if (low_r > 0.40f) s_ice += 2.5f;
-    if (low_r > 0.30f && low_r <= 0.45f) s_ice += 1.0f;
-    if (env_var > 200.0f) s_ice += 1.0f;
-    if (peak_db > -35.0f) s_ice += 1.0f;
 
-    // EV: quieter, tire/whine mid-high, weaker LF.
-    if (low_r < 0.35f) s_ev += 2.0f;
-    if (mid_r > 0.25f) s_ev += 1.5f;
-    if (high_r > 0.25f) s_ev += 1.5f;
-    if (peak_db <= -35.0f) s_ev += 1.0f;
-    if (env_var <= 200.0f) s_ev += 0.5f;
+    // ICE: LF engine rumble, rougher envelope, often louder.
+    s_ice += 2.8f * score_above(low_r, 0.28f, 0.48f);
+    s_ice += 1.2f * score_below(mid_r, 0.12f, 0.28f);
+    s_ice += 1.4f * score_above(env_var, 120.0f, 320.0f);
+    s_ice += 1.2f * score_above(peak_db, -40.0f, -28.0f);
+    s_ice += 0.6f * score_band(crest, 1.4f, 1.8f, 3.2f, 4.0f);
+
+    // EV: weaker LF, tire/whine mid-high, smoother envelope, quieter.
+    s_ev += 2.4f * score_below(low_r, 0.18f, 0.36f);
+    s_ev += 1.8f * score_above(mid_r, 0.20f, 0.38f);
+    s_ev += 1.6f * score_above(high_r, 0.18f, 0.36f);
+    s_ev += 1.2f * score_below(peak_db, -48.0f, -34.0f);
+    s_ev += 1.0f * score_below(env_var, 40.0f, 180.0f);
+    s_ev += 0.6f * score_band(crest, 1.3f, 1.6f, 2.8f, 3.6f);
+
+    // Moving pass-by supports either class; slight ICE bias (exhaust Doppler).
+    float move = score_above(daz_deg, 6.0f, 25.0f);
+    s_ice += 0.7f * move;
+    s_ev += 0.5f * move;
 
     return (s_ice >= s_ev) ? CLS_ICE : CLS_EV;
 }
@@ -1106,11 +1195,25 @@ static void finalize_vehicle_bout(void) {
     float crest = g_veh.crest_sum / n;
     float env_var = g_veh.env_var_sum / n;
     float daz = ang_diff_deg(g_veh.az_first, g_veh.az_last);
+    // Reject walker-like / non-vehicle spectral piles (LF+HF without mid body).
+    if (crest > 3.8f && daz < 5.0f) {
+        g_veh.active = false;
+        g_veh.frames = 0;
+        g_veh.quiet = 0;
+        return;
+    }
+    if (low_r < 0.12f && mid_r < 0.12f) {
+        g_veh.active = false;
+        g_veh.frames = 0;
+        g_veh.quiet = 0;
+        return;
+    }
+
     // Modulation proxy from envelope variance (not a true Hz; stored in cadence slot).
     float mod_hz = sqrtf(env_var + 1.0f) * 0.01f;
     if (daz > 15.0f) mod_hz += 0.5f; // moving pass-by bonus
 
-    src_class_t cls = classify_vehicle(low_r, mid_r, high_r, lvl, env_var);
+    src_class_t cls = classify_vehicle(low_r, mid_r, high_r, lvl, env_var, crest, daz);
 
     entity_sig_t sig;
     sig.cadence_hz = mod_hz;
@@ -1274,18 +1377,34 @@ static bird_feat_t prepare_bird_band(bool active[6]) {
     return f;
 }
 
-static src_class_t classify_bird(float lo_r, float hi_r, float crest, float zcr, float lvl_db) {
-    float ss = 0.0f, sc = 0.0f, sg = 0.0f;
-    // Songbird: brighter (>4 kHz), higher ZCR, higher crest (tonal chirps).
-    if (hi_r > 0.40f) ss += 2.5f;
-    if (zcr > 0.12f) ss += 1.5f;
-    if (crest > 4.0f) ss += 1.0f;
-    // Corvid: more energy below 4 kHz, harsher / lower crest.
-    if (lo_r > 0.45f) sc += 2.5f;
-    if (zcr < 0.10f) sc += 1.0f;
-    if (lvl_db > -40.0f) sc += 0.5f;
-    // Generic bird fallback.
-    sg += 1.0f;
+static src_class_t classify_bird(float lo_r, float hi_r, float crest, float zcr,
+                                 float lvl_db, float el_deg, uint32_t frames) {
+    float ss = 0.0f, sc = 0.0f, sg = 0.8f;
+
+    // Songbird: bright (>4 kHz), higher ZCR, chirpy crest.
+    ss += 2.8f * score_above(hi_r, 0.30f, 0.50f);
+    ss += 1.8f * score_above(zcr, 0.08f, 0.16f);
+    ss += 1.4f * score_above(crest, 3.4f, 5.5f);
+    ss += 0.8f * score_below(lvl_db, -48.0f, -36.0f);
+
+    // Corvid: heavier below 4 kHz, lower ZCR, often louder / harsher.
+    sc += 2.8f * score_above(lo_r, 0.38f, 0.58f);
+    sc += 1.4f * score_below(zcr, 0.04f, 0.11f);
+    sc += 1.0f * score_below(crest, 2.8f, 4.2f);
+    sc += 1.0f * score_above(lvl_db, -42.0f, -30.0f);
+
+    // Geometry / persistence: birds often elevated; longer bouts → more confident.
+    float el_boost = score_above(el_deg, -5.0f, 25.0f);
+    ss += 0.6f * el_boost;
+    sc += 0.5f * el_boost;
+    sg += 0.4f * el_boost;
+    if (frames >= 5u) { ss += 0.3f; sc += 0.3f; }
+
+    // Ambiguous → generic bird (avoid overconfident species tags).
+    float top = fmaxf(ss, sc);
+    if (fabsf(ss - sc) < DOA_CLASS_MARGIN && top < sg + 1.2f) return CLS_BIRD;
+    if (ss >= sc && ss >= sg + DOA_CLASS_MARGIN) return CLS_SONGBIRD;
+    if (sc >= ss && sc >= sg + DOA_CLASS_MARGIN) return CLS_CORVID;
     if (ss >= sc && ss >= sg) return CLS_SONGBIRD;
     if (sc >= sg) return CLS_CORVID;
     return CLS_BIRD;
@@ -1308,7 +1427,15 @@ static void finalize_bird_bout(void) {
     float zcr = g_bird.zcr_sum / n;
     float chirp_hz = zcr * (DOA_FS * 0.5f) / 4000.0f; // rough brightness proxy
 
-    src_class_t cls = classify_bird(lo_r, hi_r, crest, zcr, lvl);
+    // Reject non-bird spectral piles (almost no split energy).
+    if (lo_r + hi_r < 0.35f) {
+        g_bird.active = false;
+        g_bird.frames = 0;
+        g_bird.quiet = 0;
+        return;
+    }
+
+    src_class_t cls = classify_bird(lo_r, hi_r, crest, zcr, lvl, el, g_bird.frames);
     entity_sig_t sig;
     sig.cadence_hz = chirp_hz;
     sig.peak_db = lvl;
@@ -1538,7 +1665,10 @@ static void analyse_drone(uint32_t h) {
     }
 
     doa_fix_t primary = solve_tdoa(active);
-    if (!primary.ok) return;
+    if (!primary.ok || primary.conf < DOA_DRONE_CONF_MIN) return;
+
+    // Prefer airborne / not deep ground clutter for drone locks.
+    if (primary.el < -50.0f) return;
 
     drone_upsert(primary.az, primary.el, primary.conf, primary.lvl_db);
 
@@ -1552,11 +1682,11 @@ static void analyse_drone(uint32_t h) {
     }
     if (n2 >= 4) {
         doa_fix_t secondary = solve_tdoa(active2);
-        if (secondary.ok &&
+        float conf2 = secondary.conf * 0.85f;
+        if (secondary.ok && conf2 >= DOA_DRONE_CONF_MIN && secondary.el >= -50.0f &&
             (ang_diff_deg(secondary.az, primary.az) +
              fabsf(secondary.el - primary.el)) > DOA_GATE_DEG) {
-            drone_upsert(secondary.az, secondary.el,
-                         secondary.conf * 0.85f, secondary.lvl_db);
+            drone_upsert(secondary.az, secondary.el, conf2, secondary.lvl_db);
         }
     }
 }
@@ -1567,6 +1697,8 @@ static void analyse_walker_onset(uint32_t h) {
     walk_feat_t feat = prepare_walker_band(active);
     doa_fix_t r = solve_tdoa(active);
     if (!r.ok) return;
+    // Early geometry gate — footsteps are near/below horizon.
+    if (r.el > DOA_WALK_EL_MAX) return;
     bout_add_step(g_last_onset_pos, &r, &feat);
 }
 

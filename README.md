@@ -186,7 +186,9 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   TRACKS drone=1 vehicle=0 bird=0 walker=0 wind=1 entity=0
   ```
 
-  - Species / ICE·EV / wind direction / re-ID are best-effort heuristics.
+  - Species / ICE·EV / wind direction / re-ID are best-effort heuristics
+    (v1.0.7: soft score bands, gait regularity, ambiguity→generic bird, tighter
+    cross-class gates). Still not a trained model.
   - Walker tracking assumes **one** walking entity at a time.
 
 * **Array geometry.** A cube standing on a vertex, **512 mm** edge. Mics 1–3 are
