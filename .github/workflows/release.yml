@@ -76,11 +76,9 @@ jobs:
           test -f build/pico_6mic_soundcard.uf2
           test -f build/pico_6mic_soundcard.elf
           mkdir -p dist
+          # One pair per release — versioned names (same bytes as local build output).
           cp -v build/pico_6mic_soundcard.uf2 "dist/het68-${VERSION}-pico2.uf2"
           cp -v build/pico_6mic_soundcard.elf "dist/het68-${VERSION}-pico2.elf"
-          # Keep plain names too (match local ./build.sh output).
-          cp -v build/pico_6mic_soundcard.uf2 dist/pico_6mic_soundcard.uf2
-          cp -v build/pico_6mic_soundcard.elf dist/pico_6mic_soundcard.elf
           ls -la dist/
 
       - name: Upload assets to GitHub Release
@@ -90,6 +88,4 @@ jobs:
           files: |
             dist/het68-${{ steps.semver.outputs.version }}-pico2.uf2
             dist/het68-${{ steps.semver.outputs.version }}-pico2.elf
-            dist/pico_6mic_soundcard.uf2
-            dist/pico_6mic_soundcard.elf
           fail_on_unmatched_files: true
