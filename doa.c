@@ -1,14 +1,15 @@
-// doa.c — multi-source 3D DOA on core1 with drone + walker diarization.
+// doa.c — multi-source 3D DOA on core1 with drone + walker + vehicle diarization.
 //
 // core0 pushes each 6-channel frame via doa_ring_push() from the USB/I2S feed.
 // core1 runs:
 //   • drone band (~800 Hz–6 kHz): continuous TDOA, up to 2 tracks (primary + SIC)
-//   • walker band (~150–600 Hz): single walking entity — onset bout → classify
-//     human/cat/dog + simple gallery diarization (re-identify same entity)
-// Walkers are projected onto the ground plane (array height) → x/y/range.
+//   • walker band (~150–600 Hz): single walking entity — onset bout → human/cat/dog
+//   • vehicle band (~80 Hz–2.5 kHz): pass-by → ICE vs EV
+// Entity signatures persist in flash via entity_store (re-ID across reboots).
 //
 // core1 must be launched with het68_launch_core1() (see core1_launch.c).
 #include "doa.h"
+#include "entity_store.h"
 #include "core1_launch.h"
 #include "debug_io.h"
 #include "pico/stdlib.h"
@@ -86,10 +87,13 @@ static float MIC_POS[6][3];
 #define DOA_BOUT_MAX_STEPS  16u
 
 #define DOA_MAX_DRONE       2
+#define DOA_MAX_VEHICLE     2
 #define DOA_GATE_DEG        30.0f
 #define DOA_TRACK_TTL       12u
-#define DOA_GALLERY_N       8
-#define DOA_MATCH_MAX_DIST  0.55f    // signature L2; below → same entity
+#define DOA_VEH_MIN_FRAMES  4u       // ~0.8 s continuous before vehicle entity
+#define DOA_VEH_GAP_FRAMES  3u
+#define DOA_VEH_RMS         6.0f
+#define DOA_VEH_CREST_MAX   4.5f     // continuous pass-by, not footfall spikes
 
 #define DOA_RING_SZ         2048u
 #define DOA_RING_MASK       (DOA_RING_SZ - 1u)
@@ -105,6 +109,7 @@ volatile uint32_t g_doa_nactive;
 volatile uint32_t g_doa_iter;
 volatile uint32_t g_doa_ndrone;
 volatile uint32_t g_doa_nwalker;
+volatile uint32_t g_doa_nvehicle;
 volatile uint32_t g_doa_entity_id;
 
 void doa_ring_push(const int16_t s6[6]) {
@@ -185,6 +190,23 @@ static const biquad_coef_t k_hpf400 = {
     9.6365276396e-01f, -1.9273055279e+00f, 9.6365276396e-01f,
     -1.9259839697e+00f, 9.2862708612e-01f
 };
+// Vehicle pass-by band ~80 Hz–2.5 kHz + mid split ~300–1200 Hz.
+static const biquad_coef_t k_hpf80 = {
+    9.9262254276e-01f, -1.9852450855e+00f, 9.9262254276e-01f,
+    -1.9851906579e+00f, 9.8529951313e-01f
+};
+static const biquad_coef_t k_lpf2500 = {
+    2.1620718376e-02f, 4.3241436753e-02f, 2.1620718376e-02f,
+    -1.5431211312e+00f, 6.2960400474e-01f
+};
+static const biquad_coef_t k_hpf300 = {
+    9.7261389850e-01f, -1.9452277970e+00f, 9.7261389850e-01f,
+    -1.9444776578e+00f, 9.4597793623e-01f
+};
+static const biquad_coef_t k_lpf1200 = {
+    5.5427172103e-03f, 1.1085434421e-02f, 5.5427172103e-03f,
+    -1.7786317778e+00f, 8.0080264667e-01f
+};
 
 static inline float biquad_step(const biquad_coef_t *c, biquad_mem_t *s, float x) {
     float y = c->b0 * x + s->z1;
@@ -194,24 +216,22 @@ static inline float biquad_step(const biquad_coef_t *c, biquad_mem_t *s, float x
 }
 
 // ---------------------------------------------------------------------------
-// Classes / tracks / gallery
+// Classes / tracks (gallery lives in entity_store — flash-backed)
 // ---------------------------------------------------------------------------
 typedef enum {
-    CLS_NONE = 0,
+    CLS_NONE  = 0,
     CLS_DRONE = 1,
-    CLS_HUMAN = 2,
-    CLS_CAT = 3,
-    CLS_DOG = 4
+    CLS_HUMAN = ENT_HUMAN,
+    CLS_CAT   = ENT_CAT,
+    CLS_DOG   = ENT_DOG,
+    CLS_ICE   = ENT_ICE,
+    CLS_EV    = ENT_EV
 } src_class_t;
 
 static const char *class_name(src_class_t c) {
-    switch (c) {
-        case CLS_DRONE: return "drone";
-        case CLS_HUMAN: return "human";
-        case CLS_CAT:   return "cat";
-        case CLS_DOG:   return "dog";
-        default:        return "none";
-    }
+    if (c == CLS_DRONE) return "drone";
+    if (c == CLS_NONE) return "none";
+    return entity_class_name((entity_class_t)c);
 }
 
 typedef struct {
@@ -221,35 +241,14 @@ typedef struct {
     float x_m, y_m, range_m;
     bool have_xy;
     uint32_t age;
-    uint32_t entity_id;   // gallery id for walkers (1..N); 0 for drones
+    uint32_t entity_id;   // gallery id (walkers/vehicles); 0 for drones
     float match;          // 0..1 similarity to gallery template
     float cadence_hz;
 } track_t;
 
-// Walker acoustic signature for diarization (normalized-ish features).
-typedef struct {
-    float cadence_hz;   // ~1–5
-    float peak_db;      // impact level (negative dBFS-ish)
-    float low_ratio;    // 150–250 Hz / full step-band energy
-    float high_ratio;   // 400–600 Hz / full step-band energy
-    float crest;
-    float az_n;         // az/360
-    float el_n;         // (el+90)/180
-} sig_t;
-
-typedef struct {
-    bool used;
-    uint32_t id;
-    src_class_t cls;
-    sig_t sig;
-    uint32_t hits;
-    uint32_t last_seen;   // sample counter
-} gallery_slot_t;
-
 static track_t g_drones[DOA_MAX_DRONE];
+static track_t g_vehicles[DOA_MAX_VEHICLE];
 static track_t g_walker;                 // single walking entity
-static gallery_slot_t g_gallery[DOA_GALLERY_N];
-static uint32_t g_next_entity_id = 1;
 
 static float ang_diff_deg(float a, float b) {
     float d = fabsf(a - b);
@@ -287,6 +286,63 @@ static uint32_t track_count_drones(void) {
     uint32_t n = 0;
     for (int i = 0; i < DOA_MAX_DRONE; i++) if (g_drones[i].used) n++;
     return n;
+}
+
+static int track_find_vehicle(float az, float el) {
+    int best = -1;
+    float best_d = DOA_GATE_DEG;
+    for (int i = 0; i < DOA_MAX_VEHICLE; i++) {
+        if (!g_vehicles[i].used) continue;
+        float d = ang_diff_deg(az, g_vehicles[i].az) + fabsf(el - g_vehicles[i].el);
+        if (d < best_d) { best_d = d; best = i; }
+    }
+    return best;
+}
+
+static int track_alloc_vehicle(void) {
+    for (int i = 0; i < DOA_MAX_VEHICLE; i++) if (!g_vehicles[i].used) return i;
+    int oldest = 0;
+    for (int i = 1; i < DOA_MAX_VEHICLE; i++)
+        if (g_vehicles[i].age > g_vehicles[oldest].age) oldest = i;
+    return oldest;
+}
+
+static void track_age_vehicles(void) {
+    for (int i = 0; i < DOA_MAX_VEHICLE; i++) {
+        if (!g_vehicles[i].used) continue;
+        g_vehicles[i].age++;
+        if (g_vehicles[i].age > DOA_TRACK_TTL) g_vehicles[i].used = false;
+    }
+}
+
+static uint32_t track_count_vehicles(void) {
+    uint32_t n = 0;
+    for (int i = 0; i < DOA_MAX_VEHICLE; i++) if (g_vehicles[i].used) n++;
+    return n;
+}
+
+static void vehicle_upsert(src_class_t cls, float az, float el, float conf,
+                           float lvl_db, uint32_t eid, float match, float mod_hz) {
+    int i = track_find_vehicle(az, el);
+    if (i < 0) i = track_alloc_vehicle();
+    if (g_vehicles[i].used) {
+        g_vehicles[i].az = 0.7f * g_vehicles[i].az + 0.3f * az;
+        g_vehicles[i].el = 0.7f * g_vehicles[i].el + 0.3f * el;
+        g_vehicles[i].conf = 0.6f * g_vehicles[i].conf + 0.4f * conf;
+        g_vehicles[i].lvl_db = 0.6f * g_vehicles[i].lvl_db + 0.4f * lvl_db;
+    } else {
+        g_vehicles[i].az = az;
+        g_vehicles[i].el = el;
+        g_vehicles[i].conf = conf;
+        g_vehicles[i].lvl_db = lvl_db;
+    }
+    g_vehicles[i].used = true;
+    g_vehicles[i].cls = cls;
+    g_vehicles[i].age = 0;
+    g_vehicles[i].entity_id = eid;
+    g_vehicles[i].match = match;
+    g_vehicles[i].cadence_hz = mod_hz;
+    g_vehicles[i].have_xy = false;
 }
 
 static bool ground_xy(float az_deg, float el_deg, float *x, float *y, float *rng) {
@@ -596,8 +652,7 @@ static src_class_t classify_species(float cadence_hz, float low_r, float high_r,
     return CLS_CAT;
 }
 
-static void sig_from_bout(const bout_t *b, src_class_t cls, sig_t *s) {
-    (void)cls;
+static void sig_from_bout(const bout_t *b, entity_sig_t *s) {
     float ipi_sum = 0.0f;
     uint32_t nipi = 0;
     for (uint32_t i = 1; i < b->n_steps; i++) {
@@ -614,81 +669,12 @@ static void sig_from_bout(const bout_t *b, src_class_t cls, sig_t *s) {
     s->peak_db = 20.0f * log10f((peak + 1e-6f) / 32768.0f);
     s->low_ratio = b->e_low / (b->e_full + 1e-6f);
     s->high_ratio = b->e_high / (b->e_full + 1e-6f);
+    s->mid_ratio = 0.0f;
     s->crest = b->crest_sum / n;
     float az = b->az_sum / n;
     float el = b->el_sum / n;
     s->az_n = az / 360.0f;
     s->el_n = (el + 90.0f) / 180.0f;
-}
-
-static float sig_dist(const sig_t *a, const sig_t *b) {
-    float d0 = (a->cadence_hz - b->cadence_hz) / 4.0f;
-    float d1 = (a->peak_db - b->peak_db) / 20.0f;
-    float d2 = a->low_ratio - b->low_ratio;
-    float d3 = a->high_ratio - b->high_ratio;
-    float d4 = (a->crest - b->crest) / 8.0f;
-    float d5 = a->az_n - b->az_n;
-    if (d5 > 0.5f) d5 -= 1.0f;
-    if (d5 < -0.5f) d5 += 1.0f;
-    d5 *= 0.5f; // direction helps but is weaker (entity may reappear elsewhere)
-    float d6 = (a->el_n - b->el_n) * 0.5f;
-    return sqrtf(d0*d0 + d1*d1 + d2*d2 + d3*d3 + d4*d4 + d5*d5 + d6*d6);
-}
-
-static void sig_ema(sig_t *dst, const sig_t *src, float a) {
-    dst->cadence_hz = (1-a)*dst->cadence_hz + a*src->cadence_hz;
-    dst->peak_db    = (1-a)*dst->peak_db    + a*src->peak_db;
-    dst->low_ratio  = (1-a)*dst->low_ratio  + a*src->low_ratio;
-    dst->high_ratio = (1-a)*dst->high_ratio + a*src->high_ratio;
-    dst->crest      = (1-a)*dst->crest      + a*src->crest;
-    dst->az_n       = (1-a)*dst->az_n       + a*src->az_n;
-    dst->el_n       = (1-a)*dst->el_n       + a*src->el_n;
-}
-
-static uint32_t gallery_match_or_create(src_class_t cls, const sig_t *sig,
-                                        float *match_out, uint32_t now) {
-    int best_i = -1;
-    float best_d = DOA_MATCH_MAX_DIST;
-    for (int i = 0; i < DOA_GALLERY_N; i++) {
-        if (!g_gallery[i].used) continue;
-        if (g_gallery[i].cls != cls) continue; // species must agree
-        float d = sig_dist(&g_gallery[i].sig, sig);
-        if (d < best_d) { best_d = d; best_i = i; }
-    }
-
-    if (best_i >= 0) {
-        sig_ema(&g_gallery[best_i].sig, sig, 0.35f);
-        g_gallery[best_i].hits++;
-        g_gallery[best_i].last_seen = now;
-        *match_out = 1.0f - (best_d / DOA_MATCH_MAX_DIST);
-        if (*match_out < 0.0f) *match_out = 0.0f;
-        if (*match_out > 1.0f) *match_out = 1.0f;
-        return g_gallery[best_i].id;
-    }
-
-    // Allocate / replace oldest slot.
-    int slot = -1;
-    uint32_t oldest_seen = UINT32_MAX;
-    int oldest_i = 0;
-    for (int i = 0; i < DOA_GALLERY_N; i++) {
-        if (!g_gallery[i].used) { slot = i; break; }
-        if (g_gallery[i].last_seen <= oldest_seen) {
-            oldest_seen = g_gallery[i].last_seen;
-            oldest_i = i;
-        }
-    }
-    if (slot < 0) slot = oldest_i;
-
-    uint32_t id = g_next_entity_id++;
-    if (g_next_entity_id == 0) g_next_entity_id = 1; // wrap skip 0
-    g_gallery[slot].used = true;
-    g_gallery[slot].id = id;
-    g_gallery[slot].cls = cls;
-    g_gallery[slot].sig = *sig;
-    g_gallery[slot].hits = 1;
-    g_gallery[slot].last_seen = now;
-    *match_out = 0.0f; // new entity
-    return id;
 }
 
 static void finalize_bout_if_needed(uint32_t now, bool force) {
@@ -701,14 +687,13 @@ static void finalize_bout_if_needed(uint32_t now, bool force) {
         return;
     }
 
-    sig_t sig;
-    sig_from_bout(&g_bout, CLS_NONE, &sig);
+    entity_sig_t sig;
+    sig_from_bout(&g_bout, &sig);
     src_class_t cls = classify_species(sig.cadence_hz, sig.low_ratio, sig.high_ratio,
                                        sig.peak_db, sig.crest);
-    sig_from_bout(&g_bout, cls, &sig); // refresh with same numbers
 
     float match = 0.0f;
-    uint32_t eid = gallery_match_or_create(cls, &sig, &match, now);
+    uint32_t eid = entity_store_match_or_create((entity_class_t)cls, &sig, &match);
 
     float n = (float)g_bout.n_steps;
     float az = g_bout.az_sum / n;
@@ -848,12 +833,226 @@ static void stream_step_samples(uint32_t h) {
 }
 
 // ---------------------------------------------------------------------------
+// Vehicle pass-by (ICE vs EV) — continuous band, not footfall onsets
+// ---------------------------------------------------------------------------
+typedef struct {
+    bool active;
+    uint32_t frames;
+    uint32_t quiet;
+    float az_sum, el_sum, conf_sum, lvl_sum;
+    float e_full, e_low, e_mid, e_high;
+    float crest_sum;
+    float env_var_sum;
+    float az_first, az_last;
+} vehicle_bout_t;
+
+static vehicle_bout_t g_veh;
+
+typedef struct {
+    float e_full, e_low, e_mid, e_high;
+    float crest;
+    float env_var;   // envelope variance → roughness / modulation proxy
+    float peak;
+} veh_feat_t;
+
+static veh_feat_t prepare_vehicle_band(bool active[6]) {
+    veh_feat_t f;
+    memset(&f, 0, sizeof(f));
+    float peak_all = 0.0f, rms_all = 0.0f;
+    float env_prev = 0.0f, env_d2 = 0.0f;
+    uint32_t env_n = 0;
+
+    for (int c = 0; c < 6; c++) {
+        float mean = 0.0f;
+        for (uint32_t n = 0; n < DOA_N; n++) mean += g_work[c][n];
+        mean /= (float)DOA_N;
+
+        biquad_mem_t hp = {0}, lp = {0}, lo = {0}, mh = {0}, ml = {0};
+        float e_bp = 0.0f, e_lo = 0.0f, e_mid = 0.0f, e_hi = 0.0f, peak = 0.0f;
+        for (uint32_t n = 0; n < DOA_N; n++) {
+            float x = g_work[c][n] - mean;
+            float y = biquad_step(&k_hpf80, &hp, x);
+            y = biquad_step(&k_lpf2500, &lp, y);
+            float yl = biquad_step(&k_lpf250, &lo, y);
+            float ym = biquad_step(&k_hpf300, &mh, y);
+            ym = biquad_step(&k_lpf1200, &ml, ym);
+            // high within vehicle band ≈ residual after mid/low emphasis
+            float yh = y - yl;
+            g_work[c][n] = y;
+            if (n >= DOA_FILT_SETTLE) {
+                e_bp += y * y;
+                e_lo += yl * yl;
+                e_mid += ym * ym;
+                e_hi += yh * yh;
+                float ay = fabsf(y);
+                if (ay > peak) peak = ay;
+                if (c == 0) {
+                    float d = ay - env_prev;
+                    env_d2 += d * d;
+                    env_prev = ay;
+                    env_n++;
+                }
+            }
+        }
+        float e_corr = 0.0f;
+        for (uint32_t n = DOA_CORR_LO; n < DOA_CORR_HI; n++) e_corr += g_work[c][n] * g_work[c][n];
+        g_energy[c] = e_corr;
+        float rms = sqrtf(e_bp / (float)(DOA_N - DOA_FILT_SETTLE));
+        active[c] = rms > DOA_VEH_RMS;
+        peak_all += peak;
+        rms_all += rms;
+        f.e_full += e_bp;
+        f.e_low += e_lo;
+        f.e_mid += e_mid;
+        f.e_high += e_hi;
+        if (peak > f.peak) f.peak = peak;
+    }
+    f.crest = peak_all / (rms_all + 1e-6f);
+    f.env_var = env_n ? (env_d2 / (float)env_n) : 0.0f;
+    // Reject impulsive (footsteps) and too-quiet windows.
+    if (f.crest > DOA_VEH_CREST_MAX) {
+        for (int c = 0; c < 6; c++) active[c] = false;
+    }
+    return f;
+}
+
+static src_class_t classify_vehicle(float low_r, float mid_r, float high_r,
+                                    float peak_db, float env_var) {
+    float s_ice = 0.0f, s_ev = 0.0f;
+    // ICE: stronger LF rumble / engine; often rougher envelope.
+    if (low_r > 0.40f) s_ice += 2.5f;
+    if (low_r > 0.30f && low_r <= 0.45f) s_ice += 1.0f;
+    if (env_var > 200.0f) s_ice += 1.0f;
+    if (peak_db > -35.0f) s_ice += 1.0f;
+
+    // EV: quieter, tire/whine mid-high, weaker LF.
+    if (low_r < 0.35f) s_ev += 2.0f;
+    if (mid_r > 0.25f) s_ev += 1.5f;
+    if (high_r > 0.25f) s_ev += 1.5f;
+    if (peak_db <= -35.0f) s_ev += 1.0f;
+    if (env_var <= 200.0f) s_ev += 0.5f;
+
+    return (s_ice >= s_ev) ? CLS_ICE : CLS_EV;
+}
+
+static void finalize_vehicle_bout(void) {
+    if (!g_veh.active || g_veh.frames < DOA_VEH_MIN_FRAMES) {
+        g_veh.active = false;
+        g_veh.frames = 0;
+        return;
+    }
+    float n = (float)g_veh.frames;
+    float az = g_veh.az_sum / n;
+    float el = g_veh.el_sum / n;
+    float conf = g_veh.conf_sum / n;
+    float lvl = g_veh.lvl_sum / n;
+    float low_r = g_veh.e_low / (g_veh.e_full + 1e-6f);
+    float mid_r = g_veh.e_mid / (g_veh.e_full + 1e-6f);
+    float high_r = g_veh.e_high / (g_veh.e_full + 1e-6f);
+    float crest = g_veh.crest_sum / n;
+    float env_var = g_veh.env_var_sum / n;
+    float daz = ang_diff_deg(g_veh.az_first, g_veh.az_last);
+    // Modulation proxy from envelope variance (not a true Hz; stored in cadence slot).
+    float mod_hz = sqrtf(env_var + 1.0f) * 0.01f;
+    if (daz > 15.0f) mod_hz += 0.5f; // moving pass-by bonus
+
+    src_class_t cls = classify_vehicle(low_r, mid_r, high_r, lvl, env_var);
+
+    entity_sig_t sig;
+    sig.cadence_hz = mod_hz;
+    sig.peak_db = lvl;
+    sig.low_ratio = low_r;
+    sig.mid_ratio = mid_r;
+    sig.high_ratio = high_r;
+    sig.crest = crest;
+    sig.az_n = az / 360.0f;
+    sig.el_n = (el + 90.0f) / 180.0f;
+
+    float match = 0.0f;
+    uint32_t eid = entity_store_match_or_create((entity_class_t)cls, &sig, &match);
+    vehicle_upsert(cls, az, el, conf, lvl, eid, match, mod_hz);
+    g_doa_entity_id = eid;
+    g_doa_nvehicle = track_count_vehicles();
+
+    uint32_t lock = dbg_line_lock();
+    dbg_puts("ENTITY id=");
+    dbg_putu32(eid);
+    dbg_puts(" class=");
+    dbg_puts(class_name(cls));
+    dbg_puts(" frames=");
+    dbg_putu32(g_veh.frames);
+    dbg_puts(" match=");
+    put_f2(match);
+    dbg_puts(" low=");
+    put_f2(low_r);
+    dbg_puts(" mid=");
+    put_f2(mid_r);
+    dbg_puts(" high=");
+    put_f2(high_r);
+    dbg_puts(" daz=");
+    put_f1(daz);
+    dbg_puts("deg\n");
+    dbg_line_unlock(lock);
+
+    g_veh.active = false;
+    g_veh.frames = 0;
+    g_veh.quiet = 0;
+}
+
+static void analyse_vehicle(uint32_t h) {
+    bool active[6];
+    load_raw_window(h);
+    veh_feat_t feat = prepare_vehicle_band(active);
+    doa_fix_t r = solve_tdoa(active);
+
+    if (!r.ok) {
+        if (g_veh.active) {
+            g_veh.quiet++;
+            if (g_veh.quiet >= DOA_VEH_GAP_FRAMES) finalize_vehicle_bout();
+        }
+        return;
+    }
+
+    // Prefer near-horizon sources for road vehicles.
+    if (r.el > 35.0f || r.el < -55.0f) {
+        if (g_veh.active) {
+            g_veh.quiet++;
+            if (g_veh.quiet >= DOA_VEH_GAP_FRAMES) finalize_vehicle_bout();
+        }
+        return;
+    }
+
+    if (!g_veh.active) {
+        memset(&g_veh, 0, sizeof(g_veh));
+        g_veh.active = true;
+        g_veh.az_first = r.az;
+    }
+    g_veh.quiet = 0;
+    g_veh.frames++;
+    g_veh.az_sum += r.az;
+    g_veh.el_sum += r.el;
+    g_veh.conf_sum += r.conf;
+    g_veh.lvl_sum += r.lvl_db;
+    g_veh.e_full += feat.e_full;
+    g_veh.e_low += feat.e_low;
+    g_veh.e_mid += feat.e_mid;
+    g_veh.e_high += feat.e_high;
+    g_veh.crest_sum += feat.crest;
+    g_veh.env_var_sum += feat.env_var;
+    g_veh.az_last = r.az;
+
+    // Live preview track (class unknown until finalize).
+    vehicle_upsert(CLS_NONE, r.az, r.el, r.conf, r.lvl_db, 0, 0.0f, 0.0f);
+}
+
+// ---------------------------------------------------------------------------
 // Reporting
 // ---------------------------------------------------------------------------
 static void report_tracks(void) {
     g_doa_ndrone = track_count_drones();
     g_doa_nwalker = g_walker.used ? 1u : 0u;
-    if (g_walker.used) g_doa_entity_id = g_walker.entity_id;
+    g_doa_nvehicle = track_count_vehicles();
+    if (g_walker.used && g_walker.entity_id) g_doa_entity_id = g_walker.entity_id;
 
     uint32_t lock = dbg_line_lock();
     for (int i = 0; i < DOA_MAX_DRONE; i++) {
@@ -865,6 +1064,23 @@ static void report_tracks(void) {
         dbg_puts(" conf="); put_f1(g_drones[i].conf);
         dbg_puts(" lvl="); put_f1(g_drones[i].lvl_db);
         dbg_puts("dB\n");
+    }
+    for (int i = 0; i < DOA_MAX_VEHICLE; i++) {
+        if (!g_vehicles[i].used) continue;
+        dbg_puts("SRC class=");
+        dbg_puts(g_vehicles[i].cls == CLS_NONE ? "vehicle" : class_name(g_vehicles[i].cls));
+        dbg_puts(" entity=");
+        dbg_putu32(g_vehicles[i].entity_id);
+        dbg_puts(" az="); put_f1(g_vehicles[i].az);
+        dbg_puts(" el="); put_f1(g_vehicles[i].el);
+        dbg_puts(" conf="); put_f1(g_vehicles[i].conf);
+        dbg_puts(" lvl="); put_f1(g_vehicles[i].lvl_db);
+        dbg_puts("dB");
+        if (g_vehicles[i].cls != CLS_NONE) {
+            dbg_puts(" match=");
+            put_f2(g_vehicles[i].match);
+        }
+        dbg_putc('\n');
     }
     if (g_walker.used) {
         dbg_puts("SRC class=");
@@ -892,6 +1108,8 @@ static void report_tracks(void) {
     }
     dbg_puts("TRACKS drone=");
     dbg_putu32(g_doa_ndrone);
+    dbg_puts(" vehicle=");
+    dbg_putu32(g_doa_nvehicle);
     dbg_puts(" walker=");
     dbg_putu32(g_doa_nwalker);
     dbg_puts(" entity=");
@@ -952,6 +1170,9 @@ static bool doa_core1_verify(void) {
 }
 
 static void doa_core1_main(void) {
+    // Allow the other core to lock us out during flash_safe_execute saves.
+    entity_store_core_init();
+
     for (int i = 0; i < 6; i++)
         for (int k = 0; k < 3; k++) MIC_POS[i][k] = MIC_DIR[i][k] * DOA_FACE_R;
 
@@ -962,7 +1183,8 @@ static void doa_core1_main(void) {
     uint32_t last_drone = g_head;
     memset(&g_bout, 0, sizeof(g_bout));
     memset(&g_walker, 0, sizeof(g_walker));
-    memset(g_gallery, 0, sizeof(g_gallery));
+    memset(&g_veh, 0, sizeof(g_veh));
+    memset(g_vehicles, 0, sizeof(g_vehicles));
 
     for (;;) {
         g_doa_iter++;
@@ -979,6 +1201,7 @@ static void doa_core1_main(void) {
         if ((uint32_t)(h - last_drone) >= DOA_OUT_SAMPLES) {
             last_drone = h;
             track_age_drones();
+            track_age_vehicles();
             if (g_walker.used) {
                 g_walker.age++;
                 if (g_walker.age > DOA_TRACK_TTL) {
@@ -987,6 +1210,7 @@ static void doa_core1_main(void) {
                 }
             }
             analyse_drone(h);
+            analyse_vehicle(h);
             report_tracks();
         } else {
             tight_loop_contents();

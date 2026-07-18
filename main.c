@@ -25,6 +25,7 @@
 #include "debug_io.h"
 #include "buzzer.h"
 #include "doa.h"
+#include "entity_store.h"
 #include "core1_launch.h"
 #include "i2s_rx.pio.h"
 #include "i2s_clk.pio.h"
@@ -706,7 +707,7 @@ static void dbg_heartbeat(uint32_t hb_count)
 #if !HET68_USB_DIAG
     {
         extern volatile uint32_t g_doa_out, g_doa_nactive, g_doa_iter;
-        extern volatile uint32_t g_doa_ndrone, g_doa_nwalker, g_doa_entity_id;
+        extern volatile uint32_t g_doa_ndrone, g_doa_nwalker, g_doa_nvehicle, g_doa_entity_id;
         dbg_puts(" doa(out/act/iter)=");
         dbg_putu32(g_doa_out);
         dbg_putc('/');
@@ -715,6 +716,8 @@ static void dbg_heartbeat(uint32_t hb_count)
         dbg_putu32(g_doa_iter);
         dbg_puts(" drone=");
         dbg_putu32(g_doa_ndrone);
+        dbg_puts(" veh=");
+        dbg_putu32(g_doa_nvehicle);
         dbg_puts(" walker=");
         dbg_putu32(g_doa_nwalker);
         dbg_puts(" entity=");
@@ -774,9 +777,14 @@ int main(void)
     dbg_puts("buzzer: PS1240 H-bridge GP6/GP7, 4kHz PN beacon\n");
 
 #if !HET68_USB_DIAG
+    // Flash-backed entity gallery (last sector). Dump before DOA starts.
+    entity_store_core_init();
+    entity_store_init();
+    entity_store_dump_uart();
+
     // Direction-of-arrival on core1 (het68_launch_core1 resets core1 after SWD flash).
     doa_start();
-    dbg_puts("DOA: core1 drone+walker (human/cat/dog entity diarization)\n");
+    dbg_puts("DOA: core1 drone+vehicle+walker (flash entity diarization)\n");
 #endif
 
     // Heartbeat LED. Boards whose LED is on a wireless module (e.g. Pico W /
