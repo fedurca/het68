@@ -158,22 +158,25 @@ BOM and module layout: `wiring_and_bom.md`.
 Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
 
 * **Direction of arrival (DOA).** The decoded 6-channel stream is fed into a ring
-  buffer and analysed continuously. A time-domain GCC (cross-correlation) over the
-  six microphones estimates the time differences of arrival, which are solved by
-  least squares into a 3D unit vector → **azimuth + elevation** of the loudest
-  broadband source, plus a confidence and level. Results are printed to the debug
-  UART, e.g.:
+  buffer and analysed continuously on **core1**. Each analysis window is
+  bandpass-filtered into the **drone-relevant band (~800 Hz–6 kHz)** with a
+  cascaded Butterworth pair (HPF 800 Hz + LPF 6 kHz) so wind/rumble below
+  ~250–300 Hz does not dominate the TDOA. A parallel LPF (~250 Hz) estimates
+  wind-band energy; mics where bandpass energy is too weak relative to wind
+  (`wrat`) are gated out. Remaining channels are cross-correlated (time-domain
+  GCC), then least-squares solved into a 3D unit vector → **azimuth + elevation**
+  of the loudest in-band source, plus confidence and level. UART example:
 
   ```
-  DOA az=137.4 el=22.8 conf=0.7 lvl=-31.2dB ref=0 pairs=4
+  DOA az=137.4 el=22.8 conf=0.7 lvl=-31.2dB wrat=2.4 ref=0 pairs=4
   ```
 
   - Azimuth is compass degrees (0° = north, clockwise); elevation is ±90°.
+  - `wrat` is bandpass/wind energy ratio (higher → less wind-dominated).
   - A single node gives **direction only**; range needs triangulation from several
     synchronised nodes.
-  - The analysis runs on **core1** (full GCC loop). After OpenOCD/SWD flash,
-    core1 must be launched via `het68_launch_core1()` in `core1_launch.c`
-    (`multicore_reset_core1()` + 1 ms settle + verify); see `doa.c`.
+  - After OpenOCD/SWD flash, core1 must be launched via `het68_launch_core1()` in
+    `core1_launch.c` (`multicore_reset_core1()` + 1 ms settle + verify); see `doa.c`.
 
 * **Array geometry.** A cube standing on a vertex, **512 mm** edge. Mics 1–3 are
   the three upper faces (mic 1 = north, then +120°, +240° azimuth, all at +35.26°
