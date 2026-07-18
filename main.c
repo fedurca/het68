@@ -706,12 +706,17 @@ static void dbg_heartbeat(uint32_t hb_count)
 #if !HET68_USB_DIAG
     {
         extern volatile uint32_t g_doa_out, g_doa_nactive, g_doa_iter;
+        extern volatile uint32_t g_doa_ndrone, g_doa_nhuman;
         dbg_puts(" doa(out/act/iter)=");
         dbg_putu32(g_doa_out);
         dbg_putc('/');
         dbg_putu32(g_doa_nactive);
         dbg_putc('/');
         dbg_putu32(g_doa_iter);
+        dbg_puts(" drone=");
+        dbg_putu32(g_doa_ndrone);
+        dbg_puts(" human=");
+        dbg_putu32(g_doa_nhuman);
     }
 #endif
     dbg_putc('\n');
@@ -769,7 +774,7 @@ int main(void)
 #if !HET68_USB_DIAG
     // Direction-of-arrival on core1 (het68_launch_core1 resets core1 after SWD flash).
     doa_start();
-    dbg_puts("DOA: core1 launched (3D TDOA, 512mm cube on vertex)\n");
+    dbg_puts("DOA: core1 multi-source (drone+human tracks, ground xy)\n");
 #endif
 
     // Heartbeat LED. Boards whose LED is on a wireless module (e.g. Pico W /
