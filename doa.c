@@ -1,15 +1,18 @@
-// doa.c — multi-source 3D DOA on core1 with drone + walker + vehicle diarization.
+// doa.c — multi-source 3D DOA on core1 with drone + walker + vehicle + bird + wind.
 //
 // core0 pushes each 6-channel frame via doa_ring_push() from the USB/I2S feed.
 // core1 runs:
 //   • drone band (~800 Hz–6 kHz): continuous TDOA, up to 2 tracks (primary + SIC)
+//   • wind (LPF ~250 Hz): keep wind gate for drones; also report intensity + direction
 //   • walker band (~150–600 Hz): single walking entity — onset bout → human/cat/dog
 //   • vehicle band (~80 Hz–2.5 kHz): pass-by → ICE vs EV
-// Entity signatures persist in flash via entity_store (re-ID across reboots).
+//   • bird band (~2–8 kHz): songbird / corvid / bird
+// Entity signatures → entity_store; timed events → detection_log (after TIME SYNC).
 //
 // core1 must be launched with het68_launch_core1() (see core1_launch.c).
 #include "doa.h"
 #include "entity_store.h"
+#include "detection_log.h"
 #include "core1_launch.h"
 #include "debug_io.h"
 #include "pico/stdlib.h"
@@ -75,6 +78,7 @@ static float MIC_POS[6][3];
 
 #define DOA_DRONE_RMS       2.5f
 #define DOA_WIND_RATIO      0.35f
+#define DOA_WIND_RMS_MIN    12.0f   // report wind when LF energy exceeds this
 #define DOA_WALK_RMS        3.0f
 #define DOA_WALK_CREST      3.5f
 #define DOA_DRONE_CREST_MAX 6.0f
@@ -117,6 +121,10 @@ volatile uint32_t g_doa_nwalker;
 volatile uint32_t g_doa_nvehicle;
 volatile uint32_t g_doa_nbird;
 volatile uint32_t g_doa_entity_id;
+volatile uint32_t g_doa_wind;
+volatile float    g_doa_wind_az;
+volatile float    g_doa_wind_el;
+volatile float    g_doa_wind_db;
 
 void doa_ring_push(const int16_t s6[6]) {
     uint32_t h = g_head;
@@ -259,6 +267,25 @@ static const char *class_name(src_class_t c) {
     if (c == CLS_NONE) return "none";
     return entity_class_name((entity_class_t)c);
 }
+
+static det_class_t det_from_src(src_class_t c) {
+    switch (c) {
+        case CLS_DRONE:    return DET_DRONE;
+        case CLS_HUMAN:    return DET_HUMAN;
+        case CLS_CAT:      return DET_CAT;
+        case CLS_DOG:      return DET_DOG;
+        case CLS_ICE:      return DET_ICE;
+        case CLS_EV:       return DET_EV;
+        case CLS_BIRD:     return DET_BIRD;
+        case CLS_SONGBIRD: return DET_SONGBIRD;
+        case CLS_CORVID:   return DET_CORVID;
+        default:           return DET_NONE;
+    }
+}
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 typedef struct {
     bool used;
@@ -600,9 +627,45 @@ static void cancel_direction(const float dir[3], int ref) {
     }
 }
 
-static float prepare_drone_band(bool active[6]) {
+// Wind estimate from per-mic LF energy (same LPF250 used by the drone wind gate).
+typedef struct {
+    bool present;
+    float az;
+    float el;
+    float intensity_db;
+    float e_wind[6];
+} wind_est_t;
+
+static wind_est_t estimate_wind_from_energy(const float e_wind[6]) {
+    wind_est_t w;
+    memset(&w, 0, sizeof(w));
+    float wx = 0.0f, wy = 0.0f, wz = 0.0f, esum = 0.0f;
+    for (int c = 0; c < 6; c++) {
+        w.e_wind[c] = e_wind[c];
+        float e = e_wind[c];
+        esum += e;
+        wx += MIC_DIR[c][0] * e;
+        wy += MIC_DIR[c][1] * e;
+        wz += MIC_DIR[c][2] * e;
+    }
+    float nsam = (float)(DOA_N - DOA_FILT_SETTLE);
+    float rms = sqrtf(esum / (6.0f * nsam + 1e-6f));
+    w.intensity_db = 20.0f * log10f((rms + 1e-6f) / 32768.0f);
+    w.present = (rms >= DOA_WIND_RMS_MIN);
+    float norm = sqrtf(wx * wx + wy * wy + wz * wz) + 1e-9f;
+    float dx = wx / norm, dy = wy / norm, dz = wz / norm;
+    float az = atan2f(dy, dx) * (180.0f / (float)M_PI);
+    if (az < 0.0f) az += 360.0f;
+    float el = asinf(fmaxf(-1.0f, fminf(1.0f, dz))) * (180.0f / (float)M_PI);
+    w.az = az;
+    w.el = el;
+    return w;
+}
+
+static float prepare_drone_band(bool active[6], wind_est_t *wind_out) {
     int nactive = 0;
     float crest_num = 0.0f, crest_den = 0.0f;
+    float e_wind_ch[6];
     for (int c = 0; c < 6; c++) {
         float mean = 0.0f;
         for (uint32_t n = 0; n < DOA_N; n++) mean += g_work[c][n];
@@ -622,15 +685,18 @@ static float prepare_drone_band(bool active[6]) {
                 if (ay > peak) peak = ay;
             }
         }
+        e_wind_ch[c] = e_wind;
         float e_corr = 0.0f;
         for (uint32_t n = DOA_CORR_LO; n < DOA_CORR_HI; n++) e_corr += g_work[c][n] * g_work[c][n];
         g_energy[c] = e_corr;
+        // Keep wind gate: reject mic if LF wind energy dominates the drone band.
         float rms = sqrtf(e_bp / (float)(DOA_N - DOA_FILT_SETTLE));
         active[c] = (rms > DOA_DRONE_RMS) && (e_bp >= DOA_WIND_RATIO * (e_wind + 1e-6f));
         if (active[c]) nactive++;
         crest_num += peak;
         crest_den += rms + 1e-6f;
     }
+    if (wind_out) *wind_out = estimate_wind_from_energy(e_wind_ch);
     g_doa_nactive = (uint32_t)nactive;
     float crest = crest_num / crest_den;
     if (crest > DOA_DRONE_CREST_MAX) {
@@ -806,23 +872,27 @@ static void finalize_bout_if_needed(uint32_t now, bool force) {
     g_doa_entity_id = eid;
     g_doa_nwalker = 1;
 
-    uint32_t lock = dbg_line_lock();
-    dbg_puts("ENTITY id=");
-    dbg_putu32(eid);
-    dbg_puts(" class=");
-    dbg_puts(class_name(cls));
-    dbg_puts(" steps=");
-    dbg_putu32(g_bout.n_steps);
-    dbg_puts(" cadence=");
-    put_f2(sig.cadence_hz);
-    dbg_puts("Hz match=");
-    put_f2(match);
-    dbg_puts(" low=");
-    put_f2(sig.low_ratio);
-    dbg_puts(" high=");
-    put_f2(sig.high_ratio);
-    dbg_putc('\n');
-    dbg_line_unlock(lock);
+    (void)detection_log_observe(det_from_src(cls), eid, az, el, lvl, conf);
+
+    if (dbg_log_enabled()) {
+        uint32_t lock = dbg_line_lock();
+        dbg_puts("ENTITY id=");
+        dbg_putu32(eid);
+        dbg_puts(" class=");
+        dbg_puts(class_name(cls));
+        dbg_puts(" steps=");
+        dbg_putu32(g_bout.n_steps);
+        dbg_puts(" cadence=");
+        put_f2(sig.cadence_hz);
+        dbg_puts("Hz match=");
+        put_f2(match);
+        dbg_puts(" low=");
+        put_f2(sig.low_ratio);
+        dbg_puts(" high=");
+        put_f2(sig.high_ratio);
+        dbg_putc('\n');
+        dbg_line_unlock(lock);
+    }
 
     g_bout.active = false;
     g_bout.n_steps = 0;
@@ -1057,26 +1127,29 @@ static void finalize_vehicle_bout(void) {
     vehicle_upsert(cls, az, el, conf, lvl, eid, match, mod_hz);
     g_doa_entity_id = eid;
     g_doa_nvehicle = track_count_vehicles();
+    (void)detection_log_observe(det_from_src(cls), eid, az, el, lvl, conf);
 
-    uint32_t lock = dbg_line_lock();
-    dbg_puts("ENTITY id=");
-    dbg_putu32(eid);
-    dbg_puts(" class=");
-    dbg_puts(class_name(cls));
-    dbg_puts(" frames=");
-    dbg_putu32(g_veh.frames);
-    dbg_puts(" match=");
-    put_f2(match);
-    dbg_puts(" low=");
-    put_f2(low_r);
-    dbg_puts(" mid=");
-    put_f2(mid_r);
-    dbg_puts(" high=");
-    put_f2(high_r);
-    dbg_puts(" daz=");
-    put_f1(daz);
-    dbg_puts("deg\n");
-    dbg_line_unlock(lock);
+    if (dbg_log_enabled()) {
+        uint32_t lock = dbg_line_lock();
+        dbg_puts("ENTITY id=");
+        dbg_putu32(eid);
+        dbg_puts(" class=");
+        dbg_puts(class_name(cls));
+        dbg_puts(" frames=");
+        dbg_putu32(g_veh.frames);
+        dbg_puts(" match=");
+        put_f2(match);
+        dbg_puts(" low=");
+        put_f2(low_r);
+        dbg_puts(" mid=");
+        put_f2(mid_r);
+        dbg_puts(" high=");
+        put_f2(high_r);
+        dbg_puts(" daz=");
+        put_f1(daz);
+        dbg_puts("deg\n");
+        dbg_line_unlock(lock);
+    }
 
     g_veh.active = false;
     g_veh.frames = 0;
@@ -1251,22 +1324,25 @@ static void finalize_bird_bout(void) {
     bird_upsert(cls, az, el, conf, lvl, eid, match, chirp_hz);
     g_doa_entity_id = eid;
     g_doa_nbird = track_count_birds();
+    (void)detection_log_observe(det_from_src(cls), eid, az, el, lvl, conf);
 
-    uint32_t lock = dbg_line_lock();
-    dbg_puts("ENTITY id=");
-    dbg_putu32(eid);
-    dbg_puts(" class=");
-    dbg_puts(class_name(cls));
-    dbg_puts(" frames=");
-    dbg_putu32(g_bird.frames);
-    dbg_puts(" match=");
-    put_f2(match);
-    dbg_puts(" az=");
-    put_f1(az);
-    dbg_puts(" el=");
-    put_f1(el);
-    dbg_puts(" (bird position)\n");
-    dbg_line_unlock(lock);
+    if (dbg_log_enabled()) {
+        uint32_t lock = dbg_line_lock();
+        dbg_puts("ENTITY id=");
+        dbg_putu32(eid);
+        dbg_puts(" class=");
+        dbg_puts(class_name(cls));
+        dbg_puts(" frames=");
+        dbg_putu32(g_bird.frames);
+        dbg_puts(" match=");
+        put_f2(match);
+        dbg_puts(" az=");
+        put_f1(az);
+        dbg_puts(" el=");
+        put_f1(el);
+        dbg_puts(" (bird position)\n");
+        dbg_line_unlock(lock);
+    }
 
     g_bird.active = false;
     g_bird.frames = 0;
@@ -1314,7 +1390,49 @@ static void report_tracks(void) {
     g_doa_nbird = track_count_birds();
     if (g_walker.used && g_walker.entity_id) g_doa_entity_id = g_walker.entity_id;
 
+    // Persist live tracks into DET log (only after TIME SYNC — see detection_log).
+    for (int i = 0; i < DOA_MAX_DRONE; i++) {
+        if (!g_drones[i].used) continue;
+        (void)detection_log_observe(DET_DRONE, 0, g_drones[i].az, g_drones[i].el,
+                                    g_drones[i].lvl_db, g_drones[i].conf);
+    }
+    for (int i = 0; i < DOA_MAX_VEHICLE; i++) {
+        if (!g_vehicles[i].used || g_vehicles[i].cls == CLS_NONE) continue;
+        (void)detection_log_observe(det_from_src(g_vehicles[i].cls), g_vehicles[i].entity_id,
+                                    g_vehicles[i].az, g_vehicles[i].el,
+                                    g_vehicles[i].lvl_db, g_vehicles[i].conf);
+    }
+    for (int i = 0; i < DOA_MAX_BIRD; i++) {
+        if (!g_birds[i].used || g_birds[i].cls == CLS_NONE) continue;
+        (void)detection_log_observe(det_from_src(g_birds[i].cls), g_birds[i].entity_id,
+                                    g_birds[i].az, g_birds[i].el,
+                                    g_birds[i].lvl_db, g_birds[i].conf);
+    }
+    if (g_walker.used && g_walker.cls != CLS_NONE) {
+        (void)detection_log_observe(det_from_src(g_walker.cls), g_walker.entity_id,
+                                    g_walker.az, g_walker.el,
+                                    g_walker.lvl_db, g_walker.conf);
+    }
+    if (g_doa_wind) {
+        (void)detection_log_observe(DET_WIND, 0, g_doa_wind_az, g_doa_wind_el,
+                                    g_doa_wind_db, 0.5f);
+    }
+
+    if (!dbg_log_enabled()) {
+        g_doa_out++;
+        return;
+    }
+
     uint32_t lock = dbg_line_lock();
+    if (g_doa_wind) {
+        dbg_puts("SRC class=wind az=");
+        put_f1(g_doa_wind_az);
+        dbg_puts(" el=");
+        put_f1(g_doa_wind_el);
+        dbg_puts(" inten=");
+        put_f1(g_doa_wind_db);
+        dbg_puts("dB\n");
+    }
     for (int i = 0; i < DOA_MAX_DRONE; i++) {
         if (!g_drones[i].used) continue;
         dbg_puts("SRC class=drone id=");
@@ -1391,6 +1509,8 @@ static void report_tracks(void) {
     dbg_putu32(g_doa_nbird);
     dbg_puts(" walker=");
     dbg_putu32(g_doa_nwalker);
+    dbg_puts(" wind=");
+    dbg_putu32(g_doa_wind);
     dbg_puts(" entity=");
     dbg_putu32(g_doa_entity_id);
     dbg_putc('\n');
@@ -1403,8 +1523,20 @@ static void report_tracks(void) {
 // ---------------------------------------------------------------------------
 static void analyse_drone(uint32_t h) {
     bool active[6];
+    wind_est_t wind;
     load_raw_window(h);
-    (void)prepare_drone_band(active);
+    (void)prepare_drone_band(active, &wind);
+
+    // Keep wind gate for drones; also publish wind intensity + steered direction.
+    if (wind.present) {
+        g_doa_wind = 1;
+        g_doa_wind_az = wind.az;
+        g_doa_wind_el = wind.el;
+        g_doa_wind_db = wind.intensity_db;
+    } else {
+        g_doa_wind = 0;
+    }
+
     doa_fix_t primary = solve_tdoa(active);
     if (!primary.ok) return;
 
@@ -1451,6 +1583,7 @@ static bool doa_core1_verify(void) {
 static void doa_core1_main(void) {
     // Allow the other core to lock us out during flash_safe_execute saves.
     entity_store_core_init();
+    detection_log_core_init();
 
     for (int i = 0; i < 6; i++)
         for (int k = 0; k < 3; k++) MIC_POS[i][k] = MIC_DIR[i][k] * DOA_FACE_R;
@@ -1466,6 +1599,7 @@ static void doa_core1_main(void) {
     memset(&g_bird, 0, sizeof(g_bird));
     memset(g_vehicles, 0, sizeof(g_vehicles));
     memset(g_birds, 0, sizeof(g_birds));
+    g_doa_wind = 0;
 
     for (;;) {
         g_doa_iter++;

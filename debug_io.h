@@ -21,6 +21,10 @@ int dbg_getc(void);   // -1 if none
 uint32_t dbg_line_lock(void);
 void dbg_line_unlock(uint32_t saved);
 
+// Optional telemetry gate (SRC / ENTITY / TRACKS). CLI replies always print.
+void dbg_log_set(bool enabled);
+bool dbg_log_enabled(void);
+
 // Single-character checkpoint macro: writes 'X\n' to UART.
 // Usable from any .c file that includes this header.
 #define DBG_CP(letter) do { dbg_putc(letter); dbg_putc('\n'); } while(0)
