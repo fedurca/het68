@@ -95,3 +95,12 @@ void dbg_puthex32(uint32_t v) {
     dbg_puthex8((uint8_t)(v >> 8));
     dbg_puthex8((uint8_t)v);
 }
+
+bool dbg_rx_available(void) {
+    return uart_is_readable(uart_default);
+}
+
+int dbg_getc(void) {
+    if (!uart_is_readable(uart_default)) return -1;
+    return (int)uart_getc(uart_default);
+}

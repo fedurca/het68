@@ -88,12 +88,17 @@ static float MIC_POS[6][3];
 
 #define DOA_MAX_DRONE       2
 #define DOA_MAX_VEHICLE     2
+#define DOA_MAX_BIRD        2
 #define DOA_GATE_DEG        30.0f
 #define DOA_TRACK_TTL       12u
 #define DOA_VEH_MIN_FRAMES  4u       // ~0.8 s continuous before vehicle entity
 #define DOA_VEH_GAP_FRAMES  3u
 #define DOA_VEH_RMS         6.0f
 #define DOA_VEH_CREST_MAX   4.5f     // continuous pass-by, not footfall spikes
+#define DOA_BIRD_RMS        2.0f
+#define DOA_BIRD_MIN_FRAMES 3u
+#define DOA_BIRD_GAP_FRAMES 2u
+#define DOA_BIRD_CREST_MIN  2.8f     // tonal / chirpy
 
 #define DOA_RING_SZ         2048u
 #define DOA_RING_MASK       (DOA_RING_SZ - 1u)
@@ -110,6 +115,7 @@ volatile uint32_t g_doa_iter;
 volatile uint32_t g_doa_ndrone;
 volatile uint32_t g_doa_nwalker;
 volatile uint32_t g_doa_nvehicle;
+volatile uint32_t g_doa_nbird;
 volatile uint32_t g_doa_entity_id;
 
 void doa_ring_push(const int16_t s6[6]) {
@@ -207,6 +213,23 @@ static const biquad_coef_t k_lpf1200 = {
     5.5427172103e-03f, 1.1085434421e-02f, 5.5427172103e-03f,
     -1.7786317778e+00f, 8.0080264667e-01f
 };
+// Bird song / call band ~2–8 kHz (+ 4 kHz split for species cues).
+static const biquad_coef_t k_hpf2000 = {
+    8.3089802127e-01f, -1.6617960425e+00f, 8.3089802127e-01f,
+    -1.6329931619e+00f, 6.9059892324e-01f
+};
+static const biquad_coef_t k_lpf8000 = {
+    1.5505102572e-01f, 3.1010205144e-01f, 1.5505102572e-01f,
+    -6.2020410289e-01f, 2.4040820577e-01f
+};
+static const biquad_coef_t k_hpf4000 = {
+    6.8930616877e-01f, -1.3786123375e+00f, 6.8930616877e-01f,
+    -1.2796324250e+00f, 4.7759225007e-01f
+};
+static const biquad_coef_t k_lpf4000 = {
+    4.9489956269e-02f, 9.8979912537e-02f, 4.9489956269e-02f,
+    -1.2796324250e+00f, 4.7759225007e-01f
+};
 
 static inline float biquad_step(const biquad_coef_t *c, biquad_mem_t *s, float x) {
     float y = c->b0 * x + s->z1;
@@ -224,8 +247,11 @@ typedef enum {
     CLS_HUMAN = ENT_HUMAN,
     CLS_CAT   = ENT_CAT,
     CLS_DOG   = ENT_DOG,
-    CLS_ICE   = ENT_ICE,
-    CLS_EV    = ENT_EV
+    CLS_ICE      = ENT_ICE,
+    CLS_EV       = ENT_EV,
+    CLS_BIRD     = ENT_BIRD,
+    CLS_SONGBIRD = ENT_SONGBIRD,
+    CLS_CORVID   = ENT_CORVID
 } src_class_t;
 
 static const char *class_name(src_class_t c) {
@@ -248,6 +274,7 @@ typedef struct {
 
 static track_t g_drones[DOA_MAX_DRONE];
 static track_t g_vehicles[DOA_MAX_VEHICLE];
+static track_t g_birds[DOA_MAX_BIRD];
 static track_t g_walker;                 // single walking entity
 
 static float ang_diff_deg(float a, float b) {
@@ -343,6 +370,63 @@ static void vehicle_upsert(src_class_t cls, float az, float el, float conf,
     g_vehicles[i].match = match;
     g_vehicles[i].cadence_hz = mod_hz;
     g_vehicles[i].have_xy = false;
+}
+
+static int track_find_bird(float az, float el) {
+    int best = -1;
+    float best_d = DOA_GATE_DEG;
+    for (int i = 0; i < DOA_MAX_BIRD; i++) {
+        if (!g_birds[i].used) continue;
+        float d = ang_diff_deg(az, g_birds[i].az) + fabsf(el - g_birds[i].el);
+        if (d < best_d) { best_d = d; best = i; }
+    }
+    return best;
+}
+
+static int track_alloc_bird(void) {
+    for (int i = 0; i < DOA_MAX_BIRD; i++) if (!g_birds[i].used) return i;
+    int oldest = 0;
+    for (int i = 1; i < DOA_MAX_BIRD; i++)
+        if (g_birds[i].age > g_birds[oldest].age) oldest = i;
+    return oldest;
+}
+
+static void track_age_birds(void) {
+    for (int i = 0; i < DOA_MAX_BIRD; i++) {
+        if (!g_birds[i].used) continue;
+        g_birds[i].age++;
+        if (g_birds[i].age > DOA_TRACK_TTL) g_birds[i].used = false;
+    }
+}
+
+static uint32_t track_count_birds(void) {
+    uint32_t n = 0;
+    for (int i = 0; i < DOA_MAX_BIRD; i++) if (g_birds[i].used) n++;
+    return n;
+}
+
+static void bird_upsert(src_class_t cls, float az, float el, float conf,
+                        float lvl_db, uint32_t eid, float match, float chirp_hz) {
+    int i = track_find_bird(az, el);
+    if (i < 0) i = track_alloc_bird();
+    if (g_birds[i].used) {
+        g_birds[i].az = 0.7f * g_birds[i].az + 0.3f * az;
+        g_birds[i].el = 0.7f * g_birds[i].el + 0.3f * el;
+        g_birds[i].conf = 0.6f * g_birds[i].conf + 0.4f * conf;
+        g_birds[i].lvl_db = 0.6f * g_birds[i].lvl_db + 0.4f * lvl_db;
+    } else {
+        g_birds[i].az = az;
+        g_birds[i].el = el;
+        g_birds[i].conf = conf;
+        g_birds[i].lvl_db = lvl_db;
+    }
+    g_birds[i].used = true;
+    g_birds[i].cls = cls;
+    g_birds[i].age = 0;
+    g_birds[i].entity_id = eid;
+    g_birds[i].match = match;
+    g_birds[i].cadence_hz = chirp_hz;
+    g_birds[i].have_xy = false;
 }
 
 static bool ground_xy(float az_deg, float el_deg, float *x, float *y, float *rng) {
@@ -1046,12 +1130,188 @@ static void analyse_vehicle(uint32_t h) {
 }
 
 // ---------------------------------------------------------------------------
+// Bird song / calls (~2–8 kHz) — species heuristic + DOA position
+// ---------------------------------------------------------------------------
+typedef struct {
+    bool active;
+    uint32_t frames;
+    uint32_t quiet;
+    float az_sum, el_sum, conf_sum, lvl_sum;
+    float e_full, e_lo, e_hi;
+    float crest_sum;
+    float zcr_sum;   // zero-crossing rate proxy → chirp brightness
+} bird_bout_t;
+
+static bird_bout_t g_bird;
+
+typedef struct {
+    float e_full, e_lo, e_hi;
+    float crest;
+    float zcr;
+    float peak;
+} bird_feat_t;
+
+static bird_feat_t prepare_bird_band(bool active[6]) {
+    bird_feat_t f;
+    memset(&f, 0, sizeof(f));
+    float peak_all = 0.0f, rms_all = 0.0f;
+    for (int c = 0; c < 6; c++) {
+        float mean = 0.0f;
+        for (uint32_t n = 0; n < DOA_N; n++) mean += g_work[c][n];
+        mean /= (float)DOA_N;
+        biquad_mem_t hp = {0}, lp = {0}, lo = {0}, hi = {0};
+        float e_bp = 0.0f, e_lo = 0.0f, e_hi = 0.0f, peak = 0.0f;
+        float prev = 0.0f;
+        uint32_t zc = 0, zn = 0;
+        for (uint32_t n = 0; n < DOA_N; n++) {
+            float x = g_work[c][n] - mean;
+            float y = biquad_step(&k_hpf2000, &hp, x);
+            y = biquad_step(&k_lpf8000, &lp, y);
+            float yl = biquad_step(&k_lpf4000, &lo, y);
+            float yh = biquad_step(&k_hpf4000, &hi, y);
+            g_work[c][n] = y;
+            if (n >= DOA_FILT_SETTLE) {
+                e_bp += y * y;
+                e_lo += yl * yl;
+                e_hi += yh * yh;
+                float ay = fabsf(y);
+                if (ay > peak) peak = ay;
+                if ((y >= 0.0f && prev < 0.0f) || (y < 0.0f && prev >= 0.0f)) zc++;
+                prev = y;
+                zn++;
+            }
+        }
+        float e_corr = 0.0f;
+        for (uint32_t n = DOA_CORR_LO; n < DOA_CORR_HI; n++) e_corr += g_work[c][n] * g_work[c][n];
+        g_energy[c] = e_corr;
+        float rms = sqrtf(e_bp / (float)(DOA_N - DOA_FILT_SETTLE));
+        active[c] = rms > DOA_BIRD_RMS;
+        peak_all += peak;
+        rms_all += rms;
+        f.e_full += e_bp;
+        f.e_lo += e_lo;
+        f.e_hi += e_hi;
+        if (peak > f.peak) f.peak = peak;
+        if (c == 0 && zn) f.zcr = (float)zc / (float)zn;
+    }
+    f.crest = peak_all / (rms_all + 1e-6f);
+    if (f.crest < DOA_BIRD_CREST_MIN) {
+        for (int c = 0; c < 6; c++) active[c] = false;
+    }
+    return f;
+}
+
+static src_class_t classify_bird(float lo_r, float hi_r, float crest, float zcr, float lvl_db) {
+    float ss = 0.0f, sc = 0.0f, sg = 0.0f;
+    // Songbird: brighter (>4 kHz), higher ZCR, higher crest (tonal chirps).
+    if (hi_r > 0.40f) ss += 2.5f;
+    if (zcr > 0.12f) ss += 1.5f;
+    if (crest > 4.0f) ss += 1.0f;
+    // Corvid: more energy below 4 kHz, harsher / lower crest.
+    if (lo_r > 0.45f) sc += 2.5f;
+    if (zcr < 0.10f) sc += 1.0f;
+    if (lvl_db > -40.0f) sc += 0.5f;
+    // Generic bird fallback.
+    sg += 1.0f;
+    if (ss >= sc && ss >= sg) return CLS_SONGBIRD;
+    if (sc >= sg) return CLS_CORVID;
+    return CLS_BIRD;
+}
+
+static void finalize_bird_bout(void) {
+    if (!g_bird.active || g_bird.frames < DOA_BIRD_MIN_FRAMES) {
+        g_bird.active = false;
+        g_bird.frames = 0;
+        return;
+    }
+    float n = (float)g_bird.frames;
+    float az = g_bird.az_sum / n;
+    float el = g_bird.el_sum / n;
+    float conf = g_bird.conf_sum / n;
+    float lvl = g_bird.lvl_sum / n;
+    float lo_r = g_bird.e_lo / (g_bird.e_full + 1e-6f);
+    float hi_r = g_bird.e_hi / (g_bird.e_full + 1e-6f);
+    float crest = g_bird.crest_sum / n;
+    float zcr = g_bird.zcr_sum / n;
+    float chirp_hz = zcr * (DOA_FS * 0.5f) / 4000.0f; // rough brightness proxy
+
+    src_class_t cls = classify_bird(lo_r, hi_r, crest, zcr, lvl);
+    entity_sig_t sig;
+    sig.cadence_hz = chirp_hz;
+    sig.peak_db = lvl;
+    sig.low_ratio = lo_r;
+    sig.mid_ratio = 0.0f;
+    sig.high_ratio = hi_r;
+    sig.crest = crest;
+    sig.az_n = az / 360.0f;
+    sig.el_n = (el + 90.0f) / 180.0f;
+
+    float match = 0.0f;
+    uint32_t eid = entity_store_match_or_create((entity_class_t)cls, &sig, &match);
+    bird_upsert(cls, az, el, conf, lvl, eid, match, chirp_hz);
+    g_doa_entity_id = eid;
+    g_doa_nbird = track_count_birds();
+
+    uint32_t lock = dbg_line_lock();
+    dbg_puts("ENTITY id=");
+    dbg_putu32(eid);
+    dbg_puts(" class=");
+    dbg_puts(class_name(cls));
+    dbg_puts(" frames=");
+    dbg_putu32(g_bird.frames);
+    dbg_puts(" match=");
+    put_f2(match);
+    dbg_puts(" az=");
+    put_f1(az);
+    dbg_puts(" el=");
+    put_f1(el);
+    dbg_puts(" (bird position)\n");
+    dbg_line_unlock(lock);
+
+    g_bird.active = false;
+    g_bird.frames = 0;
+    g_bird.quiet = 0;
+}
+
+static void analyse_bird(uint32_t h) {
+    bool active[6];
+    load_raw_window(h);
+    bird_feat_t feat = prepare_bird_band(active);
+    doa_fix_t r = solve_tdoa(active);
+    if (!r.ok) {
+        if (g_bird.active) {
+            g_bird.quiet++;
+            if (g_bird.quiet >= DOA_BIRD_GAP_FRAMES) finalize_bird_bout();
+        }
+        return;
+    }
+    // Birds are typically above/around the array — allow wide elevation.
+    if (!g_bird.active) {
+        memset(&g_bird, 0, sizeof(g_bird));
+        g_bird.active = true;
+    }
+    g_bird.quiet = 0;
+    g_bird.frames++;
+    g_bird.az_sum += r.az;
+    g_bird.el_sum += r.el;
+    g_bird.conf_sum += r.conf;
+    g_bird.lvl_sum += r.lvl_db;
+    g_bird.e_full += feat.e_full;
+    g_bird.e_lo += feat.e_lo;
+    g_bird.e_hi += feat.e_hi;
+    g_bird.crest_sum += feat.crest;
+    g_bird.zcr_sum += feat.zcr;
+    bird_upsert(CLS_NONE, r.az, r.el, r.conf, r.lvl_db, 0, 0.0f, 0.0f);
+}
+
+// ---------------------------------------------------------------------------
 // Reporting
 // ---------------------------------------------------------------------------
 static void report_tracks(void) {
     g_doa_ndrone = track_count_drones();
     g_doa_nwalker = g_walker.used ? 1u : 0u;
     g_doa_nvehicle = track_count_vehicles();
+    g_doa_nbird = track_count_birds();
     if (g_walker.used && g_walker.entity_id) g_doa_entity_id = g_walker.entity_id;
 
     uint32_t lock = dbg_line_lock();
@@ -1082,6 +1342,23 @@ static void report_tracks(void) {
         }
         dbg_putc('\n');
     }
+    for (int i = 0; i < DOA_MAX_BIRD; i++) {
+        if (!g_birds[i].used) continue;
+        dbg_puts("SRC class=");
+        dbg_puts(g_birds[i].cls == CLS_NONE ? "bird" : class_name(g_birds[i].cls));
+        dbg_puts(" entity=");
+        dbg_putu32(g_birds[i].entity_id);
+        dbg_puts(" az="); put_f1(g_birds[i].az);
+        dbg_puts(" el="); put_f1(g_birds[i].el);
+        dbg_puts(" conf="); put_f1(g_birds[i].conf);
+        dbg_puts(" lvl="); put_f1(g_birds[i].lvl_db);
+        dbg_puts("dB");
+        if (g_birds[i].cls != CLS_NONE) {
+            dbg_puts(" match=");
+            put_f2(g_birds[i].match);
+        }
+        dbg_puts(" pos=az/el\n");
+    }
     if (g_walker.used) {
         dbg_puts("SRC class=");
         dbg_puts(g_walker.cls == CLS_NONE ? "walker" : class_name(g_walker.cls));
@@ -1110,6 +1387,8 @@ static void report_tracks(void) {
     dbg_putu32(g_doa_ndrone);
     dbg_puts(" vehicle=");
     dbg_putu32(g_doa_nvehicle);
+    dbg_puts(" bird=");
+    dbg_putu32(g_doa_nbird);
     dbg_puts(" walker=");
     dbg_putu32(g_doa_nwalker);
     dbg_puts(" entity=");
@@ -1184,7 +1463,9 @@ static void doa_core1_main(void) {
     memset(&g_bout, 0, sizeof(g_bout));
     memset(&g_walker, 0, sizeof(g_walker));
     memset(&g_veh, 0, sizeof(g_veh));
+    memset(&g_bird, 0, sizeof(g_bird));
     memset(g_vehicles, 0, sizeof(g_vehicles));
+    memset(g_birds, 0, sizeof(g_birds));
 
     for (;;) {
         g_doa_iter++;
@@ -1202,6 +1483,7 @@ static void doa_core1_main(void) {
             last_drone = h;
             track_age_drones();
             track_age_vehicles();
+            track_age_birds();
             if (g_walker.used) {
                 g_walker.age++;
                 if (g_walker.age > DOA_TRACK_TTL) {
@@ -1211,6 +1493,7 @@ static void doa_core1_main(void) {
             }
             analyse_drone(h);
             analyse_vehicle(h);
+            analyse_bird(h);
             report_tracks();
         } else {
             tight_loop_contents();
