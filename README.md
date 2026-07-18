@@ -157,35 +157,44 @@ BOM and module layout: `wiring_and_bom.md`.
 
 Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
 
-* **Multi-source DOA (drone + vehicle + single walker) with flash diarization.**
-  core1 runs three parallel front-ends:
+* **Multi-source DOA (drone + vehicle + bird + single walker) with ACID flash diarization.**
+  core1 runs four parallel front-ends:
 
   | Class | Band | Cue | Tracks |
   |---|---|---|---|
   | **drone** | ~800 Hz–6 kHz | continuous, wind gate, crest limit | up to **2** |
   | **vehicle** | ~80 Hz–2.5 kHz | continuous pass-by → **ICE** / **EV** | up to **2** |
+  | **bird** | ~2–8 kHz | chirp bout → songbird / corvid / bird | up to **2** |
   | **walker** | ~150 Hz–600 Hz | footstep onset bout (≥3 steps) → human/cat/dog | **1** |
 
-  Recognised walkers/vehicles are stored in a flash-backed **entity gallery**
-  (last 4 KiB sector, up to 16 signatures — see `entity_store.c`). On boot the
-  gallery is listed on UART (`=== entity store (flash) ===`). Re-ID uses
-  `entity=` + heuristic `match=` 0–1. Walkers also get ground `rng`/`x`/`y`
-  (height: `edge·√3/2` or `HET68_DOA_HEIGHT_MM`). UART example:
+  Recognised entities live in a **RAM-first gallery** persisted with an **ACID
+  dual-slot** scheme in the last two 4 KiB flash sectors (`entity_store.c`, blob
+  v2: magic + seq + CRC32). `match_or_create` never touches flash; `entity_store_poll()`
+  erases/programs **one page at a time only when USB audio alt=0**, so streaming
+  is not stalled. On boot the gallery is listed on UART. Re-ID uses `entity=` +
+  heuristic `match=` 0–1. Birds report DOA `az`/`el` as position; walkers also get
+  ground `rng`/`x`/`y` (height: `edge·√3/2` or `HET68_DOA_HEIGHT_MM`).
+
+  UART gallery transfer: `ENT LIST` | `ENT EXPORT` | `ENT IMPORT` … `ENTHEX …` …
+  `ENT END` | `ENT HELP`. Import validates CRC then marks dirty; flash commit is
+  opportunistic when USB is idle.
+
+  UART example:
 
   ```
   === entity store (flash) n=2 next_id=3 ===
   ENT id=1 class=human hits=4 cadence=1.80Hz low=0.48 mid=0.00 high=0.14 lvl=-40.00dB
-  ENT id=2 class=ice hits=1 cadence=0.50Hz low=0.52 mid=0.28 high=0.20 lvl=-28.00dB
+  ENT id=2 class=songbird hits=1 cadence=4.20Hz low=0.20 mid=0.10 high=0.55 lvl=-36.00dB
   === end entity store ===
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB
-  ENTITY id=2 class=ice frames=5 match=0.00 low=0.52 mid=0.28 high=0.20 daz=40.0deg
+  SRC class=songbird entity=2 az=210.0 el=35.0 conf=0.6 lvl=-36.0dB match=0.71 (bird position)
   SRC class=human entity=1 az=45.0 el=-32.1 conf=0.5 lvl=-40.0dB match=0.82 cadence=1.80Hz rng=1.8m x=1.3 y=1.2
-  TRACKS drone=1 vehicle=1 walker=1 entity=1
+  TRACKS drone=1 vehicle=0 bird=1 walker=1 entity=2
   ```
 
-  - Flash saves use `flash_safe_execute` (may briefly glitch USB audio; rare).
   - Species / ICE·EV / re-ID are best-effort heuristics, not a trained model.
   - Walker tracking assumes **one** walking entity at a time.
+  - Upgrading from gallery blob v1 clears the old single-sector store once.
 
 * **Array geometry.** A cube standing on a vertex, **512 mm** edge. Mics 1–3 are
   the three upper faces (mic 1 = north, then +120°, +240° azimuth, all at +35.26°

@@ -707,7 +707,8 @@ static void dbg_heartbeat(uint32_t hb_count)
 #if !HET68_USB_DIAG
     {
         extern volatile uint32_t g_doa_out, g_doa_nactive, g_doa_iter;
-        extern volatile uint32_t g_doa_ndrone, g_doa_nwalker, g_doa_nvehicle, g_doa_entity_id;
+        extern volatile uint32_t g_doa_ndrone, g_doa_nwalker, g_doa_nvehicle;
+        extern volatile uint32_t g_doa_nbird, g_doa_entity_id;
         dbg_puts(" doa(out/act/iter)=");
         dbg_putu32(g_doa_out);
         dbg_putc('/');
@@ -718,10 +719,14 @@ static void dbg_heartbeat(uint32_t hb_count)
         dbg_putu32(g_doa_ndrone);
         dbg_puts(" veh=");
         dbg_putu32(g_doa_nvehicle);
+        dbg_puts(" bird=");
+        dbg_putu32(g_doa_nbird);
         dbg_puts(" walker=");
         dbg_putu32(g_doa_nwalker);
         dbg_puts(" entity=");
         dbg_putu32(g_doa_entity_id);
+        if (entity_store_dirty()) dbg_puts(" flash=dirty");
+        if (entity_store_saving()) dbg_puts(" flash=saving");
     }
 #endif
     dbg_putc('\n');
@@ -777,14 +782,15 @@ int main(void)
     dbg_puts("buzzer: PS1240 H-bridge GP6/GP7, 4kHz PN beacon\n");
 
 #if !HET68_USB_DIAG
-    // Flash-backed entity gallery (last sector). Dump before DOA starts.
+    // Flash-backed entity gallery (ACID dual-slot). Dump before DOA starts.
     entity_store_core_init();
     entity_store_init();
     entity_store_dump_uart();
+    dbg_puts("UART cmds: ENT LIST|EXPORT|IMPORT|END|HELP\n");
 
     // Direction-of-arrival on core1 (het68_launch_core1 resets core1 after SWD flash).
     doa_start();
-    dbg_puts("DOA: core1 drone+vehicle+walker (flash entity diarization)\n");
+    dbg_puts("DOA: drone+vehicle+bird+walker (opportunistic ACID flash)\n");
 #endif
 
     // Heartbeat LED. Boards whose LED is on a wireless module (e.g. Pico W /
@@ -802,6 +808,13 @@ int main(void)
     absolute_time_t next_heartbeat = make_timeout_time_ms(2000);
     uint32_t hb_count = 0;
 
+#if !HET68_USB_DIAG
+    // UART command line buffer (entity download/upload).
+    char cmd_buf[160];
+    uint32_t cmd_len = 0;
+    bool import_mode = false;
+#endif
+
     for (;;) {
         tud_task();
 
@@ -809,6 +822,52 @@ int main(void)
         if (tud_audio_mounted() && !i2s_started) {
             i2s_capture_init(AUDIO_SAMPLE_RATE);
             i2s_started = true;
+        }
+
+        // Opportunistic ACID flash: only when USB audio streaming is idle (alt=0).
+        entity_store_poll(dbg_last_alt == 0u);
+
+        // Non-blocking UART command parser.
+        while (dbg_rx_available()) {
+            int ch = dbg_getc();
+            if (ch < 0) break;
+            if (ch == '\r') continue;
+            if (ch == '\n') {
+                cmd_buf[cmd_len < sizeof(cmd_buf) ? cmd_len : (sizeof(cmd_buf) - 1u)] = '\0';
+                if (cmd_len > 0) {
+                    if (import_mode) {
+                        if (strcmp(cmd_buf, "ENT END") == 0 || strcmp(cmd_buf, "ENTBLOB END") == 0) {
+                            entity_store_import_end();
+                            import_mode = false;
+                        } else if (!entity_store_import_hex_line(cmd_buf)) {
+                            dbg_puts("ENT IMPORT ERR: bad hex line\n");
+                            import_mode = false;
+                        }
+                    } else if (strcmp(cmd_buf, "ENT LIST") == 0 || strcmp(cmd_buf, "ENT DUMP") == 0) {
+                        entity_store_dump_uart();
+                    } else if (strcmp(cmd_buf, "ENT EXPORT") == 0) {
+                        entity_store_export_uart();
+                    } else if (strcmp(cmd_buf, "ENT IMPORT") == 0) {
+                        if (entity_store_import_begin()) {
+                            import_mode = true;
+                            dbg_puts("ENT IMPORT: send ENTHEX lines, then ENT END\n");
+                        } else {
+                            dbg_puts("ENT IMPORT ERR: busy (flash save in progress)\n");
+                        }
+                    } else if (strcmp(cmd_buf, "ENT HELP") == 0 || strcmp(cmd_buf, "HELP") == 0) {
+                        dbg_puts("ENT LIST — print gallery\n");
+                        dbg_puts("ENT EXPORT — download hex blob\n");
+                        dbg_puts("ENT IMPORT — upload hex blob (ENTHEX … / ENT END)\n");
+                    } else if (strncmp(cmd_buf, "ENT", 3) == 0) {
+                        dbg_puts("ENT ?: try ENT HELP\n");
+                    }
+                }
+                cmd_len = 0;
+            } else if (cmd_len + 1u < sizeof(cmd_buf)) {
+                cmd_buf[cmd_len++] = (char)ch;
+            } else {
+                cmd_len = 0; // overflow — resync
+            }
         }
 #endif
         // Audio frames are produced in tud_audio_tx_done_pre_load_cb(), driven by
