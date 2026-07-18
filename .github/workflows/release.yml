@@ -1,0 +1,95 @@
+# Build firmware on a GitHub Release whose tag is semver core (semver.org):
+#   x.y.z   or   vx.y.z
+# Uploads UF2 + ELF as release assets.
+name: Release firmware
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-firmware-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-upload:
+    name: Build pico2 firmware
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate semver tag (x.y.z or vx.y.z)
+        id: semver
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -Eeuo pipefail
+          # Core SemVer only: MAJOR.MINOR.PATCH, optional leading "v".
+          # See https://semver.org/ — pre-release / build metadata not accepted here.
+          if [[ ! "${TAG}" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tag '${TAG}' is not x.y.z or vx.y.z (semver.org core)."
+            echo "Create the release with a tag like 1.2.3 or v1.2.3."
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "Validated semver tag: ${TAG} (version ${VERSION})"
+
+      - name: Install ARM toolchain and build deps
+        run: |
+          set -Eeuo pipefail
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential \
+            g++ \
+            cmake \
+            git \
+            python3 \
+            ninja-build \
+            gcc-arm-none-eabi \
+            libnewlib-arm-none-eabi \
+            libstdc++-arm-none-eabi-newlib
+          arm-none-eabi-gcc --version | head -1
+          cmake --version | head -1
+
+      - name: Fetch Pico SDK (pinned 2.2.0)
+        run: ./scripts/fetch_pico_sdk.sh
+
+      - name: Build firmware
+        env:
+          PICO_BOARD: pico2
+          # Prefer GNU host toolchain for picotool (SDK host tool), not clang-as-c++.
+          CC: gcc
+          CXX: g++
+        run: ./build.sh
+
+      - name: Stage release artifacts
+        env:
+          VERSION: ${{ steps.semver.outputs.version }}
+        run: |
+          set -Eeuo pipefail
+          test -f build/pico_6mic_soundcard.uf2
+          test -f build/pico_6mic_soundcard.elf
+          mkdir -p dist
+          cp -v build/pico_6mic_soundcard.uf2 "dist/het68-${VERSION}-pico2.uf2"
+          cp -v build/pico_6mic_soundcard.elf "dist/het68-${VERSION}-pico2.elf"
+          # Keep plain names too (match local ./build.sh output).
+          cp -v build/pico_6mic_soundcard.uf2 dist/pico_6mic_soundcard.uf2
+          cp -v build/pico_6mic_soundcard.elf dist/pico_6mic_soundcard.elf
+          ls -la dist/
+
+      - name: Upload assets to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.semver.outputs.tag }}
+          files: |
+            dist/het68-${{ steps.semver.outputs.version }}-pico2.uf2
+            dist/het68-${{ steps.semver.outputs.version }}-pico2.elf
+            dist/pico_6mic_soundcard.uf2
+            dist/pico_6mic_soundcard.elf
+          fail_on_unmatched_files: true

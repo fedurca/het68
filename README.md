@@ -191,9 +191,26 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   receive/ranging side is a later phase. The beacon count appears in the heartbeat
   (`bcn=`).
 
+## Downloads
+
+Pre-built firmware for each tagged release is published on GitHub Releases:
+
+**https://github.com/fedurca/het68/releases**
+
+Create a GitHub Release whose tag is SemVer core ([semver.org](https://semver.org/))
+— `x.y.z` or `vx.y.z` (e.g. `1.2.3` / `v1.2.3`) — and CI builds the default
+`pico2` firmware and attaches `.uf2` / `.elf` assets to that release.
+
 ## Build
 
-The Pico SDK is vendored at `./pico-sdk`; no environment variables are required.
+The Pico SDK is cloned locally into `./pico-sdk` (gitignored); no environment
+variables are required. On a fresh checkout:
+
+```bash
+./scripts/fetch_pico_sdk.sh   # Pico SDK 2.2.0 + TinyUSB submodule
+./build.sh
+```
+
 See `BUILDING.md` for details.
 
 ### Target board
@@ -270,6 +287,10 @@ HET68_USB_DIAG=ON ./build.sh
 
 ## Flash
 
+Download a pre-built `.uf2` / `.elf` from
+[GitHub Releases](https://github.com/fedurca/het68/releases), or build locally
+(`./scripts/fetch_pico_sdk.sh && ./build.sh`).
+
 * **Via Raspberry Pi Debug Probe (SWD), recommended for the lab setup:**
 
 ```bash
@@ -278,7 +299,8 @@ HET68_USB_DIAG=ON ./build.sh
 ```
 
 * **Via UF2 / BOOTSEL:** hold `BOOTSEL` while plugging in the Pico, then copy
-  `build/pico_6mic_soundcard.uf2` to the `RP2350` mass-storage volume.
+  `build/pico_6mic_soundcard.uf2` (or the versioned asset from the release) to
+  the `RP2350` mass-storage volume.
 
 ## Lab capture
 
