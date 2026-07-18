@@ -77,6 +77,13 @@ if(DEFINED HET68_DOA_EDGE_MM)
     add_compile_definitions(HET68_DOA_EDGE_MM=${HET68_DOA_EDGE_MM})
     message(STATUS "het68: DOA cube edge=${HET68_DOA_EDGE_MM} mm")
 endif()
+# Optional array centre height above ground (mm) for human ground (x,y) projection.
+# Default in doa.c is edge * √3/2 (vertex-down cube sitting on the ground).
+#   HET68_DOA_HEIGHT_MM=1000 ./build.sh
+if(DEFINED HET68_DOA_HEIGHT_MM)
+    add_compile_definitions(HET68_DOA_HEIGHT_MM=${HET68_DOA_HEIGHT_MM})
+    message(STATUS "het68: DOA array height=${HET68_DOA_HEIGHT_MM} mm")
+endif()
 
 # Wrap panic at link time as belt-and-suspenders: some pico-sdk libraries may
 # have been pre-built without PICO_PANIC_FUNCTION, so --wrap catches those too.

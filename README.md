@@ -157,26 +157,32 @@ BOM and module layout: `wiring_and_bom.md`.
 
 Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
 
-* **Direction of arrival (DOA).** The decoded 6-channel stream is fed into a ring
-  buffer and analysed continuously on **core1**. Each analysis window is
-  bandpass-filtered into the **drone-relevant band (~800 Hz–6 kHz)** with a
-  cascaded Butterworth pair (HPF 800 Hz + LPF 6 kHz) so wind/rumble below
-  ~250–300 Hz does not dominate the TDOA. A parallel LPF (~250 Hz) estimates
-  wind-band energy; mics where bandpass energy is too weak relative to wind
-  (`wrat`) are gated out. Remaining channels are cross-correlated (time-domain
-  GCC), then least-squares solved into a 3D unit vector → **azimuth + elevation**
-  of the loudest in-band source, plus confidence and level. UART example:
+* **Multi-source DOA (drone vs human).** core1 runs two parallel front-ends on the
+  same 6-channel stream:
+
+  | Class | Band | Cue | Tracks |
+  |---|---|---|---|
+  | **drone** | ~800 Hz–6 kHz | continuous energy, wind gate, crest limit | up to **2** (primary + SIC residual) |
+  | **human** | ~150 Hz–600 Hz | footstep **onset** + impulsive crest | up to **3** (angle-gated tracks) |
+
+  Each accepted source is least-squares TDOA → azimuth/elevation. Walkers are also
+  projected onto the **ground plane** using the array centre height (default
+  `edge·√3/2` for a vertex-down cube; override with `HET68_DOA_HEIGHT_MM`) →
+  estimated `rng` / `x` / `y` in metres. UART example:
 
   ```
-  DOA az=137.4 el=22.8 conf=0.7 lvl=-31.2dB wrat=2.4 ref=0 pairs=4
+  SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB
+  SRC class=human id=0 az=45.0 el=-32.1 conf=0.5 lvl=-40.0dB rng=1.8m x=1.3 y=1.2
+  TRACKS drone=1 human=1
   ```
 
   - Azimuth is compass degrees (0° = north, clockwise); elevation is ±90°.
-  - `wrat` is bandpass/wind energy ratio (higher → less wind-dominated).
-  - A single node gives **direction only**; range needs triangulation from several
-    synchronised nodes.
+  - Drone and human detectors run **at the same time** (independent bands/tracks).
+  - Multi-target is best-effort on one node (2 drones / 3 walkers); dense crowds or
+    close co-located sources will merge. Range for humans is a geometric estimate
+    (flat ground + known height), not multilateration.
   - After OpenOCD/SWD flash, core1 must be launched via `het68_launch_core1()` in
-    `core1_launch.c` (`multicore_reset_core1()` + 1 ms settle + verify); see `doa.c`.
+    `core1_launch.c`; see `doa.c`.
 
 * **Array geometry.** A cube standing on a vertex, **512 mm** edge. Mics 1–3 are
   the three upper faces (mic 1 = north, then +120°, +240° azimuth, all at +35.26°

@@ -28,6 +28,9 @@ fi
 if [ -n "${HET68_DOA_EDGE_MM:-}" ]; then
   CMAKE_ARGS+=(-DHET68_DOA_EDGE_MM="${HET68_DOA_EDGE_MM}")
 fi
+if [ -n "${HET68_DOA_HEIGHT_MM:-}" ]; then
+  CMAKE_ARGS+=(-DHET68_DOA_HEIGHT_MM="${HET68_DOA_HEIGHT_MM}")
+fi
 cmake "${CMAKE_ARGS[@]}"
 
 # build ve verbose režimu (funguje pro Ninja i Make)
