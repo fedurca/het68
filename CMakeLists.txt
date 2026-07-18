@@ -15,6 +15,9 @@ set(SRCS
     core1_launch.c
     doa.c
     entity_store.c
+    detection_log.c
+    het68_time.c
+    cli.c
 )
 
 add_executable(pico_6mic_soundcard ${SRCS})

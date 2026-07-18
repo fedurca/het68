@@ -157,44 +157,37 @@ BOM and module layout: `wiring_and_bom.md`.
 
 Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
 
-* **Multi-source DOA (drone + vehicle + bird + single walker) with ACID flash diarization.**
-  core1 runs four parallel front-ends:
+* **Multi-source DOA (drone + vehicle + bird + walker + wind) with CLI + DET log.**
+  core1 runs parallel front-ends:
 
   | Class | Band | Cue | Tracks |
   |---|---|---|---|
-  | **drone** | ~800 Hz–6 kHz | continuous, wind gate, crest limit | up to **2** |
-  | **vehicle** | ~80 Hz–2.5 kHz | continuous pass-by → **ICE** / **EV** | up to **2** |
+  | **drone** | ~800 Hz–6 kHz | continuous, **wind gate kept**, crest limit | up to **2** |
+  | **wind** | LPF ~250 Hz | same energy as the gate → **intensity + steered az/el** | status |
+  | **vehicle** | ~80 Hz–2.5 kHz | pass-by → **ICE** / **EV** | up to **2** |
   | **bird** | ~2–8 kHz | chirp bout → songbird / corvid / bird | up to **2** |
-  | **walker** | ~150 Hz–600 Hz | footstep onset bout (≥3 steps) → human/cat/dog | **1** |
+  | **walker** | ~150 Hz–600 Hz | footstep bout (≥3 steps) → human/cat/dog | **1** |
 
-  Recognised entities live in a **RAM-first gallery** persisted with an **ACID
-  dual-slot** scheme in the last two 4 KiB flash sectors (`entity_store.c`, blob
-  v2: magic + seq + CRC32). `match_or_create` never touches flash; `entity_store_poll()`
-  erases/programs **one page at a time only when USB audio alt=0**, so streaming
-  is not stalled. On boot the gallery is listed on UART. Re-ID uses `entity=` +
-  heuristic `match=` 0–1. Birds report DOA `az`/`el` as position; walkers also get
-  ground `rng`/`x`/`y` (height: `edge·√3/2` or `HET68_DOA_HEIGHT_MM`).
+  **Entity gallery** (`entity_store`) = classification templates (ACID dual-slot,
+  last two flash sectors). **Detection log** (`detection_log`) = timed events in a
+  **separate** flash region (two sectors below the gallery) with `first_seen`,
+  `last_seen`, `occurrence`, `max_gap_ms`. DET timestamps are written **only after**
+  `TIME SYNC <unix>` since boot. `DET EXPORT` emits **JSON Lines** (`NVREVT`) for
+  smart-NVR event correlation.
 
-  UART gallery transfer: `ENT LIST` | `ENT EXPORT` | `ENT IMPORT` … `ENTHEX …` …
-  `ENT END` | `ENT HELP`. Import validates CRC then marks dirty; flash commit is
-  opportunistic when USB is idle.
-
-  UART example:
+  UART **CLI** (help on boot / first byte / USB mount): `HELP`, `TIME` /
+  `TIME SYNC`, `LOG ON|OFF`, `DET LIST|EXPORT|BACKUP|IMPORT|DEL|CLEAR`,
+  `ENT LIST|EXPORT|IMPORT`. See [`TEST_SCENARIOS_1.0.6.md`](TEST_SCENARIOS_1.0.6.md).
 
   ```
-  === entity store (flash) n=2 next_id=3 ===
-  ENT id=1 class=human hits=4 cadence=1.80Hz low=0.48 mid=0.00 high=0.14 lvl=-40.00dB
-  ENT id=2 class=songbird hits=1 cadence=4.20Hz low=0.20 mid=0.10 high=0.55 lvl=-36.00dB
-  === end entity store ===
+  SRC class=wind az=180.0 el=10.0 inten=-22.5dB
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB
-  SRC class=songbird entity=2 az=210.0 el=35.0 conf=0.6 lvl=-36.0dB match=0.71 (bird position)
-  SRC class=human entity=1 az=45.0 el=-32.1 conf=0.5 lvl=-40.0dB match=0.82 cadence=1.80Hz rng=1.8m x=1.3 y=1.2
-  TRACKS drone=1 vehicle=0 bird=1 walker=1 entity=2
+  DET id=3 class=wind first=1720000000 last=1720000012 occ=8 max_gap_ms=400 az=180.0 el=10.0 inten=-22.5dB
+  TRACKS drone=1 vehicle=0 bird=0 walker=0 wind=1 entity=0
   ```
 
-  - Species / ICE·EV / re-ID are best-effort heuristics, not a trained model.
+  - Species / ICE·EV / wind direction / re-ID are best-effort heuristics.
   - Walker tracking assumes **one** walking entity at a time.
-  - Upgrading from gallery blob v1 clears the old single-sector store once.
 
 * **Array geometry.** A cube standing on a vertex, **512 mm** edge. Mics 1–3 are
   the three upper faces (mic 1 = north, then +120°, +240° azimuth, all at +35.26°

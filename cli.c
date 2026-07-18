@@ -1,0 +1,201 @@
+// cli.c — UART command-line interface for gallery + detection log + time/log.
+#include "cli.h"
+#include "debug_io.h"
+#include "entity_store.h"
+#include "detection_log.h"
+#include "het68_time.h"
+#include <string.h>
+
+static char g_buf[192];
+static uint32_t g_len;
+static bool g_ent_import;
+static bool g_det_import;
+static bool g_help_shown;
+
+void cli_print_help(void) {
+    uint32_t lock = dbg_line_lock();
+    dbg_puts("=== het68 CLI ===\n");
+    dbg_puts("HELP                 — this help\n");
+    dbg_puts("TIME                 — show clock / sync status\n");
+    dbg_puts("TIME SYNC <unix>     — sync wall clock (required for DET timestamps)\n");
+    dbg_puts("LOG ON | LOG OFF     — enable/disable SRC/ENTITY stdout logging\n");
+    dbg_puts("LOG                  — show log status\n");
+    dbg_puts("DET LIST             — list saved detections\n");
+    dbg_puts("DET EXPORT           — NVR JSON Lines (NVREVT)\n");
+    dbg_puts("DET BACKUP           — hex blob download (DETBLOB)\n");
+    dbg_puts("DET IMPORT           — upload hex blob (DETHEX … / DET END)\n");
+    dbg_puts("DET DEL <id>         — delete one detection\n");
+    dbg_puts("DET CLEAR            — delete all detections\n");
+    dbg_puts("ENT LIST             — entity gallery (classification templates)\n");
+    dbg_puts("ENT EXPORT|IMPORT    — gallery hex blob transfer\n");
+    dbg_puts("Note: DET timestamps only after TIME SYNC since boot.\n");
+    dbg_puts("=================\n");
+    dbg_line_unlock(lock);
+}
+
+void cli_init(void) {
+    g_len = 0;
+    g_ent_import = false;
+    g_det_import = false;
+    g_help_shown = false;
+}
+
+void cli_on_connect(void) {
+    if (g_help_shown) return;
+    g_help_shown = true;
+    cli_print_help();
+}
+
+static uint32_t parse_u32(const char *s) {
+    uint32_t v = 0;
+    while (*s == ' ') s++;
+    while (*s >= '0' && *s <= '9') {
+        v = v * 10u + (uint32_t)(*s - '0');
+        s++;
+    }
+    return v;
+}
+
+static void handle_line(char *line) {
+    // Trim trailing spaces
+    size_t n = strlen(line);
+    while (n && (line[n - 1] == ' ' || line[n - 1] == '\t')) line[--n] = '\0';
+
+    if (g_ent_import) {
+        if (strcmp(line, "ENT END") == 0 || strcmp(line, "ENTBLOB END") == 0) {
+            entity_store_import_end();
+            g_ent_import = false;
+        } else if (!entity_store_import_hex_line(line)) {
+            dbg_puts("ENT IMPORT ERR: bad hex line\n");
+            g_ent_import = false;
+        }
+        return;
+    }
+    if (g_det_import) {
+        if (strcmp(line, "DET END") == 0 || strcmp(line, "DETBLOB END") == 0) {
+            detection_log_import_end();
+            g_det_import = false;
+        } else if (!detection_log_import_hex_line(line)) {
+            dbg_puts("DET IMPORT ERR: bad hex line\n");
+            g_det_import = false;
+        }
+        return;
+    }
+
+    if (line[0] == '\0' || strcmp(line, "HELP") == 0 || strcmp(line, "?") == 0) {
+        cli_print_help();
+        return;
+    }
+
+    if (strcmp(line, "TIME") == 0) {
+        het68_time_dump_uart();
+        return;
+    }
+    if (strncmp(line, "TIME SYNC ", 10) == 0) {
+        uint32_t ep = parse_u32(line + 10);
+        if (het68_time_sync(ep)) {
+            dbg_puts("TIME OK epoch=");
+            dbg_putu32(het68_time_epoch_sec());
+            dbg_putc('\n');
+        } else {
+            dbg_puts("TIME ERR: need unix epoch >= 1700000000\n");
+        }
+        return;
+    }
+
+    if (strcmp(line, "LOG") == 0) {
+        dbg_puts("LOG stdout=");
+        dbg_puts(dbg_log_enabled() ? "on" : "off");
+        dbg_putc('\n');
+        return;
+    }
+    if (strcmp(line, "LOG ON") == 0) {
+        dbg_log_set(true);
+        dbg_puts("LOG stdout=on\n");
+        return;
+    }
+    if (strcmp(line, "LOG OFF") == 0) {
+        dbg_log_set(false);
+        dbg_puts("LOG stdout=off\n");
+        return;
+    }
+
+    if (strcmp(line, "DET LIST") == 0 || strcmp(line, "DET DUMP") == 0) {
+        detection_log_list_uart();
+        return;
+    }
+    if (strcmp(line, "DET EXPORT") == 0) {
+        detection_log_export_nvr();
+        return;
+    }
+    if (strcmp(line, "DET BACKUP") == 0) {
+        detection_log_export_hex();
+        return;
+    }
+    if (strcmp(line, "DET IMPORT") == 0) {
+        if (detection_log_import_begin()) {
+            g_det_import = true;
+            dbg_puts("DET IMPORT: send DETHEX lines, then DET END\n");
+        } else {
+            dbg_puts("DET IMPORT ERR: busy\n");
+        }
+        return;
+    }
+    if (strncmp(line, "DET DEL ", 8) == 0) {
+        uint32_t id = parse_u32(line + 8);
+        if (detection_log_delete_id(id)) dbg_puts("DET DEL OK\n");
+        else dbg_puts("DET DEL ERR: not found\n");
+        return;
+    }
+    if (strcmp(line, "DET CLEAR") == 0 || strcmp(line, "DET DELETE ALL") == 0) {
+        detection_log_clear();
+        dbg_puts("DET CLEAR OK\n");
+        return;
+    }
+
+    if (strcmp(line, "ENT LIST") == 0 || strcmp(line, "ENT DUMP") == 0) {
+        entity_store_dump_uart();
+        return;
+    }
+    if (strcmp(line, "ENT EXPORT") == 0) {
+        entity_store_export_uart();
+        return;
+    }
+    if (strcmp(line, "ENT IMPORT") == 0) {
+        if (entity_store_import_begin()) {
+            g_ent_import = true;
+            dbg_puts("ENT IMPORT: send ENTHEX lines, then ENT END\n");
+        } else {
+            dbg_puts("ENT IMPORT ERR: busy\n");
+        }
+        return;
+    }
+    if (strcmp(line, "ENT HELP") == 0) {
+        cli_print_help();
+        return;
+    }
+
+    if (strncmp(line, "DET", 3) == 0 || strncmp(line, "ENT", 3) == 0 ||
+        strncmp(line, "TIME", 4) == 0 || strncmp(line, "LOG", 3) == 0) {
+        dbg_puts("?: unknown command — HELP\n");
+    }
+}
+
+void cli_rx_byte(int ch) {
+    if (ch < 0) return;
+    // First byte from host → treat as "connected" and show help once.
+    if (!g_help_shown) cli_on_connect();
+
+    if (ch == '\r') return;
+    if (ch == '\n') {
+        g_buf[g_len < sizeof(g_buf) ? g_len : (sizeof(g_buf) - 1u)] = '\0';
+        handle_line(g_buf);
+        g_len = 0;
+        return;
+    }
+    if (g_len + 1u < sizeof(g_buf)) {
+        g_buf[g_len++] = (char)ch;
+    } else {
+        g_len = 0;
+    }
+}
