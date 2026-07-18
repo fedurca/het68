@@ -157,32 +157,35 @@ BOM and module layout: `wiring_and_bom.md`.
 
 Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
 
-* **Multi-source DOA (drone vs human).** core1 runs two parallel front-ends on the
-  same 6-channel stream:
+* **Multi-source DOA (drone + single walker with diarization).** core1 runs two
+  parallel front-ends on the same 6-channel stream:
 
   | Class | Band | Cue | Tracks |
   |---|---|---|---|
   | **drone** | ~800 Hz–6 kHz | continuous energy, wind gate, crest limit | up to **2** (primary + SIC residual) |
-  | **human** | ~150 Hz–600 Hz | footstep **onset** + impulsive crest | up to **3** (angle-gated tracks) |
+  | **walker** | ~150 Hz–600 Hz | footstep **onset** bout (≥3 steps) | **1** walking entity |
 
-  Each accepted source is least-squares TDOA → azimuth/elevation. Walkers are also
+  After a quiet gap (~2.5 s) the bout is classified as **human / cat / dog** from
+  cadence + spectral ratios (low 150–250 Hz vs high 400–600 Hz) + impact level,
+  then matched against an on-device **entity gallery** (up to 8 signatures) for
+  simple re-identification (`entity=` id, `match=` 0–1). Walkers are also
   projected onto the **ground plane** using the array centre height (default
-  `edge·√3/2` for a vertex-down cube; override with `HET68_DOA_HEIGHT_MM`) →
-  estimated `rng` / `x` / `y` in metres. UART example:
+  `edge·√3/2`; override with `HET68_DOA_HEIGHT_MM`) → `rng` / `x` / `y`. UART:
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB
-  SRC class=human id=0 az=45.0 el=-32.1 conf=0.5 lvl=-40.0dB rng=1.8m x=1.3 y=1.2
-  TRACKS drone=1 human=1
+  ENTITY id=3 class=human steps=5 cadence=1.80Hz match=0.82 low=0.48 high=0.14
+  SRC class=human entity=3 az=45.0 el=-32.1 conf=0.5 lvl=-40.0dB match=0.82 cadence=1.80Hz rng=1.8m x=1.3 y=1.2
+  TRACKS drone=1 walker=1 entity=3
   ```
 
   - Azimuth is compass degrees (0° = north, clockwise); elevation is ±90°.
-  - Drone and human detectors run **at the same time** (independent bands/tracks).
-  - Multi-target is best-effort on one node (2 drones / 3 walkers); dense crowds or
-    close co-located sources will merge. Range for humans is a geometric estimate
-    (flat ground + known height), not multilateration.
-  - After OpenOCD/SWD flash, core1 must be launched via `het68_launch_core1()` in
-    `core1_launch.c`; see `doa.c`.
+  - Drone + walker run **at the same time**; walker tracking assumes **one**
+    walking entity (by design for reliable species/diarization cues).
+  - Species / re-ID is best-effort acoustic heuristics — not a trained model.
+    Same animal on a different surface, or two similar dogs, can confuse the gallery.
+  - After OpenOCD/SWD flash, core1 must be launched via `het68_launch_core1()`;
+    see `doa.c`.
 
 * **Array geometry.** A cube standing on a vertex, **512 mm** edge. Mics 1–3 are
   the three upper faces (mic 1 = north, then +120°, +240° azimuth, all at +35.26°

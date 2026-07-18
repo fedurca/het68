@@ -1,9 +1,10 @@
-// doa.c — multi-source 3D DOA on core1 with drone vs human classification.
+// doa.c — multi-source 3D DOA on core1 with drone + walker diarization.
 //
 // core0 pushes each 6-channel frame via doa_ring_push() from the USB/I2S feed.
-// core1 runs two parallel acoustic front-ends:
-//   • drone band  (~800 Hz–6 kHz): continuous TDOA, up to 2 tracks (primary + SIC)
-//   • human band  (~150 Hz–600 Hz): onset/footstep detector → TDOA, up to 3 tracks
+// core1 runs:
+//   • drone band (~800 Hz–6 kHz): continuous TDOA, up to 2 tracks (primary + SIC)
+//   • walker band (~150–600 Hz): single walking entity — onset bout → classify
+//     human/cat/dog + simple gallery diarization (re-identify same entity)
 // Walkers are projected onto the ground plane (array height) → x/y/range.
 //
 // core1 must be launched with het68_launch_core1() (see core1_launch.c).
@@ -17,8 +18,8 @@
 
 // ---------------------------------------------------------------------------
 // Array geometry — cube standing on a vertex, mics at the six face centres.
-// Override edge: HET68_DOA_EDGE_MM=150 ./build.sh
-// Override height above ground (mm): HET68_DOA_HEIGHT_MM=1000 ./build.sh
+// Override edge:   HET68_DOA_EDGE_MM=150 ./build.sh
+// Override height: HET68_DOA_HEIGHT_MM=1000 ./build.sh
 // ---------------------------------------------------------------------------
 #ifdef HET68_DOA_EDGE_MM
 #define DOA_EDGE_MM     HET68_DOA_EDGE_MM
@@ -28,8 +29,6 @@
 #define DOA_EDGE_M      (DOA_EDGE_MM * 0.001f)
 #define DOA_FACE_R      (DOA_EDGE_M * 0.5f)
 
-// Vertex-down cube: centre height ≈ edge * √3/2 when the lower vertex sits on
-// the ground. Used to turn human az/el into a ground (x,y) estimate.
 #ifdef HET68_DOA_HEIGHT_MM
 #define DOA_HEIGHT_MM   HET68_DOA_HEIGHT_MM
 #else
@@ -75,18 +74,22 @@ static float MIC_POS[6][3];
 
 #define DOA_DRONE_RMS       2.5f
 #define DOA_WIND_RATIO      0.35f
-#define DOA_HUMAN_RMS       3.0f
-#define DOA_HUMAN_CREST     3.5f     // peak/rms in step band → impulsive
-#define DOA_DRONE_CREST_MAX 6.0f     // continuous-ish in drone band
-#define DOA_ONSET_K         4.0f     // envelope vs noise floor
+#define DOA_WALK_RMS        3.0f
+#define DOA_WALK_CREST      3.5f
+#define DOA_DRONE_CREST_MAX 6.0f
+#define DOA_ONSET_K         4.0f
 #define DOA_ONSET_ABS       40.0f
-#define DOA_REFRACTORY      9000u    // ~187 ms @ 48 kHz between footfall DOAs
+#define DOA_REFRACTORY      4800u    // ~100 ms — allows cat/dog cadence
 #define DOA_STREAM_CHUNK    512u
+#define DOA_BOUT_GAP        120000u  // ~2.5 s silence ends a walking bout
+#define DOA_BOUT_MIN_STEPS  3u
+#define DOA_BOUT_MAX_STEPS  16u
 
 #define DOA_MAX_DRONE       2
-#define DOA_MAX_HUMAN       3
 #define DOA_GATE_DEG        30.0f
-#define DOA_TRACK_TTL       12u      // report cycles without update → drop
+#define DOA_TRACK_TTL       12u
+#define DOA_GALLERY_N       8
+#define DOA_MATCH_MAX_DIST  0.55f    // signature L2; below → same entity
 
 #define DOA_RING_SZ         2048u
 #define DOA_RING_MASK       (DOA_RING_SZ - 1u)
@@ -101,7 +104,8 @@ volatile uint32_t g_doa_out;
 volatile uint32_t g_doa_nactive;
 volatile uint32_t g_doa_iter;
 volatile uint32_t g_doa_ndrone;
-volatile uint32_t g_doa_nhuman;
+volatile uint32_t g_doa_nwalker;
+volatile uint32_t g_doa_entity_id;
 
 void doa_ring_push(const int16_t s6[6]) {
     uint32_t h = g_head;
@@ -111,9 +115,6 @@ void doa_ring_push(const int16_t s6[6]) {
     g_head = h + 1u;
 }
 
-// ---------------------------------------------------------------------------
-// UART helpers
-// ---------------------------------------------------------------------------
 static void put_f1(float v) {
     if (v < 0.0f) { dbg_putc('-'); v = -v; }
     uint32_t ip = (uint32_t)v;
@@ -121,6 +122,17 @@ static void put_f1(float v) {
     if (fp >= 10u) { ip++; fp = 0u; }
     dbg_putu32(ip);
     dbg_putc('.');
+    dbg_putu32(fp);
+}
+
+static void put_f2(float v) {
+    if (v < 0.0f) { dbg_putc('-'); v = -v; }
+    uint32_t ip = (uint32_t)v;
+    uint32_t fp = (uint32_t)((v - (float)ip) * 100.0f + 0.5f);
+    if (fp >= 100u) { ip++; fp = 0u; }
+    dbg_putu32(ip);
+    dbg_putc('.');
+    if (fp < 10u) dbg_putc('0');
     dbg_putu32(fp);
 }
 
@@ -161,7 +173,6 @@ static const biquad_coef_t k_lpf250 = {
     2.6165269507e-04f, 5.2330539013e-04f, 2.6165269507e-04f,
     -1.9537279491e+00f, 9.5477455992e-01f
 };
-// Footstep / body-impact band ~150–600 Hz (above deep rumble, below drone hiss).
 static const biquad_coef_t k_hpf150 = {
     9.8621192463e-01f, -1.9724238493e+00f, 9.8621192463e-01f,
     -1.9722337292e+00f, 9.7261396931e-01f
@@ -169,6 +180,10 @@ static const biquad_coef_t k_hpf150 = {
 static const biquad_coef_t k_lpf600 = {
     1.4603163055e-03f, 2.9206326111e-03f, 1.4603163055e-03f,
     -1.8890330794e+00f, 8.9487434462e-01f
+};
+static const biquad_coef_t k_hpf400 = {
+    9.6365276396e-01f, -1.9273055279e+00f, 9.6365276396e-01f,
+    -1.9259839697e+00f, 9.2862708612e-01f
 };
 
 static inline float biquad_step(const biquad_coef_t *c, biquad_mem_t *s, float x) {
@@ -179,9 +194,25 @@ static inline float biquad_step(const biquad_coef_t *c, biquad_mem_t *s, float x
 }
 
 // ---------------------------------------------------------------------------
-// Tracks
+// Classes / tracks / gallery
 // ---------------------------------------------------------------------------
-typedef enum { CLS_DRONE = 1, CLS_HUMAN = 2 } src_class_t;
+typedef enum {
+    CLS_NONE = 0,
+    CLS_DRONE = 1,
+    CLS_HUMAN = 2,
+    CLS_CAT = 3,
+    CLS_DOG = 4
+} src_class_t;
+
+static const char *class_name(src_class_t c) {
+    switch (c) {
+        case CLS_DRONE: return "drone";
+        case CLS_HUMAN: return "human";
+        case CLS_CAT:   return "cat";
+        case CLS_DOG:   return "dog";
+        default:        return "none";
+    }
+}
 
 typedef struct {
     bool used;
@@ -190,50 +221,71 @@ typedef struct {
     float x_m, y_m, range_m;
     bool have_xy;
     uint32_t age;
-    uint32_t hits;
+    uint32_t entity_id;   // gallery id for walkers (1..N); 0 for drones
+    float match;          // 0..1 similarity to gallery template
+    float cadence_hz;
 } track_t;
 
+// Walker acoustic signature for diarization (normalized-ish features).
+typedef struct {
+    float cadence_hz;   // ~1–5
+    float peak_db;      // impact level (negative dBFS-ish)
+    float low_ratio;    // 150–250 Hz / full step-band energy
+    float high_ratio;   // 400–600 Hz / full step-band energy
+    float crest;
+    float az_n;         // az/360
+    float el_n;         // (el+90)/180
+} sig_t;
+
+typedef struct {
+    bool used;
+    uint32_t id;
+    src_class_t cls;
+    sig_t sig;
+    uint32_t hits;
+    uint32_t last_seen;   // sample counter
+} gallery_slot_t;
+
 static track_t g_drones[DOA_MAX_DRONE];
-static track_t g_humans[DOA_MAX_HUMAN];
+static track_t g_walker;                 // single walking entity
+static gallery_slot_t g_gallery[DOA_GALLERY_N];
+static uint32_t g_next_entity_id = 1;
 
 static float ang_diff_deg(float a, float b) {
     float d = fabsf(a - b);
     return (d > 180.0f) ? (360.0f - d) : d;
 }
 
-static int track_find(track_t *tr, int nmax, float az, float el) {
+static int track_find_drone(float az, float el) {
     int best = -1;
     float best_d = DOA_GATE_DEG;
-    for (int i = 0; i < nmax; i++) {
-        if (!tr[i].used) continue;
-        float d = ang_diff_deg(az, tr[i].az) + fabsf(el - tr[i].el);
+    for (int i = 0; i < DOA_MAX_DRONE; i++) {
+        if (!g_drones[i].used) continue;
+        float d = ang_diff_deg(az, g_drones[i].az) + fabsf(el - g_drones[i].el);
         if (d < best_d) { best_d = d; best = i; }
     }
     return best;
 }
 
-static int track_alloc(track_t *tr, int nmax) {
-    int free_i = -1;
-    int oldest = -1;
-    uint32_t oldest_age = 0;
-    for (int i = 0; i < nmax; i++) {
-        if (!tr[i].used) { free_i = i; break; }
-        if (tr[i].age >= oldest_age) { oldest_age = tr[i].age; oldest = i; }
-    }
-    return (free_i >= 0) ? free_i : oldest;
+static int track_alloc_drone(void) {
+    for (int i = 0; i < DOA_MAX_DRONE; i++) if (!g_drones[i].used) return i;
+    int oldest = 0;
+    for (int i = 1; i < DOA_MAX_DRONE; i++)
+        if (g_drones[i].age > g_drones[oldest].age) oldest = i;
+    return oldest;
 }
 
-static void track_age_all(track_t *tr, int nmax) {
-    for (int i = 0; i < nmax; i++) {
-        if (!tr[i].used) continue;
-        tr[i].age++;
-        if (tr[i].age > DOA_TRACK_TTL) tr[i].used = false;
+static void track_age_drones(void) {
+    for (int i = 0; i < DOA_MAX_DRONE; i++) {
+        if (!g_drones[i].used) continue;
+        g_drones[i].age++;
+        if (g_drones[i].age > DOA_TRACK_TTL) g_drones[i].used = false;
     }
 }
 
-static uint32_t track_count(const track_t *tr, int nmax) {
+static uint32_t track_count_drones(void) {
     uint32_t n = 0;
-    for (int i = 0; i < nmax; i++) if (tr[i].used) n++;
+    for (int i = 0; i < DOA_MAX_DRONE; i++) if (g_drones[i].used) n++;
     return n;
 }
 
@@ -242,7 +294,6 @@ static bool ground_xy(float az_deg, float el_deg, float *x, float *y, float *rng
     float el = el_deg * deg2rad;
     float az = az_deg * deg2rad;
     float dz = sinf(el);
-    // Footfalls are on the ground below the array → need downward ray.
     if (dz > -0.08f) return false;
     float t = -DOA_HEIGHT_M / dz;
     float c = cosf(el);
@@ -252,42 +303,29 @@ static bool ground_xy(float az_deg, float el_deg, float *x, float *y, float *rng
     return (*rng > 0.15f) && (*rng < 40.0f);
 }
 
-static void track_upsert(track_t *tr, int nmax, src_class_t cls,
-                         float az, float el, float conf, float lvl_db) {
-    int i = track_find(tr, nmax, az, el);
-    if (i < 0) i = track_alloc(tr, nmax);
-    if (i < 0) return;
-    // Mild EMA when updating an existing track.
-    if (tr[i].used && tr[i].cls == cls) {
-        tr[i].az = 0.7f * tr[i].az + 0.3f * az;
-        tr[i].el = 0.7f * tr[i].el + 0.3f * el;
-        tr[i].conf = 0.6f * tr[i].conf + 0.4f * conf;
-        tr[i].lvl_db = 0.6f * tr[i].lvl_db + 0.4f * lvl_db;
-        tr[i].hits++;
+static void drone_upsert(float az, float el, float conf, float lvl_db) {
+    int i = track_find_drone(az, el);
+    if (i < 0) i = track_alloc_drone();
+    if (g_drones[i].used) {
+        g_drones[i].az = 0.7f * g_drones[i].az + 0.3f * az;
+        g_drones[i].el = 0.7f * g_drones[i].el + 0.3f * el;
+        g_drones[i].conf = 0.6f * g_drones[i].conf + 0.4f * conf;
+        g_drones[i].lvl_db = 0.6f * g_drones[i].lvl_db + 0.4f * lvl_db;
     } else {
-        tr[i].az = az;
-        tr[i].el = el;
-        tr[i].conf = conf;
-        tr[i].lvl_db = lvl_db;
-        tr[i].hits = 1;
+        g_drones[i].az = az;
+        g_drones[i].el = el;
+        g_drones[i].conf = conf;
+        g_drones[i].lvl_db = lvl_db;
     }
-    tr[i].used = true;
-    tr[i].cls = cls;
-    tr[i].age = 0;
-    tr[i].have_xy = false;
-    if (cls == CLS_HUMAN) {
-        float x, y, r;
-        if (ground_xy(tr[i].az, tr[i].el, &x, &y, &r)) {
-            tr[i].x_m = x;
-            tr[i].y_m = y;
-            tr[i].range_m = r;
-            tr[i].have_xy = true;
-        }
-    }
+    g_drones[i].used = true;
+    g_drones[i].cls = CLS_DRONE;
+    g_drones[i].age = 0;
+    g_drones[i].entity_id = 0;
+    g_drones[i].have_xy = false;
 }
 
 // ---------------------------------------------------------------------------
-// Shared TDOA core (operates on g_work / g_energy)
+// Shared TDOA core
 // ---------------------------------------------------------------------------
 static float g_work[6][DOA_N];
 static float g_energy[6];
@@ -394,7 +432,6 @@ static doa_fix_t solve_tdoa(const bool active[6]) {
     return out;
 }
 
-// Crude successive interference cancellation toward `dir`, then re-solve.
 static void cancel_direction(const float dir[3], int ref) {
     for (int i = 0; i < 6; i++) {
         if (i == ref) continue;
@@ -412,7 +449,6 @@ static void cancel_direction(const float dir[3], int ref) {
             g_work[i][n] -= 0.85f * g_work[ref][src];
         }
     }
-    // Blank the reference so the next solve picks another loud mic.
     for (uint32_t n = 0; n < DOA_N; n++) g_work[ref][n] = 0.0f;
     for (int c = 0; c < 6; c++) {
         float e = 0.0f;
@@ -424,20 +460,13 @@ static void cancel_direction(const float dir[3], int ref) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Band preparation helpers
-// ---------------------------------------------------------------------------
 static float prepare_drone_band(bool active[6]) {
-    float wrat_sum = 0.0f;
-    int wrat_n = 0;
     int nactive = 0;
     float crest_num = 0.0f, crest_den = 0.0f;
-
     for (int c = 0; c < 6; c++) {
         float mean = 0.0f;
         for (uint32_t n = 0; n < DOA_N; n++) mean += g_work[c][n];
         mean /= (float)DOA_N;
-
         biquad_mem_t hp = {0}, lp = {0}, wind = {0};
         float e_bp = 0.0f, e_wind = 0.0f, peak = 0.0f;
         for (uint32_t n = 0; n < DOA_N; n++) {
@@ -454,79 +483,334 @@ static float prepare_drone_band(bool active[6]) {
             }
         }
         float e_corr = 0.0f;
-        for (uint32_t n = DOA_CORR_LO; n < DOA_CORR_HI; n++) {
-            float y = g_work[c][n];
-            e_corr += y * y;
-        }
+        for (uint32_t n = DOA_CORR_LO; n < DOA_CORR_HI; n++) e_corr += g_work[c][n] * g_work[c][n];
         g_energy[c] = e_corr;
-
-        uint32_t n_power = DOA_N - DOA_FILT_SETTLE;
-        float rms = sqrtf(e_bp / (float)n_power);
-        bool loud = rms > DOA_DRONE_RMS;
-        bool not_wind = e_bp >= DOA_WIND_RATIO * (e_wind + 1e-6f);
-        active[c] = loud && not_wind;
+        float rms = sqrtf(e_bp / (float)(DOA_N - DOA_FILT_SETTLE));
+        active[c] = (rms > DOA_DRONE_RMS) && (e_bp >= DOA_WIND_RATIO * (e_wind + 1e-6f));
         if (active[c]) nactive++;
-        if (e_wind > 1e-3f) { wrat_sum += e_bp / e_wind; wrat_n++; }
         crest_num += peak;
         crest_den += rms + 1e-6f;
     }
     g_doa_nactive = (uint32_t)nactive;
     float crest = crest_num / crest_den;
-    // Continuous drone-like: not a single impulse in the high band.
     if (crest > DOA_DRONE_CREST_MAX) {
         for (int c = 0; c < 6; c++) active[c] = false;
         g_doa_nactive = 0;
     }
-    (void)wrat_sum; (void)wrat_n;
     return crest;
 }
 
-static float prepare_human_band(bool active[6], float *crest_out) {
+// Walker band + spectral split energies (low 150–250, high 400–600).
+typedef struct {
+    float crest;
+    float e_full;
+    float e_low;
+    float e_high;
+    float peak;
+} walk_feat_t;
+
+static walk_feat_t prepare_walker_band(bool active[6]) {
+    walk_feat_t f;
+    memset(&f, 0, sizeof(f));
     float peak_all = 0.0f, rms_all = 0.0f;
-    int nactive = 0;
     for (int c = 0; c < 6; c++) {
         float mean = 0.0f;
         for (uint32_t n = 0; n < DOA_N; n++) mean += g_work[c][n];
         mean /= (float)DOA_N;
 
-        biquad_mem_t hp = {0}, lp = {0};
-        float e_bp = 0.0f, peak = 0.0f;
+        biquad_mem_t hp = {0}, lp = {0}, lo = {0}, hi = {0};
+        float e_bp = 0.0f, e_lo = 0.0f, e_hi = 0.0f, peak = 0.0f;
         for (uint32_t n = 0; n < DOA_N; n++) {
             float x = g_work[c][n] - mean;
             float y = biquad_step(&k_hpf150, &hp, x);
             y = biquad_step(&k_lpf600, &lp, y);
+            float yl = biquad_step(&k_lpf250, &lo, y);
+            float yh = biquad_step(&k_hpf400, &hi, y);
             g_work[c][n] = y;
             if (n >= DOA_FILT_SETTLE) {
                 e_bp += y * y;
+                e_lo += yl * yl;
+                e_hi += yh * yh;
                 float ay = fabsf(y);
                 if (ay > peak) peak = ay;
             }
         }
         float e_corr = 0.0f;
-        for (uint32_t n = DOA_CORR_LO; n < DOA_CORR_HI; n++) {
-            float y = g_work[c][n];
-            e_corr += y * y;
-        }
+        for (uint32_t n = DOA_CORR_LO; n < DOA_CORR_HI; n++) e_corr += g_work[c][n] * g_work[c][n];
         g_energy[c] = e_corr;
-        uint32_t n_power = DOA_N - DOA_FILT_SETTLE;
-        float rms = sqrtf(e_bp / (float)n_power);
-        active[c] = rms > DOA_HUMAN_RMS;
-        if (active[c]) nactive++;
+        float rms = sqrtf(e_bp / (float)(DOA_N - DOA_FILT_SETTLE));
+        active[c] = rms > DOA_WALK_RMS;
         peak_all += peak;
         rms_all += rms;
+        f.e_full += e_bp;
+        f.e_low += e_lo;
+        f.e_high += e_hi;
+        if (peak > f.peak) f.peak = peak;
     }
-    float crest = peak_all / (rms_all + 1e-6f);
-    *crest_out = crest;
-    // Require impulsive crest for footfalls (rejects steady LF hum).
-    if (crest < DOA_HUMAN_CREST) {
+    f.crest = peak_all / (rms_all + 1e-6f);
+    if (f.crest < DOA_WALK_CREST) {
         for (int c = 0; c < 6; c++) active[c] = false;
-        nactive = 0;
     }
-    return (float)nactive;
+    return f;
 }
 
 // ---------------------------------------------------------------------------
-// Streaming footstep onset detector (persistent filters on core1)
+// Walking bout → species class + entity gallery
+// ---------------------------------------------------------------------------
+typedef struct {
+    bool active;
+    uint32_t n_steps;
+    uint32_t last_onset;
+    uint32_t onset_pos[DOA_BOUT_MAX_STEPS];
+    float az_sum, el_sum, conf_sum, lvl_sum;
+    float e_full, e_low, e_high, peak_sum, crest_sum;
+} bout_t;
+
+static bout_t g_bout;
+
+static src_class_t classify_species(float cadence_hz, float low_r, float high_r,
+                                    float peak_db, float crest) {
+    float sh = 0.0f, sd = 0.0f, sc = 0.0f;
+
+    // Cadence priors (walking): human slower, cat faster, dog in between.
+    if (cadence_hz >= 1.1f && cadence_hz <= 2.4f) sh += 2.5f;
+    if (cadence_hz >= 1.8f && cadence_hz <= 4.2f) sd += 2.0f;
+    if (cadence_hz >= 2.6f && cadence_hz <= 5.5f) sc += 2.5f;
+
+    // Spectral: humans thumpier (low), cats lighter/clickier (high).
+    if (low_r > 0.42f) sh += 2.0f;
+    if (low_r > 0.30f && low_r <= 0.45f) sd += 1.0f;
+    if (high_r > 0.32f) sc += 2.0f;
+    if (high_r > 0.22f && high_r <= 0.35f) sd += 1.5f;
+    if (high_r < 0.18f && low_r > 0.40f) sh += 1.0f;
+
+    // Level / crest: humans louder impacts; cats softer.
+    if (peak_db > -38.0f) sh += 1.5f;
+    if (peak_db <= -38.0f && peak_db > -48.0f) sd += 1.0f;
+    if (peak_db <= -45.0f) sc += 1.5f;
+    if (crest > 5.0f) { sh += 0.5f; sd += 0.5f; }
+    if (crest > 6.5f && peak_db <= -42.0f) sc += 0.5f;
+
+    if (sh >= sd && sh >= sc) return CLS_HUMAN;
+    if (sd >= sc) return CLS_DOG;
+    return CLS_CAT;
+}
+
+static void sig_from_bout(const bout_t *b, src_class_t cls, sig_t *s) {
+    (void)cls;
+    float ipi_sum = 0.0f;
+    uint32_t nipi = 0;
+    for (uint32_t i = 1; i < b->n_steps; i++) {
+        uint32_t d = b->onset_pos[i] - b->onset_pos[i - 1];
+        if (d > 3000u && d < 90000u) { // ~60 ms … ~1.9 s
+            ipi_sum += (float)d;
+            nipi++;
+        }
+    }
+    float ipi = nipi ? (ipi_sum / (float)nipi) : (float)DOA_FS_HZ;
+    s->cadence_hz = DOA_FS / (ipi + 1.0f);
+    float n = (float)b->n_steps;
+    float peak = b->peak_sum / n;
+    s->peak_db = 20.0f * log10f((peak + 1e-6f) / 32768.0f);
+    s->low_ratio = b->e_low / (b->e_full + 1e-6f);
+    s->high_ratio = b->e_high / (b->e_full + 1e-6f);
+    s->crest = b->crest_sum / n;
+    float az = b->az_sum / n;
+    float el = b->el_sum / n;
+    s->az_n = az / 360.0f;
+    s->el_n = (el + 90.0f) / 180.0f;
+}
+
+static float sig_dist(const sig_t *a, const sig_t *b) {
+    float d0 = (a->cadence_hz - b->cadence_hz) / 4.0f;
+    float d1 = (a->peak_db - b->peak_db) / 20.0f;
+    float d2 = a->low_ratio - b->low_ratio;
+    float d3 = a->high_ratio - b->high_ratio;
+    float d4 = (a->crest - b->crest) / 8.0f;
+    float d5 = a->az_n - b->az_n;
+    if (d5 > 0.5f) d5 -= 1.0f;
+    if (d5 < -0.5f) d5 += 1.0f;
+    d5 *= 0.5f; // direction helps but is weaker (entity may reappear elsewhere)
+    float d6 = (a->el_n - b->el_n) * 0.5f;
+    return sqrtf(d0*d0 + d1*d1 + d2*d2 + d3*d3 + d4*d4 + d5*d5 + d6*d6);
+}
+
+static void sig_ema(sig_t *dst, const sig_t *src, float a) {
+    dst->cadence_hz = (1-a)*dst->cadence_hz + a*src->cadence_hz;
+    dst->peak_db    = (1-a)*dst->peak_db    + a*src->peak_db;
+    dst->low_ratio  = (1-a)*dst->low_ratio  + a*src->low_ratio;
+    dst->high_ratio = (1-a)*dst->high_ratio + a*src->high_ratio;
+    dst->crest      = (1-a)*dst->crest      + a*src->crest;
+    dst->az_n       = (1-a)*dst->az_n       + a*src->az_n;
+    dst->el_n       = (1-a)*dst->el_n       + a*src->el_n;
+}
+
+static uint32_t gallery_match_or_create(src_class_t cls, const sig_t *sig,
+                                        float *match_out, uint32_t now) {
+    int best_i = -1;
+    float best_d = DOA_MATCH_MAX_DIST;
+    for (int i = 0; i < DOA_GALLERY_N; i++) {
+        if (!g_gallery[i].used) continue;
+        if (g_gallery[i].cls != cls) continue; // species must agree
+        float d = sig_dist(&g_gallery[i].sig, sig);
+        if (d < best_d) { best_d = d; best_i = i; }
+    }
+
+    if (best_i >= 0) {
+        sig_ema(&g_gallery[best_i].sig, sig, 0.35f);
+        g_gallery[best_i].hits++;
+        g_gallery[best_i].last_seen = now;
+        *match_out = 1.0f - (best_d / DOA_MATCH_MAX_DIST);
+        if (*match_out < 0.0f) *match_out = 0.0f;
+        if (*match_out > 1.0f) *match_out = 1.0f;
+        return g_gallery[best_i].id;
+    }
+
+    // Allocate / replace oldest slot.
+    int slot = -1;
+    uint32_t oldest_seen = UINT32_MAX;
+    int oldest_i = 0;
+    for (int i = 0; i < DOA_GALLERY_N; i++) {
+        if (!g_gallery[i].used) { slot = i; break; }
+        if (g_gallery[i].last_seen <= oldest_seen) {
+            oldest_seen = g_gallery[i].last_seen;
+            oldest_i = i;
+        }
+    }
+    if (slot < 0) slot = oldest_i;
+
+    uint32_t id = g_next_entity_id++;
+    if (g_next_entity_id == 0) g_next_entity_id = 1; // wrap skip 0
+    g_gallery[slot].used = true;
+    g_gallery[slot].id = id;
+    g_gallery[slot].cls = cls;
+    g_gallery[slot].sig = *sig;
+    g_gallery[slot].hits = 1;
+    g_gallery[slot].last_seen = now;
+    *match_out = 0.0f; // new entity
+    return id;
+}
+
+static void finalize_bout_if_needed(uint32_t now, bool force) {
+    if (!g_bout.active) return;
+    bool gap = (now - g_bout.last_onset) >= DOA_BOUT_GAP;
+    if (!force && !gap) return;
+    if (g_bout.n_steps < DOA_BOUT_MIN_STEPS) {
+        g_bout.active = false;
+        g_bout.n_steps = 0;
+        return;
+    }
+
+    sig_t sig;
+    sig_from_bout(&g_bout, CLS_NONE, &sig);
+    src_class_t cls = classify_species(sig.cadence_hz, sig.low_ratio, sig.high_ratio,
+                                       sig.peak_db, sig.crest);
+    sig_from_bout(&g_bout, cls, &sig); // refresh with same numbers
+
+    float match = 0.0f;
+    uint32_t eid = gallery_match_or_create(cls, &sig, &match, now);
+
+    float n = (float)g_bout.n_steps;
+    float az = g_bout.az_sum / n;
+    float el = g_bout.el_sum / n;
+    float conf = g_bout.conf_sum / n;
+    float lvl = g_bout.lvl_sum / n;
+
+    g_walker.used = true;
+    g_walker.cls = cls;
+    g_walker.az = az;
+    g_walker.el = el;
+    g_walker.conf = conf;
+    g_walker.lvl_db = lvl;
+    g_walker.age = 0;
+    g_walker.entity_id = eid;
+    g_walker.match = match;
+    g_walker.cadence_hz = sig.cadence_hz;
+    g_walker.have_xy = false;
+    float x, y, r;
+    if (ground_xy(az, el, &x, &y, &r)) {
+        g_walker.x_m = x;
+        g_walker.y_m = y;
+        g_walker.range_m = r;
+        g_walker.have_xy = true;
+    }
+    g_doa_entity_id = eid;
+    g_doa_nwalker = 1;
+
+    uint32_t lock = dbg_line_lock();
+    dbg_puts("ENTITY id=");
+    dbg_putu32(eid);
+    dbg_puts(" class=");
+    dbg_puts(class_name(cls));
+    dbg_puts(" steps=");
+    dbg_putu32(g_bout.n_steps);
+    dbg_puts(" cadence=");
+    put_f2(sig.cadence_hz);
+    dbg_puts("Hz match=");
+    put_f2(match);
+    dbg_puts(" low=");
+    put_f2(sig.low_ratio);
+    dbg_puts(" high=");
+    put_f2(sig.high_ratio);
+    dbg_putc('\n');
+    dbg_line_unlock(lock);
+
+    g_bout.active = false;
+    g_bout.n_steps = 0;
+}
+
+static void bout_add_step(uint32_t onset_pos, const doa_fix_t *r, const walk_feat_t *f) {
+    if (!g_bout.active || (onset_pos - g_bout.last_onset) >= DOA_BOUT_GAP) {
+        g_bout.active = true;
+        g_bout.n_steps = 0;
+        g_bout.az_sum = g_bout.el_sum = g_bout.conf_sum = g_bout.lvl_sum = 0.0f;
+        g_bout.e_full = g_bout.e_low = g_bout.e_high = 0.0f;
+        g_bout.peak_sum = g_bout.crest_sum = 0.0f;
+    }
+    if (g_bout.n_steps < DOA_BOUT_MAX_STEPS) {
+        g_bout.onset_pos[g_bout.n_steps] = onset_pos;
+        g_bout.n_steps++;
+    } else {
+        // Shift left to keep recent steps.
+        for (uint32_t i = 1; i < DOA_BOUT_MAX_STEPS; i++)
+            g_bout.onset_pos[i - 1] = g_bout.onset_pos[i];
+        g_bout.onset_pos[DOA_BOUT_MAX_STEPS - 1] = onset_pos;
+    }
+    g_bout.last_onset = onset_pos;
+    g_bout.az_sum += r->az;
+    g_bout.el_sum += r->el;
+    g_bout.conf_sum += r->conf;
+    g_bout.lvl_sum += r->lvl_db;
+    g_bout.e_full += f->e_full;
+    g_bout.e_low += f->e_low;
+    g_bout.e_high += f->e_high;
+    g_bout.peak_sum += f->peak;
+    g_bout.crest_sum += f->crest;
+
+    // Live preview on the single walker track (class unknown until bout ends).
+    g_walker.used = true;
+    g_walker.cls = CLS_NONE;
+    g_walker.az = r->az;
+    g_walker.el = r->el;
+    g_walker.conf = r->conf;
+    g_walker.lvl_db = r->lvl_db;
+    g_walker.age = 0;
+    g_walker.entity_id = g_doa_entity_id; // last known until finalize
+    g_walker.match = 0.0f;
+    g_walker.cadence_hz = 0.0f;
+    g_walker.have_xy = false;
+    float x, y, rng;
+    if (ground_xy(r->az, r->el, &x, &y, &rng)) {
+        g_walker.x_m = x;
+        g_walker.y_m = y;
+        g_walker.range_m = rng;
+        g_walker.have_xy = true;
+    }
+    g_doa_nwalker = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Streaming footstep onset detector
 // ---------------------------------------------------------------------------
 static biquad_mem_t g_step_hp[6], g_step_lp[6];
 static float g_env;
@@ -538,7 +822,6 @@ static bool g_onset_pending;
 static void stream_step_samples(uint32_t h) {
     uint32_t pending = h - g_cons;
     if (pending > DOA_STREAM_CHUNK) {
-        // Avoid unbounded catch-up after a heavy DOA; skip oldest.
         g_cons = h - DOA_STREAM_CHUNK;
         pending = DOA_STREAM_CHUNK;
     }
@@ -553,7 +836,6 @@ static void stream_step_samples(uint32_t h) {
         }
         mix *= (1.0f / 6.0f);
         g_env = 0.90f * g_env + 0.10f * mix;
-        // Noise floor tracks the quiet baseline slowly.
         if (g_env < g_noise) g_noise = 0.95f * g_noise + 0.05f * g_env;
         else g_noise = 0.9995f * g_noise + 0.0005f * g_env;
 
@@ -569,8 +851,9 @@ static void stream_step_samples(uint32_t h) {
 // Reporting
 // ---------------------------------------------------------------------------
 static void report_tracks(void) {
-    g_doa_ndrone = track_count(g_drones, DOA_MAX_DRONE);
-    g_doa_nhuman = track_count(g_humans, DOA_MAX_HUMAN);
+    g_doa_ndrone = track_count_drones();
+    g_doa_nwalker = g_walker.used ? 1u : 0u;
+    if (g_walker.used) g_doa_entity_id = g_walker.entity_id;
 
     uint32_t lock = dbg_line_lock();
     for (int i = 0; i < DOA_MAX_DRONE; i++) {
@@ -583,26 +866,36 @@ static void report_tracks(void) {
         dbg_puts(" lvl="); put_f1(g_drones[i].lvl_db);
         dbg_puts("dB\n");
     }
-    for (int i = 0; i < DOA_MAX_HUMAN; i++) {
-        if (!g_humans[i].used) continue;
-        dbg_puts("SRC class=human id=");
-        dbg_putu32((uint32_t)i);
-        dbg_puts(" az="); put_f1(g_humans[i].az);
-        dbg_puts(" el="); put_f1(g_humans[i].el);
-        dbg_puts(" conf="); put_f1(g_humans[i].conf);
-        dbg_puts(" lvl="); put_f1(g_humans[i].lvl_db);
+    if (g_walker.used) {
+        dbg_puts("SRC class=");
+        dbg_puts(g_walker.cls == CLS_NONE ? "walker" : class_name(g_walker.cls));
+        dbg_puts(" entity=");
+        dbg_putu32(g_walker.entity_id);
+        dbg_puts(" az="); put_f1(g_walker.az);
+        dbg_puts(" el="); put_f1(g_walker.el);
+        dbg_puts(" conf="); put_f1(g_walker.conf);
+        dbg_puts(" lvl="); put_f1(g_walker.lvl_db);
         dbg_puts("dB");
-        if (g_humans[i].have_xy) {
-            dbg_puts(" rng="); put_f1(g_humans[i].range_m);
-            dbg_puts("m x="); put_f1(g_humans[i].x_m);
-            dbg_puts(" y="); put_f1(g_humans[i].y_m);
+        if (g_walker.cls != CLS_NONE) {
+            dbg_puts(" match=");
+            put_f2(g_walker.match);
+            dbg_puts(" cadence=");
+            put_f2(g_walker.cadence_hz);
+            dbg_puts("Hz");
+        }
+        if (g_walker.have_xy) {
+            dbg_puts(" rng="); put_f1(g_walker.range_m);
+            dbg_puts("m x="); put_f1(g_walker.x_m);
+            dbg_puts(" y="); put_f1(g_walker.y_m);
         }
         dbg_putc('\n');
     }
     dbg_puts("TRACKS drone=");
     dbg_putu32(g_doa_ndrone);
-    dbg_puts(" human=");
-    dbg_putu32(g_doa_nhuman);
+    dbg_puts(" walker=");
+    dbg_putu32(g_doa_nwalker);
+    dbg_puts(" entity=");
+    dbg_putu32(g_doa_entity_id);
     dbg_putc('\n');
     dbg_line_unlock(lock);
     g_doa_out++;
@@ -615,43 +908,37 @@ static void analyse_drone(uint32_t h) {
     bool active[6];
     load_raw_window(h);
     (void)prepare_drone_band(active);
-
     doa_fix_t primary = solve_tdoa(active);
-    if (primary.ok) {
-        track_upsert(g_drones, DOA_MAX_DRONE, CLS_DRONE,
-                     primary.az, primary.el, primary.conf, primary.lvl_db);
+    if (!primary.ok) return;
 
-        // Second drone: cancel primary and re-solve if residual still loud.
-        cancel_direction(primary.dir, primary.ref);
-        bool active2[6];
-        int n2 = 0;
-        for (int c = 0; c < 6; c++) {
-            float rms = sqrtf(g_energy[c] / (float)(DOA_CORR_HI - DOA_CORR_LO));
-            active2[c] = rms > DOA_DRONE_RMS * 0.7f;
-            if (active2[c]) n2++;
-        }
-        if (n2 >= 4) {
-            doa_fix_t secondary = solve_tdoa(active2);
-            if (secondary.ok &&
-                (ang_diff_deg(secondary.az, primary.az) +
-                 fabsf(secondary.el - primary.el)) > DOA_GATE_DEG) {
-                track_upsert(g_drones, DOA_MAX_DRONE, CLS_DRONE,
-                             secondary.az, secondary.el,
-                             secondary.conf * 0.85f, secondary.lvl_db);
-            }
+    drone_upsert(primary.az, primary.el, primary.conf, primary.lvl_db);
+
+    cancel_direction(primary.dir, primary.ref);
+    bool active2[6];
+    int n2 = 0;
+    for (int c = 0; c < 6; c++) {
+        float rms = sqrtf(g_energy[c] / (float)(DOA_CORR_HI - DOA_CORR_LO));
+        active2[c] = rms > DOA_DRONE_RMS * 0.7f;
+        if (active2[c]) n2++;
+    }
+    if (n2 >= 4) {
+        doa_fix_t secondary = solve_tdoa(active2);
+        if (secondary.ok &&
+            (ang_diff_deg(secondary.az, primary.az) +
+             fabsf(secondary.el - primary.el)) > DOA_GATE_DEG) {
+            drone_upsert(secondary.az, secondary.el,
+                         secondary.conf * 0.85f, secondary.lvl_db);
         }
     }
 }
 
-static void analyse_human_onset(uint32_t h) {
+static void analyse_walker_onset(uint32_t h) {
     bool active[6];
-    float crest = 0.0f;
     load_raw_window(h);
-    (void)prepare_human_band(active, &crest);
+    walk_feat_t feat = prepare_walker_band(active);
     doa_fix_t r = solve_tdoa(active);
     if (!r.ok) return;
-    // Prefer downward elevation for ground walkers; still accept shallow angles.
-    track_upsert(g_humans, DOA_MAX_HUMAN, CLS_HUMAN, r.az, r.el, r.conf, r.lvl_db);
+    bout_add_step(g_last_onset_pos, &r, &feat);
 }
 
 static bool doa_core1_verify(void) {
@@ -673,22 +960,32 @@ static void doa_core1_main(void) {
     g_env = 0.0f;
     g_last_onset_pos = g_cons;
     uint32_t last_drone = g_head;
+    memset(&g_bout, 0, sizeof(g_bout));
+    memset(&g_walker, 0, sizeof(g_walker));
+    memset(g_gallery, 0, sizeof(g_gallery));
 
     for (;;) {
         g_doa_iter++;
         uint32_t h = g_head;
 
         stream_step_samples(h);
+        finalize_bout_if_needed(g_cons, false);
 
         if (g_onset_pending) {
             g_onset_pending = false;
-            analyse_human_onset(h);
+            analyse_walker_onset(h);
         }
 
         if ((uint32_t)(h - last_drone) >= DOA_OUT_SAMPLES) {
             last_drone = h;
-            track_age_all(g_drones, DOA_MAX_DRONE);
-            track_age_all(g_humans, DOA_MAX_HUMAN);
+            track_age_drones();
+            if (g_walker.used) {
+                g_walker.age++;
+                if (g_walker.age > DOA_TRACK_TTL) {
+                    g_walker.used = false;
+                    g_doa_nwalker = 0;
+                }
+            }
             analyse_drone(h);
             report_tracks();
         } else {
