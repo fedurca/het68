@@ -1,6 +1,7 @@
 # Build firmware on a GitHub Release whose tag is semver core (semver.org):
 #   x.y.z   or   vx.y.z
-# Uploads UF2 + ELF as release assets (pico2 + Plus 2 W when applicable).
+# Uploads UF2 + ELF as release assets:
+#   pico2 | pico2_w (CYW43439 Wi-Fi/BT) | Pico Plus 2 W
 # After a successful build, force-moves the floating git tag `latest` to that
 # commit and marks the GitHub Release as the repo "Latest" release.
 name: Release firmware
@@ -80,6 +81,26 @@ jobs:
           cp -v build/pico_6mic_soundcard.uf2 "dist/het68-${VERSION}-pico2.uf2"
           cp -v build/pico_6mic_soundcard.elf "dist/het68-${VERSION}-pico2.elf"
 
+      - name: Build Pico 2 W firmware (CYW43439 Wi-Fi/BT, BLE Remote ID)
+        env:
+          PICO_BOARD: pico2_w
+          CC: gcc
+          CXX: g++
+        run: |
+          set -Eeuo pipefail
+          rm -rf build
+          ./build.sh
+
+      - name: Stage Pico 2 W artifacts
+        env:
+          VERSION: ${{ steps.semver.outputs.version }}
+        run: |
+          set -Eeuo pipefail
+          test -f build/pico_6mic_soundcard.uf2
+          test -f build/pico_6mic_soundcard.elf
+          cp -v build/pico_6mic_soundcard.uf2 "dist/het68-${VERSION}-pico2-w.uf2"
+          cp -v build/pico_6mic_soundcard.elf "dist/het68-${VERSION}-pico2-w.elf"
+
       - name: Build Pico Plus 2 W firmware (BLE Remote ID)
         env:
           PICO_BOARD: pimoroni_pico_plus2_w_rp2350
@@ -109,6 +130,8 @@ jobs:
           files: |
             dist/het68-${{ steps.semver.outputs.version }}-pico2.uf2
             dist/het68-${{ steps.semver.outputs.version }}-pico2.elf
+            dist/het68-${{ steps.semver.outputs.version }}-pico2-w.uf2
+            dist/het68-${{ steps.semver.outputs.version }}-pico2-w.elf
             dist/het68-${{ steps.semver.outputs.version }}-pico-plus2-w.uf2
             dist/het68-${{ steps.semver.outputs.version }}-pico-plus2-w.elf
           fail_on_unmatched_files: true
