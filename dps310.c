@@ -268,6 +268,16 @@ float dps310_altitude_m(void) {
     return 44330.0f * (1.0f - powf(ratio, 0.19029495f));
 }
 
+float dps310_speed_of_sound_m_s(void) {
+    if (!g_have_sample) return 0.0f;
+    // Dry air (ISO approximation): c = 331.3 * sqrt(T_K / 273.15).
+    // DPS310 has no humidity; moist air would be slightly faster.
+    float tk = g_temperature_c + 273.15f;
+    if (tk < 233.15f) tk = 233.15f; // clamp ~-40 °C
+    if (tk > 358.15f) tk = 358.15f; // clamp ~+85 °C
+    return 331.3f * sqrtf(tk / 273.15f);
+}
+
 static void put_f1(float v) {
     if (v < 0.0f) { dbg_putc('-'); v = -v; }
     uint32_t ip = (uint32_t)v;
@@ -302,7 +312,9 @@ void dps310_dump_uart(void) {
     put_f1(s.temperature_c);
     dbg_puts("C alt=");
     put_f1(dps310_altitude_m());
-    dbg_puts("m age_ms=");
+    dbg_puts("m c=");
+    put_f1(dps310_speed_of_sound_m_s());
+    dbg_puts("m/s age_ms=");
     dbg_putu32(s.age_ms);
     dbg_putc('\n');
     dbg_line_unlock(lock);

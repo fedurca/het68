@@ -33,6 +33,13 @@
 #include "drone_store.h"
 #include "dps310.h"
 #include "cli.h"
+
+// Apply baro-derived speed of sound to DOA when a fresh sample exists.
+static void baro_update_sound_speed(void) {
+    float c = dps310_speed_of_sound_m_s();
+    if (c > 0.0f)
+        doa_set_c_sound_m_s(c);
+}
 #include "core1_launch.h"
 #include "i2s_rx.pio.h"
 #include "i2s_clk.pio.h"
@@ -857,7 +864,15 @@ int main(void)
         dbg_puts("RID: skipped (board has no Wi-Fi/BT)\n");
 
     // Optional Grove DPS310 on free I2C1 pins GP2 (SDA) / GP3 (SCL).
-    (void)dps310_init();
+    if (dps310_init()) {
+        // A few polls so STATUS/boot can show c=… before the main loop.
+        for (int i = 0; i < 8; i++) {
+            sleep_ms(20);
+            dps310_poll();
+            baro_update_sound_speed();
+            if (dps310_speed_of_sound_m_s() > 0.0f) break;
+        }
+    }
 
     // Boot dump: all persisted data + statistics (same as UART STATUS).
     cli_print_status();
@@ -906,6 +921,7 @@ int main(void)
 
         remote_id_poll();
         dps310_poll();
+        baro_update_sound_speed();
 #endif
         // Audio frames are produced in tud_audio_tx_done_pre_load_cb(), driven by
         // the USB IN cadence — nothing to pump from the main loop here.

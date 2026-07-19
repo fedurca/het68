@@ -5,6 +5,7 @@
 #include "detection_log.h"
 #include "drone_store.h"
 #include "dps310.h"
+#include "doa.h"
 #include "het68_time.h"
 #include "remote_id.h"
 #include <string.h>
@@ -87,6 +88,21 @@ void cli_print_status(void) {
     dbg_puts("LOG stdout=");
     dbg_puts(dbg_log_enabled() ? "on" : "off");
     dbg_putc('\n');
+    {
+        float c = dps310_speed_of_sound_m_s();
+        bool from_baro = (c > 0.0f);
+        if (!from_baro) c = doa_c_sound_m_s();
+        dbg_puts("SOUND c=");
+        // one decimal m/s
+        int32_t t = (int32_t)(c * 10.0f + (c >= 0.0f ? 0.5f : -0.5f));
+        if (t < 0) { dbg_putc('-'); t = -t; }
+        dbg_putu32((uint32_t)(t / 10));
+        dbg_putc('.');
+        dbg_putu32((uint32_t)(t % 10));
+        dbg_puts("m/s src=");
+        dbg_puts(from_baro ? "baro" : "default");
+        dbg_putc('\n');
+    }
     dbg_line_unlock(lock);
 
     dps310_dump_uart();

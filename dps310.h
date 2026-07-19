@@ -30,4 +30,8 @@ float dps310_pressure_hpa(void);        // 0 if none
 float dps310_temperature_c(void);       // 0 if none
 float dps310_altitude_m(void);          // rough QNH=1013.25 hPa; 0 if none
 
+// Dry-air speed of sound from last temperature sample (m/s), or 0 if none.
+// c = 331.3 * sqrt(1 + T_C/273.15). Pressure alone does not change ideal-gas c.
+float dps310_speed_of_sound_m_s(void);
+
 void dps310_dump_uart(void);

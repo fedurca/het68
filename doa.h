@@ -5,6 +5,10 @@
 void doa_ring_push(const int16_t s6[6]);
 void doa_start(void);
 
+// Runtime speed of sound for TDOA (m/s). Default 343; updated from baro when present.
+void doa_set_c_sound_m_s(float c_m_s);
+float doa_c_sound_m_s(void);
+
 extern volatile uint32_t g_doa_out;
 extern volatile uint32_t g_doa_nactive;
 extern volatile uint32_t g_doa_iter;

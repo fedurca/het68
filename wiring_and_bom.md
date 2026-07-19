@@ -169,6 +169,9 @@ they are free and a device ACKs at I2C `0x77` (default) or `0x76` (pad short).
 
 Range: pressure **300–1200 hPa**, temperature **−40–85 °C**, pressure precision
 ±0.002 hPa. UART: `BARO` (also in `STATUS` / boot dump / heartbeat `baro=`).
+From temperature the firmware computes dry-air **speed of sound**
+`c = 331.3√(1+T/273.15)` — shown as `SOUND c=…` / `BARO … c=…m/s` and used
+by DOA TDOA when the sensor is present (else 343 m/s).
 Wiki: https://wiki.seeedstudio.com/Grove-High-Precision-Barometric-Pressure-Sensor-DPS310/
 
 ### Still free / planned on other headers
