@@ -3,6 +3,9 @@
 #include "debug_io.h"
 #include "entity_store.h"
 #include "detection_log.h"
+#include "drone_store.h"
+#include "dps310.h"
+#include "doa.h"
 #include "het68_time.h"
 #include "remote_id.h"
 #include <string.h>
@@ -23,7 +26,9 @@ void cli_print_help(void) {
 #endif
     dbg_puts(" ===\n");
     dbg_puts("HELP                 — this help\n");
+    dbg_puts("STATUS               — all stored data + statistics\n");
     dbg_puts("TIME                 — show clock / sync status\n");
+    dbg_puts("TIME INFO            — time source, age, quality\n");
     dbg_puts("TIME SYNC <unix>     — sync wall clock (required for DET timestamps)\n");
     dbg_puts("LOG ON | LOG OFF     — enable/disable SRC/ENTITY stdout logging\n");
     dbg_puts("LOG                  — show log status\n");
@@ -35,10 +40,80 @@ void cli_print_help(void) {
     dbg_puts("DET CLEAR            — delete all detections\n");
     dbg_puts("ENT LIST             — entity gallery (classification templates)\n");
     dbg_puts("ENT EXPORT|IMPORT    — gallery hex blob transfer\n");
+    dbg_puts("DRONE LIST           — known drones persisted in flash\n");
+    dbg_puts("DRONE CLEAR          — erase known-drone flash registry\n");
+    dbg_puts("BARO                 — Grove DPS310 pressure/temperature (GP2/GP3)\n");
     dbg_puts("RID LIST             — OpenDroneID BLE tracks (CYW43 boards)\n");
     dbg_puts("RID ON | RID OFF     — enable/disable BLE Remote ID scan\n");
     dbg_puts("Note: DET timestamps after TIME SYNC (UART or RID System msg).\n");
     dbg_puts("=================\n");
+    dbg_line_unlock(lock);
+}
+
+void cli_print_status(void) {
+    uint32_t lock = dbg_line_lock();
+    dbg_puts("=== STATUS ");
+#ifdef HET68_VERSION_STR
+    dbg_puts(HET68_VERSION_STR);
+#else
+    dbg_puts("?");
+#endif
+    dbg_puts(" ===\n");
+    dbg_line_unlock(lock);
+
+    het68_time_info_uart();
+
+    lock = dbg_line_lock();
+    dbg_puts("--- stats ---\n");
+    dbg_puts("DET n=");
+    dbg_putu32(detection_log_count());
+    if (detection_log_dirty()) dbg_puts(" dirty");
+    if (detection_log_saving()) dbg_puts(" saving");
+    dbg_putc('\n');
+    dbg_puts("ENT n=");
+    dbg_putu32(entity_store_count());
+    if (entity_store_dirty()) dbg_puts(" dirty");
+    if (entity_store_saving()) dbg_puts(" saving");
+    dbg_putc('\n');
+    drone_store_stats_uart();
+    dbg_puts("RID live=");
+    dbg_putu32(remote_id_active_count());
+    dbg_puts(" avail=");
+    dbg_puts(remote_id_available() ? "1" : "0");
+    dbg_puts(" scan=");
+    dbg_puts(remote_id_enabled() ? "on" : "off");
+    dbg_puts(" syncs=");
+    dbg_putu32(remote_id_time_sync_count());
+    dbg_putc('\n');
+    dbg_puts("LOG stdout=");
+    dbg_puts(dbg_log_enabled() ? "on" : "off");
+    dbg_putc('\n');
+    {
+        float c = dps310_speed_of_sound_m_s();
+        bool from_baro = (c > 0.0f);
+        if (!from_baro) c = doa_c_sound_m_s();
+        dbg_puts("SOUND c=");
+        // one decimal m/s
+        int32_t t = (int32_t)(c * 10.0f + (c >= 0.0f ? 0.5f : -0.5f));
+        if (t < 0) { dbg_putc('-'); t = -t; }
+        dbg_putu32((uint32_t)(t / 10));
+        dbg_putc('.');
+        dbg_putu32((uint32_t)(t % 10));
+        dbg_puts("m/s src=");
+        dbg_puts(from_baro ? "baro" : "default");
+        dbg_putc('\n');
+    }
+    dbg_line_unlock(lock);
+
+    dps310_dump_uart();
+    entity_store_dump_uart();
+    detection_log_list_uart();
+    drone_store_list_uart();
+    if (remote_id_available())
+        remote_id_list_uart();
+
+    lock = dbg_line_lock();
+    dbg_puts("=== end STATUS ===\n");
     dbg_line_unlock(lock);
 }
 
@@ -96,8 +171,17 @@ static void handle_line(char *line) {
         return;
     }
 
+    if (strcmp(line, "STATUS") == 0) {
+        cli_print_status();
+        return;
+    }
+
     if (strcmp(line, "TIME") == 0) {
         het68_time_dump_uart();
+        return;
+    }
+    if (strcmp(line, "TIME INFO") == 0) {
+        het68_time_info_uart();
         return;
     }
     if (strncmp(line, "TIME SYNC ", 10) == 0) {
@@ -105,6 +189,8 @@ static void handle_line(char *line) {
         if (het68_time_sync(ep)) {
             dbg_puts("TIME OK epoch=");
             dbg_putu32(het68_time_epoch_sec());
+            dbg_puts(" source=uart quality=");
+            dbg_putu32(het68_time_quality());
             dbg_putc('\n');
         } else {
             dbg_puts("TIME ERR: need unix epoch >= 1700000000\n");
@@ -184,6 +270,23 @@ static void handle_line(char *line) {
         return;
     }
 
+    if (strcmp(line, "DRONE LIST") == 0 || strcmp(line, "DRONE") == 0) {
+        drone_store_list_uart();
+        return;
+    }
+    if (strcmp(line, "DRONE CLEAR") == 0) {
+        if (drone_store_clear()) dbg_puts("DRONE CLEAR OK (pending flash)\n");
+        else dbg_puts("DRONE CLEAR ERR: busy\n");
+        return;
+    }
+
+    if (strcmp(line, "BARO") == 0 || strcmp(line, "DPS") == 0 ||
+        strcmp(line, "PRESSURE") == 0) {
+        dps310_poll();
+        dps310_dump_uart();
+        return;
+    }
+
     if (strcmp(line, "RID LIST") == 0 || strcmp(line, "RID") == 0) {
         remote_id_list_uart();
         return;
@@ -209,7 +312,9 @@ static void handle_line(char *line) {
 
     if (strncmp(line, "DET", 3) == 0 || strncmp(line, "ENT", 3) == 0 ||
         strncmp(line, "TIME", 4) == 0 || strncmp(line, "LOG", 3) == 0 ||
-        strncmp(line, "RID", 3) == 0) {
+        strncmp(line, "RID", 3) == 0 || strncmp(line, "DRONE", 5) == 0 ||
+        strncmp(line, "BARO", 4) == 0 || strncmp(line, "DPS", 3) == 0 ||
+        strncmp(line, "STATUS", 6) == 0) {
         dbg_puts("?: unknown command — HELP\n");
     }
 }

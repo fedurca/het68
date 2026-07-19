@@ -6,6 +6,7 @@
 //   GP26/27/28 = SD mics 4–6 (Grove A0/A1/A2 pin 1); SEL hardwired GND on modules
 //   GP0 = UART TX, GP1 = UART RX (Grove UART0 → Debug Probe)
 //   GP6/GP7 = piezo H-bridge (Grove I2C1)
+//   GP2/GP3 = Grove DPS310 barometer I2C1 SDA/SCL (optional; skipped if absent)
 //
 // HET68_USB_DIAG=1 bypasses I2S and sends a simulated 1 kHz tone (bench test).
 
@@ -29,7 +30,16 @@
 #include "entity_store.h"
 #include "detection_log.h"
 #include "het68_time.h"
+#include "drone_store.h"
+#include "dps310.h"
 #include "cli.h"
+
+// Apply baro-derived speed of sound to DOA when a fresh sample exists.
+static void baro_update_sound_speed(void) {
+    float c = dps310_speed_of_sound_m_s();
+    if (c > 0.0f)
+        doa_set_c_sound_m_s(c);
+}
 #include "core1_launch.h"
 #include "i2s_rx.pio.h"
 #include "i2s_clk.pio.h"
@@ -752,8 +762,20 @@ static void dbg_heartbeat(uint32_t hb_count)
         }
         if (!het68_time_synced()) dbg_puts(" time=unsynced");
         else dbg_puts(" time=ok");
-        if (entity_store_dirty() || detection_log_dirty()) dbg_puts(" flash=dirty");
-        if (entity_store_saving() || detection_log_saving()) dbg_puts(" flash=saving");
+        if (dps310_available()) {
+            dbg_puts(" baro=");
+            // one decimal hPa via integer tenths
+            int32_t t = (int32_t)(dps310_pressure_hpa() * 10.0f);
+            if (t < 0) { dbg_putc('-'); t = -t; }
+            dbg_putu32((uint32_t)(t / 10));
+            dbg_putc('.');
+            dbg_putu32((uint32_t)(t % 10));
+            dbg_puts("hPa");
+        }
+        if (entity_store_dirty() || detection_log_dirty() || drone_store_dirty())
+            dbg_puts(" flash=dirty");
+        if (entity_store_saving() || detection_log_saving() || drone_store_saving())
+            dbg_puts(" flash=saving");
         if (!dbg_log_enabled()) dbg_puts(" log=off");
     }
 #endif
@@ -821,14 +843,13 @@ int main(void)
     het68_time_init();
     cli_init();
 
-    // Flash-backed entity gallery + detection log (ACID dual-slot each).
+    // Flash-backed entity gallery + detection log + known drones (ACID dual-slot each).
     entity_store_core_init();
     entity_store_init();
     detection_log_core_init();
     detection_log_init();
-    entity_store_dump_uart();
-    detection_log_list_uart();
-    cli_print_help();
+    drone_store_core_init();
+    drone_store_init();
 
     // Direction-of-arrival on core1 (het68_launch_core1 resets core1 after SWD flash).
     doa_start();
@@ -841,6 +862,21 @@ int main(void)
         dbg_puts("RID: init failed\n");
     else
         dbg_puts("RID: skipped (board has no Wi-Fi/BT)\n");
+
+    // Optional Grove DPS310 on free I2C1 pins GP2 (SDA) / GP3 (SCL).
+    if (dps310_init()) {
+        // A few polls so STATUS/boot can show c=… before the main loop.
+        for (int i = 0; i < 8; i++) {
+            sleep_ms(20);
+            dps310_poll();
+            baro_update_sound_speed();
+            if (dps310_speed_of_sound_m_s() > 0.0f) break;
+        }
+    }
+
+    // Boot dump: all persisted data + statistics (same as UART STATUS).
+    cli_print_status();
+    cli_print_help();
 #endif
 
     // Heartbeat LED. Boards whose LED is on a wireless module (e.g. Pico W /
@@ -868,12 +904,14 @@ int main(void)
         }
 
         // Opportunistic ACID flash: only when USB audio streaming is idle (alt=0).
-        // Never run both flash state machines in the same poll (one erase/page max).
+        // At most one flash store advances per poll (one erase/page max).
         bool usb_idle = (dbg_last_alt == 0u);
-        if (!detection_log_saving())
+        if (!detection_log_saving() && !drone_store_saving())
             entity_store_poll(usb_idle);
-        if (!entity_store_saving())
+        if (!entity_store_saving() && !drone_store_saving())
             detection_log_poll(usb_idle);
+        if (!entity_store_saving() && !detection_log_saving())
+            drone_store_poll(usb_idle);
 
         while (dbg_rx_available()) {
             int ch = dbg_getc();
@@ -882,6 +920,8 @@ int main(void)
         }
 
         remote_id_poll();
+        dps310_poll();
+        baro_update_sound_speed();
 #endif
         // Audio frames are produced in tud_audio_tx_done_pre_load_cb(), driven by
         // the USB IN cadence — nothing to pump from the main loop here.

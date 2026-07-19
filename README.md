@@ -150,6 +150,20 @@ Passive piezo between the two signal wires. **Do not use red or black** on this 
 | **I2C1** | Piezo beacon | GP6, GP7 |
 | **D16 / D18 / D20** | Mic 1–3 SD | GP16 / GP18 / GP20 |
 | **A0 / A1 / A2** | Mic 4–6 SD (pin 1) | GP26 / GP27 / GP28 |
+| *(header)* | Grove DPS310 barometer (optional) | **GP2 SDA / GP3 SCL** (I2C1) |
+
+### Barometer — Grove DPS310 (optional, v1.2.1+)
+
+**Seeed 101020812** Infineon DPS310 (300–1200 hPa, −40–85 °C). Wire to free
+header pins **GP2 (SDA) / GP3 (SCL)** + 3V3/GND — **not** to shield I2C0/I2C1
+(those are mic clocks / piezo). Firmware probes `0x77` then `0x76`; if the pins
+are busy or no device answers, baro is skipped. CLI: `BARO` (aliases `DPS`,
+`PRESSURE`); also in `STATUS`, boot dump, and heartbeat (`baro=…hPa`).
+**v1.2.2:** dry-air speed of sound from temperature
+(`c = 331.3√(1+T/273.15)`) is shown as `SOUND c=…m/s` in `STATUS` stats /
+`BARO`, and fed into DOA TDOA (default 343 m/s when baro absent).
+Details: [`wiring_and_bom.md`](wiring_and_bom.md),
+[Seeed wiki](https://wiki.seeedstudio.com/Grove-High-Precision-Barometric-Pressure-Sensor-DPS310/).
 
 BOM and module layout: `wiring_and_bom.md`.
 
@@ -175,9 +189,10 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   `TIME SYNC <unix>` since boot. `DET EXPORT` emits **JSON Lines** (`NVREVT`) for
   smart-NVR event correlation.
 
-  UART **CLI** (help on boot / first byte / USB mount): `HELP`, `TIME` /
-  `TIME SYNC`, `LOG ON|OFF`, `DET LIST|EXPORT|BACKUP|IMPORT|DEL|CLEAR`,
-  `ENT LIST|EXPORT|IMPORT`, `RID LIST|ON|OFF`. See [`TEST_SCENARIOS_1.0.6.md`](TEST_SCENARIOS_1.0.6.md).
+  UART **CLI** (help on boot / first byte / USB mount): `HELP`, `STATUS`,
+  `TIME` / `TIME INFO` / `TIME SYNC`, `LOG ON|OFF`,
+  `DET LIST|EXPORT|BACKUP|IMPORT|DEL|CLEAR`, `ENT LIST|EXPORT|IMPORT`,
+  `DRONE LIST|CLEAR`, `BARO`, `RID LIST|ON|OFF`. See [`TEST_SCENARIOS_1.0.6.md`](TEST_SCENARIOS_1.0.6.md).
 
 * **OpenDroneID / EU Direct Remote ID (v1.1.0+).** On CYW43 boards
   (`PICO_BOARD=pimoroni_pico_plus2_w_rp2350` or other Pico W variants) the
@@ -186,9 +201,12 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   Tracks show up in the heartbeat as `rid=N`, via `RID LIST`, and as DET class
   `remoteid`. **v1.1.1:** System-message timestamp (ODID 2019 epoch → Unix)
   auto-applies `TIME SYNC` when unsynced or when drift ≥ 2 s (rate-limited), so
-  DET timestamps work without a UART `TIME SYNC`. Non-wireless `pico2` builds
-  compile a stub. BTstack flash TLV is relocated so it does not overlap DET/ENT
-  ACID sectors.
+  DET timestamps work without a UART `TIME SYNC`. **v1.1.2:** `TIME INFO`
+  reports sync **source / age / quality**; known drones (+ RID fields) persist
+  in a flash ACID store (`DRONE LIST`); `STATUS` dumps all stored data and
+  statistics (also printed on boot). **v1.2.1:** optional Grove **DPS310**
+  barometer on GP2/GP3 (`BARO`). Non-wireless `pico2` builds compile a stub
+  for RID. Flash end layout: DRONE / BT TLV / DET / ENT (two sectors each).
 
   ```
   SRC class=wind az=180.0 el=10.0 inten=-22.5dB

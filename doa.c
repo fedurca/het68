@@ -52,10 +52,23 @@ static const float MIC_DIR[6][3] = {
 static float MIC_POS[6][3];
 
 #define DOA_FS_HZ        48000
+// Nominal 20 °C; buffer sizing uses cold extreme so runtime baro correction fits.
 #define DOA_C_MM_S       343000
+#define DOA_C_MM_S_MIN   300000   // ~-40 °C dry air — sizes DOA_MAXLAG
 #define DOA_FS           ((float)DOA_FS_HZ)
 #define DOA_C_SOUND      (DOA_C_MM_S * 0.001f)
-#define DOA_MAXLAG       ((DOA_EDGE_MM * DOA_FS_HZ + DOA_C_MM_S - 1) / DOA_C_MM_S + 2)
+#define DOA_MAXLAG       ((DOA_EDGE_MM * DOA_FS_HZ + DOA_C_MM_S_MIN - 1) / DOA_C_MM_S_MIN + 2)
+
+// Updated from core0 when DPS310 temperature is available (default 343 m/s).
+static volatile float g_c_sound_m_s = DOA_C_SOUND;
+
+void doa_set_c_sound_m_s(float c_m_s) {
+    if (c_m_s < 300.0f) c_m_s = 300.0f;
+    if (c_m_s > 380.0f) c_m_s = 380.0f;
+    g_c_sound_m_s = c_m_s;
+}
+
+float doa_c_sound_m_s(void) { return g_c_sound_m_s; }
 
 #if   DOA_MAXLAG <= 85
 #define DOA_N            256u
@@ -578,7 +591,7 @@ static doa_fix_t solve_tdoa(const bool active[6]) {
             MIC_POS[i][1] - MIC_POS[ref][1],
             MIC_POS[i][2] - MIC_POS[ref][2],
         };
-        float bb = DOA_TDOA_SIGN * (-DOA_C_SOUND / DOA_FS) * lag;
+        float bb = DOA_TDOA_SIGN * (-g_c_sound_m_s / DOA_FS) * lag;
         for (int r = 0; r < 3; r++) {
             for (int cc = 0; cc < 3; cc++) AtA[r][cc] += conf * row[r] * row[cc];
             Atb[r] += conf * row[r] * bb;
@@ -612,7 +625,7 @@ static void cancel_direction(const float dir[3], int ref) {
         float dy = MIC_POS[i][1] - MIC_POS[ref][1];
         float dz = MIC_POS[i][2] - MIC_POS[ref][2];
         float lag_f = DOA_TDOA_SIGN * (dx * dir[0] + dy * dir[1] + dz * dir[2])
-                      * (DOA_FS / DOA_C_SOUND);
+                      * (DOA_FS / g_c_sound_m_s);
         int lag = (int)((lag_f >= 0.0f) ? (lag_f + 0.5f) : (lag_f - 0.5f));
         if (lag < -DOA_MAXLAG) lag = -DOA_MAXLAG;
         if (lag > DOA_MAXLAG) lag = DOA_MAXLAG;
