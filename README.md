@@ -159,10 +159,12 @@ header pins **GP2 (SDA) / GP3 (SCL)** + 3V3/GND — **not** to shield I2C0/I2C1
 (those are mic clocks / piezo). Firmware probes `0x77` then `0x76`; if the pins
 are busy or no device answers, baro is skipped. CLI: `BARO` (aliases `DPS`,
 `PRESSURE`); also in `STATUS`, boot dump, and heartbeat (`baro=…hPa`).
-**v1.2.2:** dry-air speed of sound from temperature
-(`c = 331.3√(1+T/273.15)`) is shown as `SOUND c=…m/s` in `STATUS` stats /
-`BARO`, and fed into DOA TDOA (default 343 m/s when baro absent).
-Details: [`wiring_and_bom.md`](wiring_and_bom.md),
+**v1.2.3:** moist-air speed of sound (Cramer/NPL-style) from DPS310 **T+P**
+and assumed **RH** (default 50 %, set with `BARO RH <0-100>`):
+Arden-Buck \(p_{sat}\), \(x_w=RH\cdot p_{sat}/p\), then
+\(c=331.36\sqrt{T_K/273.15}\,(1+0.314 x_w+0.037 x_w^2)\).
+Shown as `SOUND c=…` / `BARO … c=…`; fed into DOA TDOA (default 343 m/s
+without baro). Details: [`wiring_and_bom.md`](wiring_and_bom.md),
 [Seeed wiki](https://wiki.seeedstudio.com/Grove-High-Precision-Barometric-Pressure-Sensor-DPS310/).
 
 BOM and module layout: `wiring_and_bom.md`.

@@ -43,6 +43,7 @@ void cli_print_help(void) {
     dbg_puts("DRONE LIST           — known drones persisted in flash\n");
     dbg_puts("DRONE CLEAR          — erase known-drone flash registry\n");
     dbg_puts("BARO                 — Grove DPS310 pressure/temperature (GP2/GP3)\n");
+    dbg_puts("BARO RH <0-100>      — assumed RH percent for sound speed (default 50)\n");
     dbg_puts("RID LIST             — OpenDroneID BLE tracks (CYW43 boards)\n");
     dbg_puts("RID ON | RID OFF     — enable/disable BLE Remote ID scan\n");
     dbg_puts("Note: DET timestamps after TIME SYNC (UART or RID System msg).\n");
@@ -93,14 +94,22 @@ void cli_print_status(void) {
         bool from_baro = (c > 0.0f);
         if (!from_baro) c = doa_c_sound_m_s();
         dbg_puts("SOUND c=");
-        // one decimal m/s
-        int32_t t = (int32_t)(c * 10.0f + (c >= 0.0f ? 0.5f : -0.5f));
+        // two decimals m/s (Cramer/NPL target precision)
+        int32_t t = (int32_t)(c * 100.0f + (c >= 0.0f ? 0.5f : -0.5f));
         if (t < 0) { dbg_putc('-'); t = -t; }
-        dbg_putu32((uint32_t)(t / 10));
+        dbg_putu32((uint32_t)(t / 100));
         dbg_putc('.');
-        dbg_putu32((uint32_t)(t % 10));
+        uint32_t frac = (uint32_t)(t % 100);
+        if (frac < 10u) dbg_putc('0');
+        dbg_putu32(frac);
         dbg_puts("m/s src=");
-        dbg_puts(from_baro ? "baro" : "default");
+        dbg_puts(from_baro ? "cramer" : "default");
+        if (from_baro) {
+            dbg_puts(" RH=");
+            int32_t rh = (int32_t)(dps310_rh() * 100.0f + 0.5f);
+            dbg_putu32((uint32_t)rh);
+            dbg_puts("%");
+        }
         dbg_putc('\n');
     }
     dbg_line_unlock(lock);
@@ -284,6 +293,27 @@ static void handle_line(char *line) {
         strcmp(line, "PRESSURE") == 0) {
         dps310_poll();
         dps310_dump_uart();
+        return;
+    }
+    if (strncmp(line, "BARO RH ", 8) == 0) {
+        uint32_t pct = parse_u32(line + 8);
+        if (pct > 100u) {
+            dbg_puts("BARO RH ERR: need 0..100\n");
+        } else {
+            dps310_set_rh((float)pct / 100.0f);
+            dbg_puts("BARO RH=");
+            dbg_putu32(pct);
+            dbg_puts("% (assumed; used for SOUND/DOA)\n");
+            // Refresh DOA c immediately if baro sample exists.
+            float c = dps310_speed_of_sound_m_s();
+            if (c > 0.0f) doa_set_c_sound_m_s(c);
+        }
+        return;
+    }
+    if (strcmp(line, "BARO RH") == 0) {
+        dbg_puts("BARO RH=");
+        dbg_putu32((uint32_t)(dps310_rh() * 100.0f + 0.5f));
+        dbg_puts("%\n");
         return;
     }
 

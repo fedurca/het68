@@ -51,6 +51,8 @@ static float g_pressure_pa;
 static float g_temperature_c;
 static uint32_t g_sample_ms;
 static bool g_have_sample;
+// Assumed RH (0..1) until a humidity sensor is added — default 50 %.
+static float g_rh = 0.50f;
 
 static int32_t twos_complement(uint32_t raw, uint8_t bits) {
     uint32_t sign = 1u << (bits - 1u);
@@ -268,14 +270,38 @@ float dps310_altitude_m(void) {
     return 44330.0f * (1.0f - powf(ratio, 0.19029495f));
 }
 
+void dps310_set_rh(float rh_frac) {
+    if (rh_frac < 0.0f) rh_frac = 0.0f;
+    if (rh_frac > 1.0f) rh_frac = 1.0f;
+    g_rh = rh_frac;
+}
+
+float dps310_rh(void) { return g_rh; }
+
 float dps310_speed_of_sound_m_s(void) {
     if (!g_have_sample) return 0.0f;
-    // Dry air (ISO approximation): c = 331.3 * sqrt(T_K / 273.15).
-    // DPS310 has no humidity; moist air would be slightly faster.
-    float tk = g_temperature_c + 273.15f;
-    if (tk < 233.15f) tk = 233.15f; // clamp ~-40 °C
-    if (tk > 358.15f) tk = 358.15f; // clamp ~+85 °C
-    return 331.3f * sqrtf(tk / 273.15f);
+
+    float T = g_temperature_c;
+    float p = g_pressure_pa;
+    // DPS310 operating window; reject nonsense before Arden-Buck / x_w.
+    if (T < -40.0f) T = -40.0f;
+    if (T > 85.0f) T = 85.0f;
+    if (p < 30000.0f || p > 120000.0f) return 0.0f;
+
+    // Step 1: Arden-Buck saturation vapour pressure (Pa), T in °C.
+    float psat = 611.21f * expf((18.678f - T / 234.5f) * (T / (235.7f + T)));
+
+    // Step 2: water-vapour mole fraction using DPS310 absolute pressure.
+    float pv = g_rh * psat;
+    float xw = pv / p;
+    if (xw < 0.0f) xw = 0.0f;
+    if (xw > 0.15f) xw = 0.15f; // physical sanity cap
+
+    // Step 3: Cramer / NPL-style moist-air speed (CO2 ~420 ppm baseline 331.36).
+    float tk = T + 273.15f;
+    float c_dry = 331.36f * sqrtf(tk / 273.15f);
+    float humid = 1.0f + 0.314f * xw + 0.037f * xw * xw;
+    return c_dry * humid;
 }
 
 static void put_f1(float v) {
@@ -285,6 +311,17 @@ static void put_f1(float v) {
     if (fp >= 10u) { ip++; fp = 0u; }
     dbg_putu32(ip);
     dbg_putc('.');
+    dbg_putu32(fp);
+}
+
+static void put_f2(float v) {
+    if (v < 0.0f) { dbg_putc('-'); v = -v; }
+    uint32_t ip = (uint32_t)v;
+    uint32_t fp = (uint32_t)((v - (float)ip) * 100.0f + 0.5f);
+    if (fp >= 100u) { ip++; fp = 0u; }
+    dbg_putu32(ip);
+    dbg_putc('.');
+    if (fp < 10u) dbg_putc('0');
     dbg_putu32(fp);
 }
 
@@ -310,11 +347,13 @@ void dps310_dump_uart(void) {
     put_f1(s.pressure_pa * 0.01f);
     dbg_puts("hPa T=");
     put_f1(s.temperature_c);
-    dbg_puts("C alt=");
+    dbg_puts("C RH=");
+    put_f1(dps310_rh() * 100.0f);
+    dbg_puts("% alt=");
     put_f1(dps310_altitude_m());
     dbg_puts("m c=");
-    put_f1(dps310_speed_of_sound_m_s());
-    dbg_puts("m/s age_ms=");
+    put_f2(dps310_speed_of_sound_m_s());
+    dbg_puts("m/s (Cramer/NPL) age_ms=");
     dbg_putu32(s.age_ms);
     dbg_putc('\n');
     dbg_line_unlock(lock);
