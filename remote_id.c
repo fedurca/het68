@@ -5,6 +5,7 @@
 #include "remote_id.h"
 #include "debug_io.h"
 #include "detection_log.h"
+#include "het68_time.h"
 #include "pico/stdlib.h"
 #include <string.h>
 
@@ -25,6 +26,8 @@ void remote_id_list_uart(void) {
     dbg_puts("RID: unsupported on this board (needs Wi-Fi/BT CYW43)\n");
 }
 uint32_t remote_id_active_count(void) { return 0; }
+uint32_t remote_id_last_unix(void) { return 0; }
+uint32_t remote_id_time_sync_count(void) { return 0; }
 
 #else // HET68_BT_RID
 
@@ -37,6 +40,11 @@ uint32_t remote_id_active_count(void) { return 0; }
 #define RID_MSG_SIZE       25u
 #define RID_STALE_MS       15000u
 #define RID_LOG_MIN_MS     2000u
+// ASTM F3411 System/Auth timestamp epoch: 2019-01-01 00:00:00 UTC
+#define RID_ODID_EPOCH_UNIX 1546300800u
+#define RID_TIME_MIN_GAP_MS 5000u
+#define RID_TIME_RESYNC_MS  30000u
+#define RID_TIME_DRIFT_SEC  2u
 
 static rid_track_t g_tracks[RID_MAX_TRACKS];
 static btstack_packet_callback_registration_t g_hci_cb;
@@ -44,10 +52,19 @@ static volatile bool g_ready;
 static volatile bool g_enabled = true;
 static volatile bool g_scan_on;
 static uint32_t g_last_log_ms;
+static volatile uint32_t g_pending_unix;
+static volatile bool g_pending_sync;
+static uint32_t g_last_unix;
+static uint32_t g_time_sync_count;
+static uint32_t g_last_rid_sync_ms;
+
+static uint32_t rd_u32_le(const uint8_t *p) {
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
+           ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+}
 
 static int32_t rd_i32_le(const uint8_t *p) {
-    return (int32_t)((uint32_t)p[0] | ((uint32_t)p[1] << 8) |
-                     ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24));
+    return (int32_t)rd_u32_le(p);
 }
 
 static int16_t rd_i16_le(const uint8_t *p) {
@@ -111,6 +128,24 @@ static void parse_location(rid_track_t *t, const uint8_t *m) {
     t->has_location = 1;
 }
 
+// Offer wall-clock from ODID System timestamp (seconds since 2019-01-01 UTC).
+// Applied later on the main loop — never call het68_time_sync from HCI callback.
+static void offer_odid_system_time(uint32_t odid_ts_2019) {
+    if (odid_ts_2019 == 0u) return;
+    uint64_t unix64 = (uint64_t)odid_ts_2019 + (uint64_t)RID_ODID_EPOCH_UNIX;
+    if (unix64 < 1700000000ull) return;          // before het68_time floor
+    if (unix64 > 2200000000ull) return;          // reject absurd future
+    g_pending_unix = (uint32_t)unix64;
+    g_last_unix = (uint32_t)unix64;
+    g_pending_sync = true;
+}
+
+static void parse_system(rid_track_t *t, const uint8_t *m) {
+    // System message (type 4): Operator Lat/Lon + Timestamp @ bytes 20..23 (LE).
+    (void)t;
+    offer_odid_system_time(rd_u32_le(&m[20]));
+}
+
 static void parse_odid_message(rid_track_t *t, const uint8_t *m) {
     uint8_t msg_type = (uint8_t)((m[0] >> 4) & 0x0Fu);
     uint8_t ver = (uint8_t)(m[0] & 0x0Fu);
@@ -118,19 +153,10 @@ static void parse_odid_message(rid_track_t *t, const uint8_t *m) {
     switch (msg_type) {
         case 0x0: parse_basic_id(t, m); break;
         case 0x1: parse_location(t, m); break;
-        case 0xF: {
-            // Message pack: byte1 = count, then count * 25-byte messages
-            uint8_t n = m[1];
-            if (n > 9u) n = 9u;
-            const uint8_t *p = &m[2];
-            // Pack body may continue past this 25-byte page in extended adv;
-            // for legacy we only have what fits — parse first embedded msg if present.
-            if (n >= 1u && (2u + RID_MSG_SIZE) <= RID_MSG_SIZE) {
-                // Single-page pack rarely fits a full child; try offset search below.
-            }
-            (void)p;
+        case 0x4: parse_system(t, m); break;
+        case 0xF:
+            // Message pack handled by ingest walker (embedded full messages).
             break;
-        }
         default:
             break;
     }
@@ -324,6 +350,33 @@ void remote_id_poll(void) {
         if ((now - g_tracks[i].last_ms) > RID_STALE_MS)
             g_tracks[i].used = 0;
     }
+
+    // Apply pending wall-clock from System message (main loop, not HCI).
+    if (g_pending_sync) {
+        g_pending_sync = false;
+        uint32_t unix = g_pending_unix;
+        bool apply = !het68_time_synced();
+        if (!apply) {
+            uint32_t cur = het68_time_epoch_sec();
+            int32_t drift = (int32_t)unix - (int32_t)cur;
+            if (drift < 0) drift = -drift;
+            apply = ((uint32_t)drift >= RID_TIME_DRIFT_SEC) &&
+                    ((now - g_last_rid_sync_ms) >= RID_TIME_RESYNC_MS);
+        }
+        if (apply &&
+            (het68_time_synced() ? ((now - g_last_rid_sync_ms) >= RID_TIME_MIN_GAP_MS)
+                                 : true)) {
+            if (het68_time_sync(unix)) {
+                g_last_rid_sync_ms = now;
+                g_time_sync_count++;
+                uint32_t lock = dbg_line_lock();
+                dbg_puts("TIME SYNC via RID epoch=");
+                dbg_putu32(unix);
+                dbg_puts(" (OpenDroneID System)\n");
+                dbg_line_unlock(lock);
+            }
+        }
+    }
 }
 
 uint32_t remote_id_count(void) {
@@ -334,6 +387,10 @@ uint32_t remote_id_count(void) {
 }
 
 uint32_t remote_id_active_count(void) { return remote_id_count(); }
+
+uint32_t remote_id_last_unix(void) { return g_last_unix; }
+
+uint32_t remote_id_time_sync_count(void) { return g_time_sync_count; }
 
 const rid_track_t *remote_id_track(uint32_t index) {
     uint32_t n = 0;

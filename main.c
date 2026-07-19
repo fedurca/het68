@@ -746,7 +746,12 @@ static void dbg_heartbeat(uint32_t hb_count)
         dbg_putu32(detection_log_count());
         dbg_puts(" rid=");
         dbg_putu32(remote_id_active_count());
+        if (remote_id_time_sync_count()) {
+            dbg_puts(" rid_sync=");
+            dbg_putu32(remote_id_time_sync_count());
+        }
         if (!het68_time_synced()) dbg_puts(" time=unsynced");
+        else dbg_puts(" time=ok");
         if (entity_store_dirty() || detection_log_dirty()) dbg_puts(" flash=dirty");
         if (entity_store_saving() || detection_log_saving()) dbg_puts(" flash=saving");
         if (!dbg_log_enabled()) dbg_puts(" log=off");

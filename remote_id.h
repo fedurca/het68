@@ -42,3 +42,8 @@ void remote_id_list_uart(void);
 
 // Heartbeat counter: distinct UAS IDs / MACs seen in the last stale window.
 uint32_t remote_id_active_count(void);
+
+// Last wall-clock offered from an OpenDroneID System message (unix epoch), or 0.
+uint32_t remote_id_last_unix(void);
+// How many successful TIME SYNCs were applied from RID System timestamps.
+uint32_t remote_id_time_sync_count(void);

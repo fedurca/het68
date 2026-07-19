@@ -37,7 +37,7 @@ void cli_print_help(void) {
     dbg_puts("ENT EXPORT|IMPORT    — gallery hex blob transfer\n");
     dbg_puts("RID LIST             — OpenDroneID BLE tracks (CYW43 boards)\n");
     dbg_puts("RID ON | RID OFF     — enable/disable BLE Remote ID scan\n");
-    dbg_puts("Note: DET timestamps only after TIME SYNC since boot.\n");
+    dbg_puts("Note: DET timestamps after TIME SYNC (UART or RID System msg).\n");
     dbg_puts("=================\n");
     dbg_line_unlock(lock);
 }

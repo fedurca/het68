@@ -1,6 +1,7 @@
-// het68_time.c — epoch clock anchored by UART TIME SYNC.
+// het68_time.c — epoch clock anchored by UART TIME SYNC (or RID System time).
 #include "het68_time.h"
 #include "debug_io.h"
+#include "remote_id.h"
 #include "pico/stdlib.h"
 
 static bool g_synced;
@@ -50,6 +51,12 @@ void het68_time_dump_uart(void) {
     dbg_putu32(het68_time_epoch_sec());
     dbg_puts(" synced_at=");
     dbg_putu32(g_synced_at_epoch);
+    if (remote_id_available()) {
+        dbg_puts(" rid_unix=");
+        dbg_putu32(remote_id_last_unix());
+        dbg_puts(" rid_syncs=");
+        dbg_putu32(remote_id_time_sync_count());
+    }
     dbg_putc('\n');
     dbg_line_unlock(lock);
 }
