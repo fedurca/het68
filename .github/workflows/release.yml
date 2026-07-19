@@ -105,9 +105,24 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.semver.outputs.tag }}
+          make_latest: true
           files: |
             dist/het68-${{ steps.semver.outputs.version }}-pico2.uf2
             dist/het68-${{ steps.semver.outputs.version }}-pico2.elf
             dist/het68-${{ steps.semver.outputs.version }}-pico-plus2-w.uf2
             dist/het68-${{ steps.semver.outputs.version }}-pico-plus2-w.elf
           fail_on_unmatched_files: true
+
+      # Floating pointer for "whatever last built successfully as a semver release".
+      # Not a semver tag — do not create a GitHub Release named "latest".
+      - name: Move floating git tag latest
+        env:
+          TAG: ${{ steps.semver.outputs.tag }}
+        run: |
+          set -Eeuo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Release checkout is the tagged commit; pin latest there after green build.
+          git tag -f latest "${GITHUB_SHA}"
+          git push origin refs/tags/latest --force
+          echo "Moved git tag latest -> ${GITHUB_SHA} (release ${TAG})"
