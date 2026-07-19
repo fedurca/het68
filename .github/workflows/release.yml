@@ -1,6 +1,8 @@
 # Build firmware on a GitHub Release whose tag is semver core (semver.org):
 #   x.y.z   or   vx.y.z
 # Uploads UF2 + ELF as release assets (pico2 + Plus 2 W when applicable).
+# After a successful build, force-moves the floating git tag `latest` to that
+# commit and marks the GitHub Release as the repo "Latest" release.
 name: Release firmware
 
 on:
@@ -21,6 +23,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Validate semver tag (x.y.z or vx.y.z)
         id: semver
