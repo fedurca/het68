@@ -30,8 +30,14 @@ float dps310_pressure_hpa(void);        // 0 if none
 float dps310_temperature_c(void);       // 0 if none
 float dps310_altitude_m(void);          // rough QNH=1013.25 hPa; 0 if none
 
-// Dry-air speed of sound from last temperature sample (m/s), or 0 if none.
-// c = 331.3 * sqrt(1 + T_C/273.15). Pressure alone does not change ideal-gas c.
+// Relative humidity fraction 0..1 used for moist-air c(T,p,RH).
+// DPS310 has no RH sensor — default 0.50; override via dps310_set_rh() / CLI.
+void dps310_set_rh(float rh_frac);
+float dps310_rh(void);
+
+// Moist-air speed of sound (m/s) from T+P (DPS310) and configured RH, or 0 if none.
+// Arden-Buck p_sat → x_w = RH*p_sat/p → Cramer/NPL-style:
+//   c = 331.36 * sqrt(T_K/273.15) * (1 + 0.314*x_w + 0.037*x_w^2)
 float dps310_speed_of_sound_m_s(void);
 
 void dps310_dump_uart(void);

@@ -169,10 +169,17 @@ they are free and a device ACKs at I2C `0x77` (default) or `0x76` (pad short).
 
 Range: pressure **300–1200 hPa**, temperature **−40–85 °C**, pressure precision
 ±0.002 hPa. UART: `BARO` (also in `STATUS` / boot dump / heartbeat `baro=`).
-From temperature the firmware computes dry-air **speed of sound**
-`c = 331.3√(1+T/273.15)` — shown as `SOUND c=…` / `BARO … c=…m/s` and used
-by DOA TDOA when the sensor is present (else 343 m/s).
-Wiki: https://wiki.seeedstudio.com/Grove-High-Precision-Barometric-Pressure-Sensor-DPS310/
+**Speed of sound (v1.2.3, Cramer/NPL-style):** uses DPS310 temperature and
+pressure plus assumed RH (default 50 %; `BARO RH <0-100>` — no humidity
+sensor on this module):
+
+1. Arden-Buck: \(p_{sat}=611.21\exp\bigl((18.678-T/234.5)\,T/(235.7+T)\bigr)\) [Pa]
+2. \(x_w = (RH\cdot p_{sat}) / p\) with \(p\) from DPS310
+3. \(c = 331.36\sqrt{T_K/273.15}\,(1 + 0.314 x_w + 0.037 x_w^2)\) [m/s]
+
+Shown as `SOUND c=…` / `BARO … c=…m/s`; used by DOA TDOA when present
+(else 343 m/s). Wiki:
+https://wiki.seeedstudio.com/Grove-High-Precision-Barometric-Pressure-Sensor-DPS310/
 
 ### Still free / planned on other headers
 
