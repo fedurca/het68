@@ -4,6 +4,7 @@
 #include "entity_store.h"
 #include "detection_log.h"
 #include "het68_time.h"
+#include "remote_id.h"
 #include <string.h>
 
 static char g_buf[192];
@@ -14,7 +15,13 @@ static bool g_help_shown;
 
 void cli_print_help(void) {
     uint32_t lock = dbg_line_lock();
-    dbg_puts("=== het68 CLI ===\n");
+    dbg_puts("=== het68 CLI ");
+#ifdef HET68_VERSION_STR
+    dbg_puts(HET68_VERSION_STR);
+#else
+    dbg_puts("?");
+#endif
+    dbg_puts(" ===\n");
     dbg_puts("HELP                 — this help\n");
     dbg_puts("TIME                 — show clock / sync status\n");
     dbg_puts("TIME SYNC <unix>     — sync wall clock (required for DET timestamps)\n");
@@ -28,6 +35,8 @@ void cli_print_help(void) {
     dbg_puts("DET CLEAR            — delete all detections\n");
     dbg_puts("ENT LIST             — entity gallery (classification templates)\n");
     dbg_puts("ENT EXPORT|IMPORT    — gallery hex blob transfer\n");
+    dbg_puts("RID LIST             — OpenDroneID BLE tracks (CYW43 boards)\n");
+    dbg_puts("RID ON | RID OFF     — enable/disable BLE Remote ID scan\n");
     dbg_puts("Note: DET timestamps only after TIME SYNC since boot.\n");
     dbg_puts("=================\n");
     dbg_line_unlock(lock);
@@ -175,8 +184,32 @@ static void handle_line(char *line) {
         return;
     }
 
+    if (strcmp(line, "RID LIST") == 0 || strcmp(line, "RID") == 0) {
+        remote_id_list_uart();
+        return;
+    }
+    if (strcmp(line, "RID ON") == 0) {
+        if (!remote_id_available()) {
+            dbg_puts("RID ERR: unsupported on this board\n");
+        } else {
+            remote_id_set_enabled(true);
+            dbg_puts("RID scan=on\n");
+        }
+        return;
+    }
+    if (strcmp(line, "RID OFF") == 0) {
+        if (!remote_id_available()) {
+            dbg_puts("RID ERR: unsupported on this board\n");
+        } else {
+            remote_id_set_enabled(false);
+            dbg_puts("RID scan=off\n");
+        }
+        return;
+    }
+
     if (strncmp(line, "DET", 3) == 0 || strncmp(line, "ENT", 3) == 0 ||
-        strncmp(line, "TIME", 4) == 0 || strncmp(line, "LOG", 3) == 0) {
+        strncmp(line, "TIME", 4) == 0 || strncmp(line, "LOG", 3) == 0 ||
+        strncmp(line, "RID", 3) == 0) {
         dbg_puts("?: unknown command — HELP\n");
     }
 }

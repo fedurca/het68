@@ -1,6 +1,6 @@
 # Build firmware on a GitHub Release whose tag is semver core (semver.org):
 #   x.y.z   or   vx.y.z
-# Uploads UF2 + ELF as release assets.
+# Uploads UF2 + ELF as release assets (pico2 + Plus 2 W when applicable).
 name: Release firmware
 
 on:
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   build-and-upload:
-    name: Build pico2 firmware
+    name: Build firmware
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -28,8 +28,6 @@ jobs:
           TAG: ${{ github.event.release.tag_name }}
         run: |
           set -Eeuo pipefail
-          # Core SemVer only: MAJOR.MINOR.PATCH, optional leading "v".
-          # See https://semver.org/ — pre-release / build metadata not accepted here.
           if [[ ! "${TAG}" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::Release tag '${TAG}' is not x.y.z or vx.y.z (semver.org core)."
             echo "Create the release with a tag like 1.2.3 or v1.2.3."
@@ -60,15 +58,14 @@ jobs:
       - name: Fetch Pico SDK (pinned 2.2.0)
         run: ./scripts/fetch_pico_sdk.sh
 
-      - name: Build firmware
+      - name: Build pico2 firmware
         env:
           PICO_BOARD: pico2
-          # Prefer GNU host toolchain for picotool (SDK host tool), not clang-as-c++.
           CC: gcc
           CXX: g++
         run: ./build.sh
 
-      - name: Stage release artifacts
+      - name: Stage pico2 artifacts
         env:
           VERSION: ${{ steps.semver.outputs.version }}
         run: |
@@ -76,9 +73,28 @@ jobs:
           test -f build/pico_6mic_soundcard.uf2
           test -f build/pico_6mic_soundcard.elf
           mkdir -p dist
-          # One pair per release — versioned names (same bytes as local build output).
           cp -v build/pico_6mic_soundcard.uf2 "dist/het68-${VERSION}-pico2.uf2"
           cp -v build/pico_6mic_soundcard.elf "dist/het68-${VERSION}-pico2.elf"
+
+      - name: Build Pico Plus 2 W firmware (BLE Remote ID)
+        env:
+          PICO_BOARD: pimoroni_pico_plus2_w_rp2350
+          CC: gcc
+          CXX: g++
+        run: |
+          set -Eeuo pipefail
+          rm -rf build
+          ./build.sh
+
+      - name: Stage Plus 2 W artifacts
+        env:
+          VERSION: ${{ steps.semver.outputs.version }}
+        run: |
+          set -Eeuo pipefail
+          test -f build/pico_6mic_soundcard.uf2
+          test -f build/pico_6mic_soundcard.elf
+          cp -v build/pico_6mic_soundcard.uf2 "dist/het68-${VERSION}-pico-plus2-w.uf2"
+          cp -v build/pico_6mic_soundcard.elf "dist/het68-${VERSION}-pico-plus2-w.elf"
           ls -la dist/
 
       - name: Upload assets to GitHub Release
@@ -88,4 +104,6 @@ jobs:
           files: |
             dist/het68-${{ steps.semver.outputs.version }}-pico2.uf2
             dist/het68-${{ steps.semver.outputs.version }}-pico2.elf
+            dist/het68-${{ steps.semver.outputs.version }}-pico-plus2-w.uf2
+            dist/het68-${{ steps.semver.outputs.version }}-pico-plus2-w.elf
           fail_on_unmatched_files: true

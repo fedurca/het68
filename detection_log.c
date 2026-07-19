@@ -66,13 +66,14 @@ const char *det_class_name(det_class_t c) {
         case DET_BIRD:     return "bird";
         case DET_SONGBIRD: return "songbird";
         case DET_CORVID:   return "corvid";
+        case DET_REMOTEID: return "remoteid";
         default:           return "none";
     }
 }
 
 det_class_t det_class_from_name(const char *name) {
     if (!name) return DET_NONE;
-    for (int c = 1; c <= (int)DET_CORVID; c++) {
+    for (int c = 1; c <= (int)DET_REMOTEID; c++) {
         if (strcmp(name, det_class_name((det_class_t)c)) == 0)
             return (det_class_t)c;
     }

@@ -177,7 +177,16 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
 
   UART **CLI** (help on boot / first byte / USB mount): `HELP`, `TIME` /
   `TIME SYNC`, `LOG ON|OFF`, `DET LIST|EXPORT|BACKUP|IMPORT|DEL|CLEAR`,
-  `ENT LIST|EXPORT|IMPORT`. See [`TEST_SCENARIOS_1.0.6.md`](TEST_SCENARIOS_1.0.6.md).
+  `ENT LIST|EXPORT|IMPORT`, `RID LIST|ON|OFF`. See [`TEST_SCENARIOS_1.0.6.md`](TEST_SCENARIOS_1.0.6.md).
+
+* **OpenDroneID / EU Direct Remote ID (v1.1.0).** On CYW43 boards
+  (`PICO_BOARD=pimoroni_pico_plus2_w_rp2350` or other Pico W variants) the
+  firmware scans BLE advertisements for service UUID `0xFFFA` and parses ASTM
+  F3411 Basic ID + Location messages (e.g. Dronetag / built-in RID). Tracks show
+  up in the heartbeat as `rid=N`, via `RID LIST`, and as DET class `remoteid`
+  after `TIME SYNC`. Non-wireless `pico2` builds compile a stub (CLI reports
+  unsupported). BTstack flash TLV is relocated so it does not overlap DET/ENT
+  ACID sectors.
 
   ```
   SRC class=wind az=180.0 el=10.0 inten=-22.5dB

@@ -24,6 +24,7 @@
 #include "tusb.h"
 #include "debug_io.h"
 #include "buzzer.h"
+#include "remote_id.h"
 #include "doa.h"
 #include "entity_store.h"
 #include "detection_log.h"
@@ -743,6 +744,8 @@ static void dbg_heartbeat(uint32_t hb_count)
         dbg_putu32(g_doa_entity_id);
         dbg_puts(" det=");
         dbg_putu32(detection_log_count());
+        dbg_puts(" rid=");
+        dbg_putu32(remote_id_active_count());
         if (!het68_time_synced()) dbg_puts(" time=unsynced");
         if (entity_store_dirty() || detection_log_dirty()) dbg_puts(" flash=dirty");
         if (entity_store_saving() || detection_log_saving()) dbg_puts(" flash=saving");
@@ -768,6 +771,13 @@ void tud_umount_cb(void)
 int main(void)
 {
     dbg_init();
+    dbg_puts("het68 ");
+#ifdef HET68_VERSION_STR
+    dbg_puts(HET68_VERSION_STR);
+#else
+    dbg_puts("?");
+#endif
+    dbg_putc('\n');
 
 #if HET68_USB_DIAG
     diag_build_lut();
@@ -818,6 +828,14 @@ int main(void)
     // Direction-of-arrival on core1 (het68_launch_core1 resets core1 after SWD flash).
     doa_start();
     dbg_puts("DOA: drone+vehicle+bird+walker+wind (DET log needs TIME SYNC)\n");
+
+    // OpenDroneID BLE scanner (no-op stub on non-CYW43 boards).
+    if (remote_id_init())
+        dbg_puts("RID: OpenDroneID BLE beacon scan enabled\n");
+    else if (remote_id_available())
+        dbg_puts("RID: init failed\n");
+    else
+        dbg_puts("RID: skipped (board has no Wi-Fi/BT)\n");
 #endif
 
     // Heartbeat LED. Boards whose LED is on a wireless module (e.g. Pico W /
@@ -857,6 +875,8 @@ int main(void)
             if (ch < 0) break;
             cli_rx_byte(ch);
         }
+
+        remote_id_poll();
 #endif
         // Audio frames are produced in tud_audio_tx_done_pre_load_cb(), driven by
         // the USB IN cadence — nothing to pump from the main loop here.

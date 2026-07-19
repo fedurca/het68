@@ -23,6 +23,7 @@ typedef enum {
     DET_BIRD     = 10,
     DET_SONGBIRD = 11,
     DET_CORVID   = 12,
+    DET_REMOTEID = 13,  // OpenDroneID / EU Direct Remote ID (BLE)
 } det_class_t;
 
 typedef struct {
