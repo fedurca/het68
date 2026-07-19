@@ -29,6 +29,7 @@
 #include "entity_store.h"
 #include "detection_log.h"
 #include "het68_time.h"
+#include "drone_store.h"
 #include "cli.h"
 #include "core1_launch.h"
 #include "i2s_rx.pio.h"
@@ -752,8 +753,10 @@ static void dbg_heartbeat(uint32_t hb_count)
         }
         if (!het68_time_synced()) dbg_puts(" time=unsynced");
         else dbg_puts(" time=ok");
-        if (entity_store_dirty() || detection_log_dirty()) dbg_puts(" flash=dirty");
-        if (entity_store_saving() || detection_log_saving()) dbg_puts(" flash=saving");
+        if (entity_store_dirty() || detection_log_dirty() || drone_store_dirty())
+            dbg_puts(" flash=dirty");
+        if (entity_store_saving() || detection_log_saving() || drone_store_saving())
+            dbg_puts(" flash=saving");
         if (!dbg_log_enabled()) dbg_puts(" log=off");
     }
 #endif
@@ -821,14 +824,13 @@ int main(void)
     het68_time_init();
     cli_init();
 
-    // Flash-backed entity gallery + detection log (ACID dual-slot each).
+    // Flash-backed entity gallery + detection log + known drones (ACID dual-slot each).
     entity_store_core_init();
     entity_store_init();
     detection_log_core_init();
     detection_log_init();
-    entity_store_dump_uart();
-    detection_log_list_uart();
-    cli_print_help();
+    drone_store_core_init();
+    drone_store_init();
 
     // Direction-of-arrival on core1 (het68_launch_core1 resets core1 after SWD flash).
     doa_start();
@@ -841,6 +843,10 @@ int main(void)
         dbg_puts("RID: init failed\n");
     else
         dbg_puts("RID: skipped (board has no Wi-Fi/BT)\n");
+
+    // Boot dump: all persisted data + statistics (same as UART STATUS).
+    cli_print_status();
+    cli_print_help();
 #endif
 
     // Heartbeat LED. Boards whose LED is on a wireless module (e.g. Pico W /
@@ -868,12 +874,14 @@ int main(void)
         }
 
         // Opportunistic ACID flash: only when USB audio streaming is idle (alt=0).
-        // Never run both flash state machines in the same poll (one erase/page max).
+        // At most one flash store advances per poll (one erase/page max).
         bool usb_idle = (dbg_last_alt == 0u);
-        if (!detection_log_saving())
+        if (!detection_log_saving() && !drone_store_saving())
             entity_store_poll(usb_idle);
-        if (!entity_store_saving())
+        if (!entity_store_saving() && !drone_store_saving())
             detection_log_poll(usb_idle);
+        if (!entity_store_saving() && !detection_log_saving())
+            drone_store_poll(usb_idle);
 
         while (dbg_rx_available()) {
             int ch = dbg_getc();

@@ -23,6 +23,8 @@ typedef struct {
     uint16_t speed_cm_s;    // horizontal, approx cm/s
     uint16_t heading_deg;   // 0..359, 361 = unknown
     uint32_t last_ms;
+    uint32_t flash_ms;      // last_ms already persisted to drone_store
+    uint8_t  sys_pending;   // System msg seen since last main-loop observe
 } rid_track_t;
 
 // Returns true if BT RID is compiled in and init succeeded.

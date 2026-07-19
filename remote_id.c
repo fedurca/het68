@@ -5,6 +5,7 @@
 #include "remote_id.h"
 #include "debug_io.h"
 #include "detection_log.h"
+#include "drone_store.h"
 #include "het68_time.h"
 #include "pico/stdlib.h"
 #include <string.h>
@@ -54,6 +55,7 @@ static volatile bool g_scan_on;
 static uint32_t g_last_log_ms;
 static volatile uint32_t g_pending_unix;
 static volatile bool g_pending_sync;
+static volatile int8_t g_pending_rssi;
 static uint32_t g_last_unix;
 static uint32_t g_time_sync_count;
 static uint32_t g_last_rid_sync_ms;
@@ -130,20 +132,21 @@ static void parse_location(rid_track_t *t, const uint8_t *m) {
 
 // Offer wall-clock from ODID System timestamp (seconds since 2019-01-01 UTC).
 // Applied later on the main loop — never call het68_time_sync from HCI callback.
-static void offer_odid_system_time(uint32_t odid_ts_2019) {
+static void offer_odid_system_time(uint32_t odid_ts_2019, int8_t rssi) {
     if (odid_ts_2019 == 0u) return;
     uint64_t unix64 = (uint64_t)odid_ts_2019 + (uint64_t)RID_ODID_EPOCH_UNIX;
     if (unix64 < 1700000000ull) return;          // before het68_time floor
     if (unix64 > 2200000000ull) return;          // reject absurd future
     g_pending_unix = (uint32_t)unix64;
     g_last_unix = (uint32_t)unix64;
+    g_pending_rssi = rssi;
     g_pending_sync = true;
 }
 
 static void parse_system(rid_track_t *t, const uint8_t *m) {
     // System message (type 4): Operator Lat/Lon + Timestamp @ bytes 20..23 (LE).
-    (void)t;
-    offer_odid_system_time(rd_u32_le(&m[20]));
+    t->sys_pending = 1;
+    offer_odid_system_time(rd_u32_le(&m[20]), t->rssi);
 }
 
 static void parse_odid_message(rid_track_t *t, const uint8_t *m) {
@@ -347,14 +350,33 @@ void remote_id_poll(void) {
     uint32_t now = to_ms_since_boot(get_absolute_time());
     for (int i = 0; i < RID_MAX_TRACKS; i++) {
         if (!g_tracks[i].used) continue;
-        if ((now - g_tracks[i].last_ms) > RID_STALE_MS)
+        if ((now - g_tracks[i].last_ms) > RID_STALE_MS) {
             g_tracks[i].used = 0;
+            continue;
+        }
+
+        // Persist known drones when the live track updates (not every poll).
+        rid_track_t *t = &g_tracks[i];
+        bool time_offer = t->sys_pending != 0;
+        t->sys_pending = 0;
+        if ((t->has_basic || t->has_location) &&
+            (time_offer || t->last_ms != t->flash_ms)) {
+            drone_store_observe(t->addr, t->rssi,
+                                t->uas_id, t->id_type, t->ua_type,
+                                t->has_basic != 0, t->has_location != 0,
+                                t->lat_e7, t->lon_e7, t->alt_geoid_m,
+                                t->speed_cm_s, t->heading_deg,
+                                time_offer);
+            t->flash_ms = t->last_ms;
+        }
     }
 
     // Apply pending wall-clock from System message (main loop, not HCI).
     if (g_pending_sync) {
         g_pending_sync = false;
         uint32_t unix = g_pending_unix;
+        int8_t rssi = g_pending_rssi;
+        uint8_t q = drone_rssi_quality(rssi);
         bool apply = !het68_time_synced();
         if (!apply) {
             uint32_t cur = het68_time_epoch_sec();
@@ -366,12 +388,14 @@ void remote_id_poll(void) {
         if (apply &&
             (het68_time_synced() ? ((now - g_last_rid_sync_ms) >= RID_TIME_MIN_GAP_MS)
                                  : true)) {
-            if (het68_time_sync(unix)) {
+            if (het68_time_sync_from(unix, HET68_TIME_SRC_RID, q)) {
                 g_last_rid_sync_ms = now;
                 g_time_sync_count++;
                 uint32_t lock = dbg_line_lock();
                 dbg_puts("TIME SYNC via RID epoch=");
                 dbg_putu32(unix);
+                dbg_puts(" quality=");
+                dbg_putu32(q);
                 dbg_puts(" (OpenDroneID System)\n");
                 dbg_line_unlock(lock);
             }

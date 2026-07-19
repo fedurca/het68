@@ -175,9 +175,10 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   `TIME SYNC <unix>` since boot. `DET EXPORT` emits **JSON Lines** (`NVREVT`) for
   smart-NVR event correlation.
 
-  UART **CLI** (help on boot / first byte / USB mount): `HELP`, `TIME` /
-  `TIME SYNC`, `LOG ON|OFF`, `DET LIST|EXPORT|BACKUP|IMPORT|DEL|CLEAR`,
-  `ENT LIST|EXPORT|IMPORT`, `RID LIST|ON|OFF`. See [`TEST_SCENARIOS_1.0.6.md`](TEST_SCENARIOS_1.0.6.md).
+  UART **CLI** (help on boot / first byte / USB mount): `HELP`, `STATUS`,
+  `TIME` / `TIME INFO` / `TIME SYNC`, `LOG ON|OFF`,
+  `DET LIST|EXPORT|BACKUP|IMPORT|DEL|CLEAR`, `ENT LIST|EXPORT|IMPORT`,
+  `DRONE LIST|CLEAR`, `RID LIST|ON|OFF`. See [`TEST_SCENARIOS_1.0.6.md`](TEST_SCENARIOS_1.0.6.md).
 
 * **OpenDroneID / EU Direct Remote ID (v1.1.0+).** On CYW43 boards
   (`PICO_BOARD=pimoroni_pico_plus2_w_rp2350` or other Pico W variants) the
@@ -186,9 +187,11 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   Tracks show up in the heartbeat as `rid=N`, via `RID LIST`, and as DET class
   `remoteid`. **v1.1.1:** System-message timestamp (ODID 2019 epoch → Unix)
   auto-applies `TIME SYNC` when unsynced or when drift ≥ 2 s (rate-limited), so
-  DET timestamps work without a UART `TIME SYNC`. Non-wireless `pico2` builds
-  compile a stub. BTstack flash TLV is relocated so it does not overlap DET/ENT
-  ACID sectors.
+  DET timestamps work without a UART `TIME SYNC`. **v1.1.2:** `TIME INFO`
+  reports sync **source / age / quality**; known drones (+ RID fields) persist
+  in a flash ACID store (`DRONE LIST`); `STATUS` dumps all stored data and
+  statistics (also printed on boot). Non-wireless `pico2` builds compile a
+  stub. Flash end layout: DRONE / BT TLV / DET / ENT (two sectors each).
 
   ```
   SRC class=wind az=180.0 el=10.0 inten=-22.5dB
