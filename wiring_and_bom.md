@@ -151,11 +151,28 @@ No series resistor; keep leads short.
 
 ---
 
-## Planned peripherals (I2C on headers)
+## Barometer — Grove DPS310 on **GP2 / GP3** (I2C1)
 
-Future sensors on free header pins (e.g. GP2/GP3 as I2C1):
+Optional **Seeed Grove High Precision Barometric Pressure Sensor DPS310**
+(product **101020812**, Infineon DPS310). Firmware claims these pins only when
+they are free and a device ACKs at I2C `0x77` (default) or `0x76` (pad short).
 
-- BME280 — temperature, pressure, humidity
+**Do not** plug this module into Grove Shield **I2C0** (GP8/GP9 = mic clocks) or
+**I2C1** (GP6/GP7 = piezo). Wire the Grove cable to the free Pico header pins:
+
+| Grove wire | Colour | Pico pin | Function |
+|---|---|---|---|
+| 1 | **white** | **GP2** | I2C1 **SDA** |
+| 2 | **yellow** | **GP3** | I2C1 **SCL** |
+| 3 | **red** | **3V3** | power (shield 3.3 V) |
+| 4 | **black** | **GND** | ground |
+
+Range: pressure **300–1200 hPa**, temperature **−40–85 °C**, pressure precision
+±0.002 hPa. UART: `BARO` (also in `STATUS` / boot dump / heartbeat `baro=`).
+Wiki: https://wiki.seeedstudio.com/Grove-High-Precision-Barometric-Pressure-Sensor-DPS310/
+
+### Still free / planned on other headers
+
 - INA219 — single-channel current/voltage
 - INA3221 — three-channel current/voltage
 
@@ -168,6 +185,7 @@ Future sensors on free header pins (e.g. GP2/GP3 as I2C1):
 | Raspberry Pi Pico 2 (RP2350) | 1 |
 | Grove Shield for Pi Pico v1.0 | 1 |
 | ICS-43434 breakout / mic module | 6 |
-| Grove cable 4-pin | 8+ (2 clock branches + 6 data) |
+| Grove cable 4-pin | 8+ (2 clock branches + 6 data) + 1 for DPS310 |
+| Grove DPS310 barometer (Seeed 101020812) | 1 (optional) |
 | PS1240 passive piezo | 1 |
 | Raspberry Pi Debug Probe | 1 |

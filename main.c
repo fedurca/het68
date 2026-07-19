@@ -6,6 +6,7 @@
 //   GP26/27/28 = SD mics 4–6 (Grove A0/A1/A2 pin 1); SEL hardwired GND on modules
 //   GP0 = UART TX, GP1 = UART RX (Grove UART0 → Debug Probe)
 //   GP6/GP7 = piezo H-bridge (Grove I2C1)
+//   GP2/GP3 = Grove DPS310 barometer I2C1 SDA/SCL (optional; skipped if absent)
 //
 // HET68_USB_DIAG=1 bypasses I2S and sends a simulated 1 kHz tone (bench test).
 
@@ -30,6 +31,7 @@
 #include "detection_log.h"
 #include "het68_time.h"
 #include "drone_store.h"
+#include "dps310.h"
 #include "cli.h"
 #include "core1_launch.h"
 #include "i2s_rx.pio.h"
@@ -753,6 +755,16 @@ static void dbg_heartbeat(uint32_t hb_count)
         }
         if (!het68_time_synced()) dbg_puts(" time=unsynced");
         else dbg_puts(" time=ok");
+        if (dps310_available()) {
+            dbg_puts(" baro=");
+            // one decimal hPa via integer tenths
+            int32_t t = (int32_t)(dps310_pressure_hpa() * 10.0f);
+            if (t < 0) { dbg_putc('-'); t = -t; }
+            dbg_putu32((uint32_t)(t / 10));
+            dbg_putc('.');
+            dbg_putu32((uint32_t)(t % 10));
+            dbg_puts("hPa");
+        }
         if (entity_store_dirty() || detection_log_dirty() || drone_store_dirty())
             dbg_puts(" flash=dirty");
         if (entity_store_saving() || detection_log_saving() || drone_store_saving())
@@ -844,6 +856,9 @@ int main(void)
     else
         dbg_puts("RID: skipped (board has no Wi-Fi/BT)\n");
 
+    // Optional Grove DPS310 on free I2C1 pins GP2 (SDA) / GP3 (SCL).
+    (void)dps310_init();
+
     // Boot dump: all persisted data + statistics (same as UART STATUS).
     cli_print_status();
     cli_print_help();
@@ -890,6 +905,7 @@ int main(void)
         }
 
         remote_id_poll();
+        dps310_poll();
 #endif
         // Audio frames are produced in tud_audio_tx_done_pre_load_cb(), driven by
         // the USB IN cadence — nothing to pump from the main loop here.

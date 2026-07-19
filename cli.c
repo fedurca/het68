@@ -4,6 +4,7 @@
 #include "entity_store.h"
 #include "detection_log.h"
 #include "drone_store.h"
+#include "dps310.h"
 #include "het68_time.h"
 #include "remote_id.h"
 #include <string.h>
@@ -40,6 +41,7 @@ void cli_print_help(void) {
     dbg_puts("ENT EXPORT|IMPORT    — gallery hex blob transfer\n");
     dbg_puts("DRONE LIST           — known drones persisted in flash\n");
     dbg_puts("DRONE CLEAR          — erase known-drone flash registry\n");
+    dbg_puts("BARO                 — Grove DPS310 pressure/temperature (GP2/GP3)\n");
     dbg_puts("RID LIST             — OpenDroneID BLE tracks (CYW43 boards)\n");
     dbg_puts("RID ON | RID OFF     — enable/disable BLE Remote ID scan\n");
     dbg_puts("Note: DET timestamps after TIME SYNC (UART or RID System msg).\n");
@@ -87,6 +89,7 @@ void cli_print_status(void) {
     dbg_putc('\n');
     dbg_line_unlock(lock);
 
+    dps310_dump_uart();
     entity_store_dump_uart();
     detection_log_list_uart();
     drone_store_list_uart();
@@ -261,6 +264,13 @@ static void handle_line(char *line) {
         return;
     }
 
+    if (strcmp(line, "BARO") == 0 || strcmp(line, "DPS") == 0 ||
+        strcmp(line, "PRESSURE") == 0) {
+        dps310_poll();
+        dps310_dump_uart();
+        return;
+    }
+
     if (strcmp(line, "RID LIST") == 0 || strcmp(line, "RID") == 0) {
         remote_id_list_uart();
         return;
@@ -287,6 +297,7 @@ static void handle_line(char *line) {
     if (strncmp(line, "DET", 3) == 0 || strncmp(line, "ENT", 3) == 0 ||
         strncmp(line, "TIME", 4) == 0 || strncmp(line, "LOG", 3) == 0 ||
         strncmp(line, "RID", 3) == 0 || strncmp(line, "DRONE", 5) == 0 ||
+        strncmp(line, "BARO", 4) == 0 || strncmp(line, "DPS", 3) == 0 ||
         strncmp(line, "STATUS", 6) == 0) {
         dbg_puts("?: unknown command — HELP\n");
     }
