@@ -194,7 +194,22 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   UART **CLI** (help on boot / first byte / USB mount): `HELP`, `STATUS`,
   `TIME` / `TIME INFO` / `TIME SYNC`, `LOG ON|OFF`,
   `DET LIST|EXPORT|BACKUP|IMPORT|DEL|CLEAR`, `ENT LIST|EXPORT|IMPORT`,
-  `DRONE LIST|CLEAR`, `BARO`, `RID LIST|ON|OFF`. See [`TEST_SCENARIOS_1.0.6.md`](TEST_SCENARIOS_1.0.6.md).
+  `DRONE LIST|CLEAR`, `BARO`, `LINK`, `RID LIST|ON|OFF`. See [`TEST_SCENARIOS_1.0.6.md`](TEST_SCENARIOS_1.0.6.md).
+
+* **Acoustic node link (v1.3.0+).** Nodes talk to each other over the existing
+  GP6/GP7 4 kHz PS1240 piezo using **DSSS-BPSK**: a per-node CDMA code
+  (length-127 Gold family) spreads a fixed frame carrying a **Hamming(7,4) FEC +
+  CRC32** payload, with reserved `key_id`/`nonce`/`encrypted` fields for future
+  AEAD. RX rides on the 6-mic 48 kHz capture (mono mix → matched filter). The
+  link does **single-sided two-way ranging** (mutual distance, using the
+  baro-corrected speed of sound), **coarse time sync** (an unsynced node adopts a
+  synced peer's epoch as `TIME` source `acoustic`), and carries `BEACON` /
+  `DETECT` / `CTRL` frames. `CTRL WIFI_WAKE` requests bringing up Wi-Fi for bulk
+  sync / OTA on CYW43 boards. Collisions are handled by CDMA code separation plus
+  randomized beacon jitter. Stealth is best-effort (spread spectrum + low duty),
+  not true inaudibility, since the PS1240 resonates at 4 kHz. UART: `LINK`,
+  `LINK ID <0-7>`, `LINK BEACON`, `LINK WIFI`. See
+  [`acoustic_link.h`](acoustic_link.h) / [`node_store.h`](node_store.h).
 
 * **OpenDroneID / EU Direct Remote ID (v1.1.0+).** On CYW43 boards
   (`PICO_BOARD=pico_w`, `pico2_w`, `pimoroni_pico_plus2_w_rp2350`, or other Pico W

@@ -17,6 +17,7 @@
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
+#include <stddef.h>
 
 #define BUZZER_PIN_A        6u
 #define BUZZER_PIN_B        7u
@@ -39,6 +40,14 @@ static repeating_timer_t s_timer;
 static volatile int32_t  s_chip = -1;          // -1 = idle, else 0..PN_LEN-1
 static volatile uint32_t s_idle = 0;
 static volatile uint32_t s_beacons = 0;
+
+// --- Chip-stream TX state (acoustic link) -----------------------------------
+static const uint8_t   *volatile s_stream;      // chip buffer (referenced)
+static volatile uint32_t s_stream_len;
+static volatile uint32_t s_stream_idx;
+static volatile bool     s_stream_active;
+static volatile bool     s_stream_pending;      // commit flag; ISR starts next tick
+static volatile uint64_t s_stream_start_us;
 
 // Differential drive for one PN chip: chip=1 -> phase 0, chip=0 -> phase 180.
 static inline void buzzer_set_drive(uint8_t chip) {
@@ -64,6 +73,29 @@ static void buzzer_build_pn(void) {
 
 static bool buzzer_tick(repeating_timer_t *t) {
     (void)t;
+
+    // Acoustic-link chip stream pre-empts the periodic PN beacon.
+    if (s_stream_pending && !s_stream_active) {
+        s_stream_active = true;
+        s_stream_pending = false;
+        s_stream_idx = 0;
+    }
+    if (s_stream_active) {
+        uint32_t idx = s_stream_idx;
+        if (idx == 0u) s_stream_start_us = time_us_64();
+        buzzer_set_drive(s_stream[idx]);
+        idx++;
+        s_stream_idx = idx;
+        if (idx >= s_stream_len) {
+            s_stream_active = false;
+            buzzer_set_silent();
+            // Do not immediately fire the beacon on top of the stream tail.
+            s_chip = -1;
+            s_idle = 0;
+        }
+        return true;
+    }
+
     if (s_chip >= 0) {
         buzzer_set_drive(s_pn[s_chip]);
         s_chip++;
@@ -103,4 +135,23 @@ void buzzer_init(void) {
 
 uint32_t buzzer_beacon_count(void) {
     return s_beacons;
+}
+
+bool buzzer_tx_chips(const uint8_t *chips, uint32_t n_chips) {
+    if (chips == NULL || n_chips == 0u) return false;
+    if (s_stream_active || s_stream_pending) return false;
+    s_stream = chips;
+    s_stream_len = n_chips;
+    s_stream_idx = 0;
+    // Commit last: the ISR only starts once s_stream_pending is observed true.
+    s_stream_pending = true;
+    return true;
+}
+
+bool buzzer_tx_busy(void) {
+    return s_stream_active || s_stream_pending;
+}
+
+uint64_t buzzer_tx_start_us(void) {
+    return s_stream_start_us;
 }

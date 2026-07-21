@@ -8,6 +8,8 @@
 #include "doa.h"
 #include "het68_time.h"
 #include "remote_id.h"
+#include "acoustic_link.h"
+#include "node_store.h"
 #include <string.h>
 
 static char g_buf[192];
@@ -44,6 +46,10 @@ void cli_print_help(void) {
     dbg_puts("DRONE CLEAR          — erase known-drone flash registry\n");
     dbg_puts("BARO                 — Grove DPS310 pressure/temperature (GP2/GP3)\n");
     dbg_puts("BARO RH <0-100>      — assumed RH percent for sound speed (default 50)\n");
+    dbg_puts("LINK                 — acoustic node link status + peer/ranging table\n");
+    dbg_puts("LINK ID <0-7>        — set this node's acoustic id / CDMA code\n");
+    dbg_puts("LINK BEACON          — send one beacon now (ranging/sync)\n");
+    dbg_puts("LINK WIFI            — broadcast WIFI_WAKE (bulk sync / OTA)\n");
     dbg_puts("RID LIST             — OpenDroneID BLE tracks (CYW43 boards)\n");
     dbg_puts("RID ON | RID OFF     — enable/disable BLE Remote ID scan\n");
     dbg_puts("Note: DET timestamps after TIME SYNC (UART or RID System msg).\n");
@@ -129,6 +135,7 @@ void cli_print_status(void) {
     dbg_line_unlock(lock);
 
     dps310_dump_uart();
+    acoustic_link_status_uart();
     entity_store_dump_uart();
     detection_log_list_uart();
     drone_store_list_uart();
@@ -331,6 +338,38 @@ static void handle_line(char *line) {
         return;
     }
 
+    if (strcmp(line, "LINK") == 0 || strcmp(line, "LINK LIST") == 0) {
+        acoustic_link_status_uart();
+        return;
+    }
+    if (strncmp(line, "LINK ID ", 8) == 0) {
+        uint32_t id = parse_u32(line + 8);
+        if (id >= 8u) {
+            dbg_puts("LINK ID ERR: need 0..7\n");
+        } else {
+            acoustic_link_set_node_id((uint8_t)id);
+            dbg_puts("LINK ID=");
+            dbg_putu32(id);
+            dbg_putc('\n');
+        }
+        return;
+    }
+    if (strcmp(line, "LINK BEACON") == 0) {
+        uint8_t flags = het68_time_synced() ? ALINK_FLAG_SYNCED : 0u;
+        if (acoustic_link_send(ALINK_FT_BEACON, flags, NULL, 0))
+            dbg_puts("LINK: beacon queued\n");
+        else
+            dbg_puts("LINK: TX busy\n");
+        return;
+    }
+    if (strcmp(line, "LINK WIFI") == 0 || strcmp(line, "LINK WIFI WAKE") == 0) {
+        if (acoustic_link_send_wifi_wake(1u))
+            dbg_puts("LINK: WIFI_WAKE queued\n");
+        else
+            dbg_puts("LINK: TX busy\n");
+        return;
+    }
+
     if (strcmp(line, "RID LIST") == 0 || strcmp(line, "RID") == 0) {
         remote_id_list_uart();
         return;
@@ -358,6 +397,7 @@ static void handle_line(char *line) {
         strncmp(line, "TIME", 4) == 0 || strncmp(line, "LOG", 3) == 0 ||
         strncmp(line, "RID", 3) == 0 || strncmp(line, "DRONE", 5) == 0 ||
         strncmp(line, "BARO", 4) == 0 || strncmp(line, "DPS", 3) == 0 ||
+        strncmp(line, "LINK", 4) == 0 ||
         strncmp(line, "STATUS", 6) == 0) {
         dbg_puts("?: unknown command — HELP\n");
     }

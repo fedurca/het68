@@ -4,9 +4,10 @@
 #include <stdbool.h>
 
 typedef enum {
-    HET68_TIME_SRC_NONE = 0,
-    HET68_TIME_SRC_UART = 1,
-    HET68_TIME_SRC_RID  = 2,
+    HET68_TIME_SRC_NONE     = 0,
+    HET68_TIME_SRC_UART     = 1,
+    HET68_TIME_SRC_RID      = 2,
+    HET68_TIME_SRC_ACOUSTIC = 3,   // adopted from a synced peer over the piezo link
 } het68_time_src_t;
 
 void het68_time_init(void);

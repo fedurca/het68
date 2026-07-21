@@ -32,6 +32,7 @@
 #include "het68_time.h"
 #include "drone_store.h"
 #include "dps310.h"
+#include "acoustic_link.h"
 #include "cli.h"
 
 // Apply baro-derived speed of sound to DOA when a fresh sample exists.
@@ -369,6 +370,12 @@ static void build_usb_frame_from_i2s(uint8_t read_half) {
             *out++ = (uint8_t)((s24 >> 16) & 0xFF);
         }
         doa_ring_push(ring6);
+
+        // Feed a mono mix to the acoustic node link RX (cheap; matched filter
+        // runs later in acoustic_link_poll()).
+        int32_t mono = 0;
+        for (int i = 0; i < 6; i++) mono += ring6[i];
+        acoustic_link_rx_push((int16_t)(mono / 6));
     }
     for (int i = 0; i < 6; i++) {
         dbg_i2s_peak[i] = peak[i];
@@ -881,6 +888,18 @@ int main(void)
     else
         dbg_puts("RID: skipped (board has no Wi-Fi/BT)\n");
 
+    // Acoustic node link on the GP6/GP7 piezo (DSSS-BPSK) + mic-array RX.
+    {
+        uint8_t node_id = 0;
+#ifdef HET68_NODE_ID
+        node_id = (uint8_t)(HET68_NODE_ID);
+#endif
+        acoustic_link_init(node_id);
+        dbg_puts("LINK: acoustic node link (GP6/GP7 4kHz DSSS) node=");
+        dbg_putu32(node_id);
+        dbg_putc('\n');
+    }
+
     // Optional Grove DPS310 on free I2C1 pins GP2 (SDA) / GP3 (SCL).
     if (dps310_init()) {
         // A few polls so STATUS/boot can show c=… before the main loop.
@@ -940,6 +959,7 @@ int main(void)
         remote_id_poll();
         dps310_poll();
         baro_update_sound_speed();
+        acoustic_link_poll();
 #endif
         // Audio frames are produced in tud_audio_tx_done_pre_load_cb(), driven by
         // the USB IN cadence — nothing to pump from the main loop here.
