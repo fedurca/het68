@@ -3,7 +3,7 @@
 Jazyk: **Čeština** · [English](wiki.md)
 
 Tato wiki vysvětluje **současné** řešení het68 na větvi `main`
-(akustický node link **v1.3.x** a související subsystémy). Rozšiřuje praktické
+(akustický node link **v1.4.x** a související subsystémy). Rozšiřuje praktické
 otázky kolem UART logů a formátu chirp zpráv a zasazuje je do zbytku stacku.
 
 Úplná protokolová reference (PHY, ranging, MAC, air-time):
@@ -48,7 +48,7 @@ flowchart TB
     cli["UART CLI"]
   end
   subgraph air [Akustický node link]
-    piezo["PS1240 GP6/GP7 DSSS-BPSK"]
+    piezo["PS1240 GP6/GP7 FHSS ~70ms"]
     peers["node_store peers / dist / offset"]
   end
   mics --> usb
@@ -65,8 +65,8 @@ flowchart TB
   time --> cli
 ```
 
-- **TX chirp:** APP rámec → CRC32 + Hamming(7,4) → Gold CDMA čipy →
-  `buzzer_tx_chips()` na GP6/GP7.
+- **TX chirp:** APP rámec → CRC32 → 31čipová BPSK preambule @ 4 kHz +
+  2-FSK FHSS data → `buzzer_tx_chips_fh()` na GP6/GP7 (~70 ms air-time).
 - **RX chirp:** šest miků smícháno do mono v `build_usb_frame_from_i2s()` →
   `acoustic_link_rx_push()` (levný ring) → matched filter v
   `acoustic_link_poll()` (ohraničeně, main loop).
@@ -90,7 +90,7 @@ Při **automatickém příjmu** se na UART vypíše jen několik typů rámců. 
 
 | Událost | Typický UART řádek | Poznámka |
 |---|---|---|
-| Boot / init | `LINK: acoustic node link … node=` | Jednou při startu |
+| Boot / init | `LINK: acoustic node link (… FHSS-BPSK <100ms) node=` | Jednou při startu |
 | Rámec `DETECT` | `LINK DETECT from=<id> cls=<n>` | Peer id + bajt třídy |
 | `CTRL` `WIFI_WAKE` | `LINK: WIFI_WAKE token=…` nebo „no Wi-Fi…“ | Nastaví i wake-pending flag |
 | `CTRL` `OTA_REQ` | `LINK: OTA_REQ received` | Placeholder; OTA přenos ještě není |
@@ -104,7 +104,7 @@ se **nepíšou** při každém dekódu.
 `acoustic_link_status_uart()` a pak `node_store_list_uart()`:
 
 ```
-LINK node=<id> tx=<n> rx=<n> bad_crc=<n> peers=<n> wifi_wake=<0|1>
+LINK node=<id> ver=2 air_ms=69 tx=<n> rx=<n> bad_crc=<n> peers=<n> wifi_wake=<0|1>
 === node peers ===
 NODE id=<id> rx=<n> q=<0.xx> dist_m=<m>|dist=? offset_us=<…> synced=<0|1>
 …
@@ -112,6 +112,7 @@ NODE id=<id> rx=<n> q=<0.xx> dist_m=<m>|dist=? offset_us=<…> synced=<0|1>
 
 | Pole | Význam |
 |---|---|
+| `ver` / `air_ms` | Verze na drátě (2) a nominální air-time chirpu |
 | `tx` / `rx` / `bad_crc` | Lokální počítadla linku |
 | `peers` | Obsazené sloty v `node_store` (max 8) |
 | `q` | Poslední kvalita matched filtru \(0..1\) |
@@ -123,7 +124,7 @@ CLI: `LINK`, `LINK ID <0-7>`, `LINK BEACON`, `LINK WIFI` — viz [`cli.c`](cli.c
 
 ### Proč je BEACON tichý
 
-Maják trvá ~7,2 s na vzduchu a opakuje se často. Logovat každý dekód by
+Maják trvá jen ~70 ms na vzduchu, ale opakuje se často. Logovat každý dekód by
 zaplavilo UART a překrylo DET/RID/CMP provoz. Návrh: **tiché uložení +
 explicitní dump**.
 
@@ -133,12 +134,11 @@ explicitní dump**.
 
 ### Pevná velikost na vzduchu (vždy)
 
-Každý rámec je **pevných 31 bajtů** plaintextu před FEC a pak vždy stejná
-zakódovaná délka. Velikost RX zůstává konstantní.
+Každý rámec je **pevných 31 bajtů** plaintextu. Na vzduchu (v1.4 / wire v2):
 
 | Offset | Pole | Bajtů |
 |---|---|---|
-| 0 | `version` (`ALINK_VERSION` = 1) | 1 |
+| 0 | `version` (`ALINK_VERSION` = **2**) | 1 |
 | 1 | `node_id` (odesílatel, 0..7) | 1 |
 | 2 | `type` | 1 |
 | 3 | `seq` | 1 |
@@ -149,8 +149,8 @@ zakódovaná délka. Velikost RX zůstává konstantní.
 | 11..26 | `payload` (vždy doplněno na 16) | 16 |
 | 27..30 | CRC32 LE přes bajty 0..26 | 4 |
 
-Pak: Hamming(7,4) → **434** kódovaných bitů → DSSS SF=8 → **3472** datových
-čipů + **127** preambulí = **3599** čipů ≈ **7,2 s** při 500 čip/s.
+Pak: **248 raw bitů** (bez Hammingu) jako 2-FSK hopy + **31** BPSK preambulí
+@ 4 kHz = **279** čipů × **250 µs** ≈ **70 ms**.
 
 ### Co se skutečně mění
 
@@ -159,11 +159,11 @@ Variabilita je **sémantická**, ne délková:
 1. **`type`** — `BEACON=0`, `DETECT=1`, `CTRL=2`, `ACK=3`
 2. **`flags`** — `ENCRYPTED` (0x01, stub), `ACK_REQ` (0x02), `SYNCED` (0x04)
 3. **`seq`**, **`node_id`**, počítadla / časová razítka v payloadu
-4. **CDMA kód** — podle `node_id` odesílatele (Gold rodina); není pole v payloadu
-5. **`len`** — deklarováno 0..16, TX ale stejně paduje 16bajtový slot
+4. **CDMA posun preambule** + **základ hop páru** — z `node_id`
+5. **Hop tón na bit** — která ze dvou FSK frekvencí nese bit
+6. **`len`** — deklarováno 0..16; TX stejně paduje 16bajtový slot
 
-Co se **nemění**: počet bajtů rámce, kódovaných bitů, čipů, nosná (4 kHz),
-čipová rychlost, spreading factor.
+Co se **nemění**: počet bajtů rámce, počet čipů, dwell čipu, air-time.
 
 ### Layouty payloadu (uvnitř pevných 16 B)
 
@@ -220,17 +220,15 @@ Akustická quality je záměrně nižší než UART/RID, aby přímý zdroj vyhr
 
 ## 6. Vícenásobný přístup, rychlost a slyšitelnost
 
-- **CDMA:** až 8 Gold kódů (`ALINK_MAX_NODES`); korelátor bere nejsilnější
-  shodu preambule (`rho > 0.30` + energetický práh).
-- **Slotted-ALOHA jitter:** základ majáku ~1500 ms + 0..500 ms náhodně; plus
-  listen-before-talk (`buzzer_tx_busy()`).
-- **Propustnost:** ~31 info bajtů / ~7,2 s ≈ **34 bit/s** — jen řídicí/ranging
-  rovina. Bulk / OTA → `WIFI_WAKE` a pak Wi-Fi (STA cesta je zatím odložená).
-- **Slyšitelnost:** 4 kHz je v citlivém pásmu sluchu; spread spectrum + nízký
-  duty cyklus dávají spíš „slabé kliky/šum“, ne ticho.
-
-Kompromisy pro rychlejší link (budoucnost): nižší `ALINK_DATA_SF`, kratší rámec
-nebo vyšší čipová rychlost (`ALINK_CYCLES_CHIP`).
+- **CDMA preambule:** 8 posunů m-sekvence délky 31; korelátor bere nejsilnější
+  shodu (`rho > 0.28` + energetický práh).
+- **FHSS data:** 8tónová hop množina; bit = porovnání energie páru tónů.
+- **Slotted-ALOHA jitter:** základ majáku ~2000 ms + 0..800 ms náhodně; LBT přes
+  `buzzer_tx_busy()`.
+- **Propustnost:** ~31 info bajtů / ~70 ms burst, duty ~3,5 % při periodě 2 s —
+  řídicí/ranging rovina. Bulk / OTA → `WIFI_WAKE` a Wi-Fi (odloženo).
+- **Slyšitelnost:** krátké hopnuté tiky místo vícenásobného 4kHz pískotu; pořád
+  ne ticho.
 
 ---
 
@@ -279,12 +277,14 @@ Protokol do hloubky: [`chirp.cs.md`](chirp.cs.md). Zdroje: `acoustic_link.*`,
 
 ## 9. Známá omezení (upřímný snapshot)
 
-- Není plně ověřeno na hardwaru (práh, Gold pár, přesnost ToA).
-- ToA je dnes v **rozlišení čipu** (~2 ms ≈ 0,69 m při \(c \approx 343\,\mathrm{m/s}\));
-  sub-chip interpolace peaku by ranging zpřesnila.
+- Není plně ověřeno na hardwaru (práh, hop SPL, přesnost ToA).
+- ToA je v **rozlišení čipu** (~250 µs ≈ 8,6 cm při \(c \approx 343\,\mathrm{m/s}\));
+  sub-chip interpolace peaku by ranging ještě zpřesnila.
+- Bez Hamming FEC — CRC + časté krátké majáky.
 - SS-TWR ≠ double-sided TWR (rušení skew není kompletní).
 - Crypto a Wi-Fi OTA jsou hooky/stuby, ne end-to-end funkce.
 - BEACON RX záměrně nejde na UART — peery prohlížej přes `LINK`.
+- v1.4 (`version=2`) **není** interoperabilní s v1.3 DSSS rámci.
 
 ---
 

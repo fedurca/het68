@@ -1,6 +1,5 @@
-// acoustic_link.c — DSSS-BPSK node link on the GP6/GP7 4 kHz piezo + mic RX.
-// See acoustic_link.h for the layering overview. No malloc; RX runs in bounded
-// chunks from the main loop; TX hands a chip buffer to the buzzer ISR.
+// acoustic_link.c — fast FHSS-BPSK node link on the GP6/GP7 PS1240 + mic RX.
+// Wire version 2 (firmware 1.4.0): ~70 ms/frame. See acoustic_link.h.
 #include "acoustic_link.h"
 #include "buzzer.h"
 #include "node_store.h"
@@ -15,41 +14,47 @@
 #define HET68_WIFI_WAKE 0
 #endif
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 // ---------------------------------------------------------------------------
-// Node identity + codes
+// Node identity + degree-5 Gold preamble codes (length 31)
 // ---------------------------------------------------------------------------
 static uint8_t g_node_id;
 
 static int8_t g_pre_code[ALINK_MAX_NODES][ALINK_PREAMBLE_LEN];   // +1/-1
-static int8_t g_data_code[ALINK_MAX_NODES][ALINK_DATA_SF];       // +1/-1
 
-// Two maximal-length degree-7 LFSRs (a preferred-pair Gold construction):
-//   seqA: x^7 + x^6 + 1   seqB: x^7 + x^3 + 1
-static void build_mseq(uint8_t taps_hi, uint8_t taps_lo, uint8_t out[ALINK_PREAMBLE_LEN]) {
-    uint8_t lfsr = 0x7Fu;
+// Hop set around PS1240 resonance (~4 kHz). Nearby tones still couple into the
+// element; hopping breaks the long tonal whistle that made v1.3 unbearable.
+static const uint16_t g_hop_hz[ALINK_NHOPS] = {
+    3000u, 3400u, 3800u, 4000u, 4200u, 4600u, 5000u, 5400u
+};
+
+static void build_mseq5(uint8_t tap_a, uint8_t tap_b, uint8_t out[ALINK_PREAMBLE_LEN]) {
+    uint8_t lfsr = 0x1Fu;
     for (uint32_t i = 0; i < ALINK_PREAMBLE_LEN; i++) {
-        uint8_t bit = (uint8_t)(((lfsr >> taps_hi) ^ (lfsr >> taps_lo)) & 1u);
+        uint8_t bit = (uint8_t)(((lfsr >> tap_a) ^ (lfsr >> tap_b)) & 1u);
         out[i] = (uint8_t)(lfsr & 1u);
-        lfsr = (uint8_t)(((lfsr << 1) | bit) & 0x7Fu);
+        lfsr = (uint8_t)(((lfsr << 1) | bit) & 0x1Fu);
     }
 }
 
 static void build_codes(void) {
-    uint8_t a[ALINK_PREAMBLE_LEN], b[ALINK_PREAMBLE_LEN];
-    build_mseq(6u, 5u, a);   // taps at register bits 6,5  -> x^7+x^6+1
-    build_mseq(6u, 2u, b);   // taps at register bits 6,2  -> x^7+x^3+1
+    // Length-31 m-sequence with distinct circular shifts per node (CDMA).
+    uint8_t a[ALINK_PREAMBLE_LEN];
+    build_mseq5(4u, 1u, a);   // x^5 + x^2 + 1
     for (uint32_t n = 0; n < ALINK_MAX_NODES; n++) {
+        uint32_t shift = n * 3u;   // well-separated phases in 31-space
         for (uint32_t k = 0; k < ALINK_PREAMBLE_LEN; k++) {
-            uint8_t g = a[k] ^ b[(k + n) % ALINK_PREAMBLE_LEN];   // Gold family
+            uint8_t g = a[(k + shift) % ALINK_PREAMBLE_LEN];
             g_pre_code[n][k] = g ? -1 : +1;
         }
-        for (uint32_t k = 0; k < ALINK_DATA_SF; k++)
-            g_data_code[n][k] = g_pre_code[n][k];
     }
 }
 
 // ---------------------------------------------------------------------------
-// CRC32 (IEEE 802.3, same poly as the flash stores)
+// CRC32 (IEEE 802.3)
 // ---------------------------------------------------------------------------
 static uint32_t crc32(const uint8_t *d, uint32_t len) {
     uint32_t c = 0xFFFFFFFFu;
@@ -62,47 +67,11 @@ static uint32_t crc32(const uint8_t *d, uint32_t len) {
 }
 
 // ---------------------------------------------------------------------------
-// Hamming(7,4) FEC — single-error-correcting, per nibble
-// ---------------------------------------------------------------------------
-static void hamming_enc(uint8_t nib, uint8_t out[7]) {
-    uint8_t d0 = (nib >> 0) & 1u, d1 = (nib >> 1) & 1u;
-    uint8_t d2 = (nib >> 2) & 1u, d3 = (nib >> 3) & 1u;
-    out[0] = (uint8_t)(d0 ^ d1 ^ d3);   // p1
-    out[1] = (uint8_t)(d0 ^ d2 ^ d3);   // p2
-    out[2] = d0;
-    out[3] = (uint8_t)(d1 ^ d2 ^ d3);   // p3
-    out[4] = d1;
-    out[5] = d2;
-    out[6] = d3;
-}
-
-static uint8_t hamming_dec(const uint8_t in[7]) {
-    uint8_t p1 = in[0], p2 = in[1], d0 = in[2], p3 = in[3];
-    uint8_t d1 = in[4], d2 = in[5], d3 = in[6];
-    uint8_t s1 = (uint8_t)(p1 ^ d0 ^ d1 ^ d3);
-    uint8_t s2 = (uint8_t)(p2 ^ d0 ^ d2 ^ d3);
-    uint8_t s3 = (uint8_t)(p3 ^ d1 ^ d2 ^ d3);
-    uint8_t syn = (uint8_t)(s1 | (s2 << 1) | (s3 << 2));
-    if (syn) {
-        // Syndrome (s1,s2,s3) -> codeword index (see hamming_enc layout):
-        //   001->p1(0) 010->p2(1) 011->d0(2) 100->p3(3)
-        //   101->d1(4) 110->d2(5) 111->d3(6)
-        static const int synmap[8] = { -1, 0, 1, 2, 3, 4, 5, 6 };
-        uint8_t v[7] = { in[0], in[1], in[2], in[3], in[4], in[5], in[6] };
-        int p = synmap[syn & 7u];
-        if (p >= 0) v[p] ^= 1u;
-        d0 = v[2]; d1 = v[4]; d2 = v[5]; d3 = v[6];
-    }
-    return (uint8_t)(d0 | (d1 << 1) | (d2 << 2) | (d3 << 3));
-}
-
-// ---------------------------------------------------------------------------
-// Crypto hook (reserved). Today a no-op pass-through; the frame already
-// carries key_id/nonce/flags so enabling AEAD later needs no wire change.
+// Crypto hook (reserved stub)
 // ---------------------------------------------------------------------------
 static bool crypto_seal(uint8_t *payload, uint8_t len, uint8_t key_id, uint32_t nonce) {
     (void)payload; (void)len; (void)key_id; (void)nonce;
-    return true;   // TODO: AEAD (encrypt-then-MAC), e.g. ChaCha20-Poly1305
+    return true;
 }
 static bool crypto_open(uint8_t *payload, uint8_t len, uint8_t key_id, uint32_t nonce) {
     (void)payload; (void)len; (void)key_id; (void)nonce;
@@ -112,37 +81,37 @@ static bool crypto_open(uint8_t *payload, uint8_t len, uint8_t key_id, uint32_t 
 // ---------------------------------------------------------------------------
 // TX
 // ---------------------------------------------------------------------------
-static uint8_t  s_tx_chips[ALINK_TX_CHIPS];
+static uint8_t  s_tx_phase[ALINK_TX_CHIPS];
+static uint16_t s_tx_freq[ALINK_TX_CHIPS];
 static uint8_t  s_tx_seq;
 static uint32_t s_tx_count;
-static uint8_t  s_pending_seq;        // seq of frame currently being emitted
-static bool     s_pending_note;       // need to record accurate t1 once it starts
+static uint8_t  s_pending_seq;
+static bool     s_pending_note;
 static uint64_t s_last_tx_start_us;
 
-// Build the 434-bit Hamming-coded stream from 31 plaintext bytes, then spread.
 static void build_tx_chips(const uint8_t frame[ALINK_FRAME_BYTES]) {
-    uint8_t bits[ALINK_CODED_BITS];
-    uint32_t bi = 0;
-    for (uint32_t i = 0; i < ALINK_FRAME_BYTES; i++) {
-        uint8_t hi = (uint8_t)(frame[i] >> 4);
-        uint8_t lo = (uint8_t)(frame[i] & 0x0Fu);
-        uint8_t cw[7];
-        hamming_enc(hi, cw);
-        for (int k = 0; k < 7; k++) bits[bi++] = cw[k];
-        hamming_enc(lo, cw);
-        for (int k = 0; k < 7; k++) bits[bi++] = cw[k];
-    }
-
     uint32_t ci = 0;
     const int8_t *pre = g_pre_code[g_node_id % ALINK_MAX_NODES];
-    const int8_t *dc  = g_data_code[g_node_id % ALINK_MAX_NODES];
-    for (uint32_t k = 0; k < ALINK_PREAMBLE_LEN; k++)
-        s_tx_chips[ci++] = (pre[k] < 0) ? 1u : 0u;   // amplitude -> phase bit
-    for (uint32_t b = 0; b < ALINK_CODED_BITS; b++) {
-        int amp_bit = (bits[b] ? -1 : +1);
-        for (uint32_t k = 0; k < ALINK_DATA_SF; k++) {
-            int amp = amp_bit * dc[k];              // (1-2b)*code
-            s_tx_chips[ci++] = (amp < 0) ? 1u : 0u;
+
+    // Preamble: fixed 4 kHz, Gold phase code (CDMA acquisition).
+    for (uint32_t k = 0; k < ALINK_PREAMBLE_LEN; k++) {
+        s_tx_phase[ci] = (pre[k] < 0) ? 1u : 0u;
+        s_tx_freq[ci] = ALINK_PREAMBLE_HZ;
+        ci++;
+    }
+
+    // Data: raw frame bits as non-coherent 2-FSK on the hop set.
+    // PWM retune destroys absolute carrier phase, so BPSK-on-hop is unreliable;
+    // each bit picks one of two hop tones (energy detection on RX).
+    for (uint32_t i = 0; i < ALINK_FRAME_BYTES; i++) {
+        for (int b = 7; b >= 0; b--) {
+            uint8_t bit = (uint8_t)((frame[i] >> b) & 1u);
+            uint32_t di = ci - ALINK_PREAMBLE_LEN;
+            uint32_t base = (di + (uint32_t)g_node_id * 3u) % ALINK_NHOPS;
+            uint32_t hi = (base + (bit ? (ALINK_NHOPS / 2u) : 0u)) % ALINK_NHOPS;
+            s_tx_phase[ci] = 0u;   // fixed drive polarity; info is in frequency
+            s_tx_freq[ci] = g_hop_hz[hi];
+            ci++;
         }
     }
 }
@@ -169,7 +138,6 @@ bool acoustic_link_send(uint8_t type, uint8_t flags,
     frame[10] = len;
     if (payload && len) memcpy(&frame[11], payload, len);
 
-    // Seal payload region in place (stub today).
     if (flags & ALINK_FLAG_ENCRYPTED)
         (void)crypto_seal(&frame[11], ALINK_MAX_PAYLOAD, key_id, nonce);
 
@@ -180,7 +148,7 @@ bool acoustic_link_send(uint8_t type, uint8_t flags,
     frame[30] = (uint8_t)((crc >> 24) & 0xFF);
 
     build_tx_chips(frame);
-    if (!buzzer_tx_chips(s_tx_chips, ALINK_TX_CHIPS)) return false;
+    if (!buzzer_tx_chips_fh(s_tx_phase, s_tx_freq, ALINK_TX_CHIPS)) return false;
 
     s_pending_seq = s_tx_seq;
     s_pending_note = (type == ALINK_FT_BEACON);
@@ -190,10 +158,10 @@ bool acoustic_link_send(uint8_t type, uint8_t flags,
 }
 
 // ---------------------------------------------------------------------------
-// Beacon scheduling (slotted-ALOHA-ish: periodic + random jitter)
+// Beacon scheduling
 // ---------------------------------------------------------------------------
-#define BEACON_BASE_MS   1500u
-#define BEACON_JITTER_MS 500u
+#define BEACON_BASE_MS   2000u
+#define BEACON_JITTER_MS 800u
 static uint64_t s_next_beacon_us;
 static uint32_t s_lcg = 0x1234567u;
 
@@ -206,11 +174,11 @@ static void schedule_tx(void) {
         return;
     }
     if (now < s_next_beacon_us) return;
-    if (buzzer_tx_busy()) return;   // listen/hold: don't stomp our own PHY
+    if (buzzer_tx_busy()) return;
 
     uint8_t p[ALINK_MAX_PAYLOAD];
     memset(p, 0, sizeof(p));
-    uint32_t tx_mono = (uint32_t)now;              // approx send time (low32)
+    uint32_t tx_mono = (uint32_t)now;
     uint32_t epoch = het68_time_synced() ? het68_time_epoch_sec() : 0u;
     p[0] = (uint8_t)(tx_mono & 0xFF);
     p[1] = (uint8_t)((tx_mono >> 8) & 0xFF);
@@ -240,62 +208,57 @@ static void schedule_tx(void) {
 }
 
 // ---------------------------------------------------------------------------
-// RX ring (SPSC: producer = USB frame builder, consumer = poll)
+// RX ring
 // ---------------------------------------------------------------------------
 #define RX_RING 8192u
 static int16_t          s_rx_ring[RX_RING];
-static volatile uint32_t s_rx_head;   // producer
-static volatile uint32_t s_rx_tail;   // consumer
+static volatile uint32_t s_rx_head;
+static volatile uint32_t s_rx_tail;
 
 void acoustic_link_rx_push(int16_t mono) {
     uint32_t h = s_rx_head;
     uint32_t nh = (h + 1u) & (RX_RING - 1u);
-    if (nh == s_rx_tail) return;       // full: drop (bounded, non-blocking)
+    if (nh == s_rx_tail) return;
     s_rx_ring[h] = mono;
     s_rx_head = nh;
 }
 
 // ---------------------------------------------------------------------------
-// RX matched filter / despreader
+// RX: 4 kHz preamble correlator + FHSS data demod
 // ---------------------------------------------------------------------------
-static float s_cos_lut[ALINK_SAMPLES_CYCLE];
-static float s_sin_lut[ALINK_SAMPLES_CYCLE];
-static uint32_t s_smp_phase;
+static float s_cos4[ALINK_SAMPLES_CHIP];
+static float s_sin4[ALINK_SAMPLES_CHIP];
+// Per-hop baseband LUTs over one chip window (12 samples).
+static float s_hop_cos[ALINK_NHOPS][ALINK_SAMPLES_CHIP];
+static float s_hop_sin[ALINK_NHOPS][ALINK_SAMPLES_CHIP];
 
-// Integrate-and-dump chip accumulator.
-static float s_i_acc, s_q_acc;
-static uint32_t s_chip_smp;
+static float s_chip_buf[ALINK_SAMPLES_CHIP];
+static uint32_t s_chip_fill;
 
-// Preamble chip history (circular).
 static float s_hist_i[ALINK_PREAMBLE_LEN];
 static float s_hist_q[ALINK_PREAMBLE_LEN];
 static uint32_t s_hist_head;
 static uint32_t s_hist_fill;
 
-// Receiver state machine.
 enum { RX_SEARCH = 0, RX_DATA };
 static uint8_t  s_rx_state;
-static uint8_t  s_rx_node;       // detected sender code index
-static float    s_rx_cos, s_rx_sin;  // channel phase reference
+static uint8_t  s_rx_node;
+static float    s_rx_cos, s_rx_sin;
 static uint64_t s_rx_toa_us;
 static float    s_rx_q;
 static uint32_t s_bit_idx;
-static uint32_t s_chip_in_bit;
-static float    s_bit_i, s_bit_q;
-static uint8_t  s_coded[ALINK_CODED_BITS];
+static uint8_t  s_raw_bits[ALINK_RAW_BITS];
 
 static uint32_t s_rx_count;
 static uint32_t s_rx_bad_crc;
 static volatile bool s_wifi_wake_pending;
 
-#define DETECT_RHO   0.30f     // normalized correlation threshold
-#define DETECT_EMIN  1.0e6f    // minimum window energy to consider a peak
+#define DETECT_RHO   0.28f
+#define DETECT_EMIN  5.0e5f
 
 static void rx_reset_search(void) {
     s_rx_state = RX_SEARCH;
     s_bit_idx = 0;
-    s_chip_in_bit = 0;
-    s_bit_i = s_bit_q = 0.0f;
 }
 
 static void dispatch_frame(const alink_frame_t *f);
@@ -303,9 +266,10 @@ static void dispatch_frame(const alink_frame_t *f);
 static void finalize_frame(void) {
     uint8_t bytes[ALINK_FRAME_BYTES];
     for (uint32_t i = 0; i < ALINK_FRAME_BYTES; i++) {
-        uint8_t hi = hamming_dec(&s_coded[(i * 2u) * 7u]);
-        uint8_t lo = hamming_dec(&s_coded[(i * 2u + 1u) * 7u]);
-        bytes[i] = (uint8_t)((hi << 4) | (lo & 0x0Fu));
+        uint8_t v = 0;
+        for (int b = 0; b < 8; b++)
+            v = (uint8_t)((v << 1) | (s_raw_bits[i * 8u + (uint32_t)b] & 1u));
+        bytes[i] = v;
     }
     uint32_t crc = crc32(bytes, 27);
     uint32_t rx_crc = (uint32_t)bytes[27] | ((uint32_t)bytes[28] << 8) |
@@ -330,29 +294,44 @@ static void finalize_frame(void) {
     f.corr_q = s_rx_q;
     if (f.flags & ALINK_FLAG_ENCRYPTED)
         (void)crypto_open(f.payload, ALINK_MAX_PAYLOAD, f.key_id, f.nonce);
+    // Prefer header node_id when it matches the CDMA detection.
+    if (f.node_id >= ALINK_MAX_NODES) f.node_id = s_rx_node;
     s_rx_count++;
     dispatch_frame(&f);
     rx_reset_search();
 }
 
-// One completed chip (complex) at local time chip_us.
-static void rx_on_chip(float ci, float cq, uint64_t chip_us) {
+static void mix_chip(const float *buf, const float *c, const float *s,
+                     float *oi, float *oq) {
+    float ri = 0.0f, rq = 0.0f;
+    for (uint32_t n = 0; n < ALINK_SAMPLES_CHIP; n++) {
+        ri += buf[n] * c[n];
+        rq += buf[n] * s[n];
+    }
+    *oi = ri;
+    *oq = rq;
+}
+
+static void rx_on_chip(const float *buf, uint64_t chip_us) {
     if (s_rx_state == RX_DATA) {
-        const int8_t *dc = g_data_code[s_rx_node];
-        s_bit_i += ci * (float)dc[s_chip_in_bit];
-        s_bit_q += cq * (float)dc[s_chip_in_bit];
-        if (++s_chip_in_bit >= ALINK_DATA_SF) {
-            float val = s_bit_i * s_rx_cos + s_bit_q * s_rx_sin;  // derotate
-            s_coded[s_bit_idx] = (val < 0.0f) ? 1u : 0u;
-            s_bit_idx++;
-            s_chip_in_bit = 0;
-            s_bit_i = s_bit_q = 0.0f;
-            if (s_bit_idx >= ALINK_CODED_BITS) finalize_frame();
-        }
+        uint32_t di = s_bit_idx;
+        uint32_t base = (di + (uint32_t)s_rx_node * 3u) % ALINK_NHOPS;
+        uint32_t h0 = base;
+        uint32_t h1 = (base + ALINK_NHOPS / 2u) % ALINK_NHOPS;
+        float i0, q0, i1, q1;
+        mix_chip(buf, s_hop_cos[h0], s_hop_sin[h0], &i0, &q0);
+        mix_chip(buf, s_hop_cos[h1], s_hop_sin[h1], &i1, &q1);
+        float e0 = i0 * i0 + q0 * q0;
+        float e1 = i1 * i1 + q1 * q1;
+        s_raw_bits[s_bit_idx] = (e1 > e0) ? 1u : 0u;
+        s_bit_idx++;
+        if (s_bit_idx >= ALINK_RAW_BITS) finalize_frame();
         return;
     }
 
-    // SEARCH: push chip into history, correlate against candidate codes.
+    // SEARCH on fixed 4 kHz preamble.
+    float ci, cq;
+    mix_chip(buf, s_cos4, s_sin4, &ci, &cq);
     s_hist_i[s_hist_head] = ci;
     s_hist_q[s_hist_head] = cq;
     s_hist_head = (s_hist_head + 1u) % ALINK_PREAMBLE_LEN;
@@ -368,8 +347,6 @@ static void rx_on_chip(float ci, float cq, uint64_t chip_us) {
     for (uint32_t n = 0; n < ALINK_MAX_NODES; n++) {
         const int8_t *code = g_pre_code[n];
         float ri = 0.0f, rq = 0.0f;
-        // oldest chip is at s_hist_head (just overwritten pos is newest-1);
-        // align code[0] with oldest sample.
         uint32_t idx = s_hist_head;
         for (uint32_t k = 0; k < ALINK_PREAMBLE_LEN; k++) {
             float c = (float)code[k];
@@ -378,7 +355,12 @@ static void rx_on_chip(float ci, float cq, uint64_t chip_us) {
             idx = (idx + 1u) % ALINK_PREAMBLE_LEN;
         }
         float mag2 = ri * ri + rq * rq;
-        if (mag2 > best_mag2) { best_mag2 = mag2; best_node = (int)n; best_ci = ri; best_cq = rq; }
+        if (mag2 > best_mag2) {
+            best_mag2 = mag2;
+            best_node = (int)n;
+            best_ci = ri;
+            best_cq = rq;
+        }
     }
 
     float rho = best_mag2 / ((float)ALINK_PREAMBLE_LEN * energy);
@@ -392,9 +374,6 @@ static void rx_on_chip(float ci, float cq, uint64_t chip_us) {
         s_rx_q = rho;
         s_rx_state = RX_DATA;
         s_bit_idx = 0;
-        s_chip_in_bit = 0;
-        s_bit_i = s_bit_q = 0.0f;
-        // Clear history so the next search starts fresh after this frame.
         s_hist_fill = 0;
     }
 }
@@ -402,7 +381,6 @@ static void rx_on_chip(float ci, float cq, uint64_t chip_us) {
 void acoustic_link_poll(void) {
     schedule_tx();
 
-    // Record the accurate preamble start time for our outstanding beacon poll.
     if (s_pending_note) {
         uint64_t st = buzzer_tx_start_us();
         if (st != 0 && st != s_last_tx_start_us) {
@@ -414,27 +392,20 @@ void acoustic_link_poll(void) {
 
     uint32_t head = s_rx_head;
     uint32_t tail = s_rx_tail;
-    uint32_t avail = (head - tail) & (RX_RING - 1u);
-    if (avail == 0u) return;
+    if (head == tail) return;
 
     uint64_t now = time_us_64();
+    uint32_t avail = (head - tail) & (RX_RING - 1u);
     uint32_t remaining = avail;
     while (tail != head) {
         int16_t x = s_rx_ring[tail];
         tail = (tail + 1u) & (RX_RING - 1u);
         remaining--;
-
-        float xf = (float)x;
-        uint32_t p = s_smp_phase;
-        s_i_acc += xf * s_cos_lut[p];
-        s_q_acc += xf * s_sin_lut[p];
-        s_smp_phase = (p + 1u >= ALINK_SAMPLES_CYCLE) ? 0u : (p + 1u);
-
-        if (++s_chip_smp >= ALINK_SAMPLES_CHIP) {
+        s_chip_buf[s_chip_fill++] = (float)x;
+        if (s_chip_fill >= ALINK_SAMPLES_CHIP) {
             uint64_t chip_us = now - (uint64_t)remaining * 1000000ull / ALINK_FS_HZ;
-            rx_on_chip(s_i_acc, s_q_acc, chip_us);
-            s_i_acc = s_q_acc = 0.0f;
-            s_chip_smp = 0;
+            rx_on_chip(s_chip_buf, chip_us);
+            s_chip_fill = 0;
         }
     }
     s_rx_tail = tail;
@@ -451,14 +422,11 @@ static void wifi_wake(uint8_t token) {
     dbg_putu32(token);
     dbg_puts(" — Wi-Fi STA bring-up requested (bulk sync / OTA)\n");
     dbg_line_unlock(lock);
-    // Actual STA connect is deferred: it needs SSID/credential provisioning and
-    // must coexist with the BTstack/RID cyw43_arch instance. The application
-    // layer polls acoustic_link_wifi_wake_pending() to drive the connect + OTA.
 }
 #else
 static void wifi_wake(uint8_t token) {
     (void)token;
-    s_wifi_wake_pending = true;   // recorded even on non-wireless boards
+    s_wifi_wake_pending = true;
     dbg_puts("LINK: WIFI_WAKE received — no Wi-Fi on this board\n");
 }
 #endif
@@ -480,7 +448,6 @@ static void dispatch_frame(const alink_frame_t *f) {
                                  peer_tx, echo_node, echo_seq, t_reply,
                                  peer_synced, f->corr_q, doa_c_sound_m_s());
 
-            // Coarse time adoption from a synced peer when we are unsynced.
             if (peer_synced && epoch > 1700000000u && !het68_time_synced())
                 (void)het68_time_sync_from(epoch, HET68_TIME_SRC_ACOUSTIC, 60u);
             break;
@@ -512,14 +479,23 @@ static void dispatch_frame(const alink_frame_t *f) {
 void acoustic_link_init(uint8_t node_id) {
     g_node_id = node_id;
     build_codes();
-    for (uint32_t i = 0; i < ALINK_SAMPLES_CYCLE; i++) {
-        float a = 2.0f * 3.14159265f * (float)i / (float)ALINK_SAMPLES_CYCLE;
-        s_cos_lut[i] = cosf(a);
-        s_sin_lut[i] = sinf(a);
+
+    for (uint32_t n = 0; n < ALINK_SAMPLES_CHIP; n++) {
+        float a = 2.0f * (float)M_PI * (float)ALINK_PREAMBLE_HZ *
+                  (float)n / (float)ALINK_FS_HZ;
+        s_cos4[n] = cosf(a);
+        s_sin4[n] = sinf(a);
     }
-    s_smp_phase = 0;
-    s_i_acc = s_q_acc = 0.0f;
-    s_chip_smp = 0;
+    for (uint32_t h = 0; h < ALINK_NHOPS; h++) {
+        for (uint32_t n = 0; n < ALINK_SAMPLES_CHIP; n++) {
+            float a = 2.0f * (float)M_PI * (float)g_hop_hz[h] *
+                      (float)n / (float)ALINK_FS_HZ;
+            s_hop_cos[h][n] = cosf(a);
+            s_hop_sin[h][n] = sinf(a);
+        }
+    }
+
+    s_chip_fill = 0;
     s_hist_head = 0;
     s_hist_fill = 0;
     rx_reset_search();
@@ -545,10 +521,18 @@ uint32_t acoustic_link_rx_bad_crc(void) { return s_rx_bad_crc; }
 bool acoustic_link_tx_busy(void) { return buzzer_tx_busy(); }
 bool acoustic_link_wifi_wake_pending(void) { return s_wifi_wake_pending; }
 
+uint32_t acoustic_link_frame_air_us(void) {
+    return (uint32_t)ALINK_TX_CHIPS * (uint32_t)ALINK_CHIP_US;
+}
+
 void acoustic_link_status_uart(void) {
     uint32_t lock = dbg_line_lock();
     dbg_puts("LINK node=");
     dbg_putu32(g_node_id);
+    dbg_puts(" ver=");
+    dbg_putu32(ALINK_VERSION);
+    dbg_puts(" air_ms=");
+    dbg_putu32(acoustic_link_frame_air_us() / 1000u);
     dbg_puts(" tx=");
     dbg_putu32(s_tx_count);
     dbg_puts(" rx=");
