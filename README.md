@@ -208,8 +208,9 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   sync / OTA on CYW43 boards. Collisions are handled by CDMA code separation plus
   randomized beacon jitter. Stealth is best-effort (spread spectrum + low duty),
   not true inaudibility, since the PS1240 resonates at 4 kHz. UART: `LINK`,
-  `LINK ID <0-7>`, `LINK BEACON`, `LINK WIFI`. Full protocol docs:
-  [`chirp.md`](chirp.md) (English) / [`chirp.cs.md`](chirp.cs.md) (Čeština);
+  `LINK ID <0-7>`, `LINK BEACON`, `LINK WIFI`. Understanding + FAQ:
+  [`wiki.md`](wiki.md) (English) / [`wiki.cs.md`](wiki.cs.md) (Čeština).
+  Full protocol docs: [`chirp.md`](chirp.md) / [`chirp.cs.md`](chirp.cs.md);
   see also [`acoustic_link.h`](acoustic_link.h) / [`node_store.h`](node_store.h).
 
 * **OpenDroneID / EU Direct Remote ID (v1.1.0+).** On CYW43 boards

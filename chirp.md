@@ -7,6 +7,10 @@ clocks, and measure mutual distance over the on-board **4 kHz PS1240 piezo**
 (GP6/GP7) plus the **6-microphone 48 kHz array** — the "chirp" link introduced in
 firmware **v1.3.0** ([`acoustic_link.c`](acoustic_link.c), [`node_store.c`](node_store.c)).
 
+For a shorter FAQ-oriented overview (UART logging, frame variability, how the
+link fits the rest of the firmware), see [`wiki.md`](wiki.md) /
+[`wiki.cs.md`](wiki.cs.md).
+
 - Design goals: collision-resistant multi-node operation, mutual time sync,
   mutual ranging, good range, and minimal audibility.
 - Constraints (see [`AGENTS.md`](AGENTS.md)): no `malloc`/`free` in the realtime
