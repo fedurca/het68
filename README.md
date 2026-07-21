@@ -213,6 +213,9 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   **v1.2.5:** with `LOG ON`, UART prints `CMP` lines comparing microphone DOA
   az/el to RID GPS az/el (local ENU from System-message operator lat/lon).
   **v1.2.6:** documents the `CMP` field abbreviations (see below).
+  **v1.2.7:** release CI Node 24 actions, fixed `openocd` submodule mapping;
+  release assets include `SHA256SUMS.txt` (+ signing placeholders — see
+  [`signing/README.md`](signing/README.md)).
 
   ```
   SRC class=wind az=180.0 el=10.0 inten=-22.5dB
@@ -268,7 +271,13 @@ Create a GitHub Release whose tag is SemVer core ([semver.org](https://semver.or
 — `x.y.z` or `vx.y.z` (e.g. `1.2.4` / `v1.2.4`) — and CI builds firmware for
 **pico**, **pico_w**, **pico2**, **pico2_w** (RP2350 + CYW43439 Wi‑Fi/BT), and
 **Pico Plus 2 W**, then
-attaches `.uf2` / `.elf` assets to that release.
+attaches `.uf2` / `.elf` assets plus **`SHA256SUMS.txt`** and **`SIGNING.txt`**
+(reserved for future detached signatures; see [`signing/README.md`](signing/README.md)).
+
+```bash
+# after downloading assets from a release:
+sha256sum -c SHA256SUMS.txt
+```
 
 ## Build
 

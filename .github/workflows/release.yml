@@ -2,6 +2,7 @@
 #   x.y.z   or   vx.y.z
 # Uploads UF2 + ELF as release assets:
 #   pico | pico_w (RP2040) | pico2 | pico2_w (CYW43439) | Pico Plus 2 W
+# Also uploads SHA256SUMS.txt (+ placeholder for future detached signatures).
 # After a successful build, force-moves the floating git tag `latest` to that
 # commit and marks the GitHub Release as the repo "Latest" release.
 name: Release firmware
@@ -23,9 +24,11 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          # Firmware build does not need the openocd submodule tree.
+          submodules: false
 
       - name: Validate semver tag (x.y.z or vx.y.z)
         id: semver
@@ -162,8 +165,37 @@ jobs:
           cp -v build/pico_6mic_soundcard.elf "dist/het68-${VERSION}-pico-plus2-w.elf"
           ls -la dist/
 
+      - name: Generate checksums (and signature placeholders)
+        env:
+          VERSION: ${{ steps.semver.outputs.version }}
+        run: |
+          set -Eeuo pipefail
+          cd dist
+          # Integrity digests for every firmware binary in this release.
+          sha256sum het68-"${VERSION}"-*.uf2 het68-"${VERSION}"-*.elf | sort -k2 > SHA256SUMS.txt
+          # Space for future detached signatures (minisign / signify / cosign).
+          # When signing is enabled in CI, replace these stubs with real .sig/.minisig
+          # files and stop uploading the .unsigned placeholders.
+          {
+            echo "# het68 ${VERSION} — firmware signing"
+            echo "#"
+            echo "# Electronic signatures are not published yet."
+            echo "# Verify integrity only:"
+            echo "#   sha256sum -c SHA256SUMS.txt"
+            echo "#"
+            echo "# Future assets (same basename as each binary):"
+            echo "#   het68-${VERSION}-<board>.uf2.sig"
+            echo "#   het68-${VERSION}-<board>.elf.sig"
+            echo "#   SHA256SUMS.txt.sig"
+            echo "#"
+            echo "# See signing/README.md in the repository."
+          } > SIGNING.txt
+          echo "---- SHA256SUMS.txt ----"
+          cat SHA256SUMS.txt
+          ls -la
+
       - name: Upload assets to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.semver.outputs.tag }}
           make_latest: true
@@ -178,6 +210,8 @@ jobs:
             dist/het68-${{ steps.semver.outputs.version }}-pico2-w.elf
             dist/het68-${{ steps.semver.outputs.version }}-pico-plus2-w.uf2
             dist/het68-${{ steps.semver.outputs.version }}-pico-plus2-w.elf
+            dist/SHA256SUMS.txt
+            dist/SIGNING.txt
           fail_on_unmatched_files: true
 
       # Floating pointer for "whatever last built successfully as a semver release".

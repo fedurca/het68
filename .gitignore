@@ -36,6 +36,17 @@ picotool/
 lsusb_output.txt
 project.tar.gz
 
+# Local secrets (never commit). Prefer ~/.config/het68/github_token outside the repo.
+.secrets/
+.env
+.env.*
+!.env.example
+github_token
+**/github_token
+gh_token
+**/.gh_token
+*.pat
+
 .aider.chat.history.md
 .aider.input.history
 .aider.tags.cache*
