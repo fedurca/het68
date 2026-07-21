@@ -47,6 +47,7 @@ void cli_print_help(void) {
     dbg_puts("RID LIST             — OpenDroneID BLE tracks (CYW43 boards)\n");
     dbg_puts("RID ON | RID OFF     — enable/disable BLE Remote ID scan\n");
     dbg_puts("Note: DET timestamps after TIME SYNC (UART or RID System msg).\n");
+    dbg_puts("Note: LOG ON prints CMP mic az/el vs RID GPS az/el (needs System origin).\n");
     dbg_puts("=================\n");
     dbg_line_unlock(lock);
 }
@@ -85,6 +86,19 @@ void cli_print_status(void) {
     dbg_puts(remote_id_enabled() ? "on" : "off");
     dbg_puts(" syncs=");
     dbg_putu32(remote_id_time_sync_count());
+    {
+        int32_t olat, olon;
+        if (remote_id_origin_get(&olat, &olon)) {
+            dbg_puts(" origin_lat=");
+            if (olat < 0) { dbg_putc('-'); dbg_putu32((uint32_t)(-olat)); }
+            else dbg_putu32((uint32_t)olat);
+            dbg_puts(" origin_lon=");
+            if (olon < 0) { dbg_putc('-'); dbg_putu32((uint32_t)(-olon)); }
+            else dbg_putu32((uint32_t)olon);
+        } else {
+            dbg_puts(" origin=none");
+        }
+    }
     dbg_putc('\n');
     dbg_puts("LOG stdout=");
     dbg_puts(dbg_log_enabled() ? "on" : "off");

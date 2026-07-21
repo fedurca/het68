@@ -15,6 +15,7 @@
 #include "detection_log.h"
 #include "core1_launch.h"
 #include "debug_io.h"
+#include "remote_id.h"
 #include "pico/stdlib.h"
 #include "hardware/sync.h"
 #include <math.h>
@@ -1523,6 +1524,74 @@ static void analyse_bird(uint32_t h) {
 // ---------------------------------------------------------------------------
 // Reporting
 // ---------------------------------------------------------------------------
+// Compare microphone DOA tracks vs OpenDroneID GPS (operator origin → local az/el).
+static void report_rid_cmp(void) {
+    uint32_t nrid = remote_id_count();
+    if (nrid == 0u && g_doa_ndrone == 0u) return;
+
+    bool have_origin = remote_id_origin_get(NULL, NULL);
+    bool any = false;
+
+    for (int di = 0; di < DOA_MAX_DRONE; di++) {
+        if (!g_drones[di].used) continue;
+        for (uint32_t ri = 0; ri < nrid; ri++) {
+            const rid_track_t *t = remote_id_track(ri);
+            if (!t || !t->used) continue;
+            any = true;
+            dbg_puts("CMP mic_id=");
+            dbg_putu32((uint32_t)di);
+            dbg_puts(" mic_az="); put_f1(g_drones[di].az);
+            dbg_puts(" mic_el="); put_f1(g_drones[di].el);
+            dbg_puts(" | rid_id=");
+            dbg_puts(t->has_basic ? t->uas_id : "?");
+            if (t->has_location && have_origin) {
+                float raz, rel, rr;
+                if (remote_id_aircraft_azel(t, &raz, &rel, &rr)) {
+                    dbg_puts(" rid_az="); put_f1(raz);
+                    dbg_puts(" rid_el="); put_f1(rel);
+                    dbg_puts(" d_az="); put_f1(ang_diff_deg(g_drones[di].az, raz));
+                    dbg_puts(" d_el="); put_f1(g_drones[di].el - rel);
+                    dbg_puts(" rid_rng="); put_f1(rr);
+                    dbg_puts("m");
+                }
+            } else if (t->has_location) {
+                dbg_puts(" lat=");
+                if (t->lat_e7 < 0) { dbg_putc('-'); dbg_putu32((uint32_t)(-t->lat_e7)); }
+                else dbg_putu32((uint32_t)t->lat_e7);
+                dbg_puts(" lon=");
+                if (t->lon_e7 < 0) { dbg_putc('-'); dbg_putu32((uint32_t)(-t->lon_e7)); }
+                else dbg_putu32((uint32_t)t->lon_e7);
+                dbg_puts(" (no origin)");
+            } else {
+                dbg_puts(" (no rid gps)");
+            }
+            dbg_putc('\n');
+        }
+    }
+
+    // RID-only lines when no acoustic drones but GPS is available.
+    if (!any && nrid > 0u) {
+        for (uint32_t ri = 0; ri < nrid; ri++) {
+            const rid_track_t *t = remote_id_track(ri);
+            if (!t || !t->used) continue;
+            dbg_puts("CMP mic=none | rid_id=");
+            dbg_puts(t->has_basic ? t->uas_id : "?");
+            if (t->has_location && have_origin) {
+                float raz, rel, rr;
+                if (remote_id_aircraft_azel(t, &raz, &rel, &rr)) {
+                    dbg_puts(" rid_az="); put_f1(raz);
+                    dbg_puts(" rid_el="); put_f1(rel);
+                    dbg_puts(" rid_rng="); put_f1(rr);
+                    dbg_puts("m");
+                }
+            } else if (t->has_location) {
+                dbg_puts(" (no origin for az/el)");
+            }
+            dbg_putc('\n');
+        }
+    }
+}
+
 static void report_tracks(void) {
     g_doa_ndrone = track_count_drones();
     g_doa_nwalker = g_walker.used ? 1u : 0u;
@@ -1641,6 +1710,7 @@ static void report_tracks(void) {
         }
         dbg_putc('\n');
     }
+    report_rid_cmp();
     dbg_puts("TRACKS drone=");
     dbg_putu32(g_doa_ndrone);
     dbg_puts(" vehicle=");

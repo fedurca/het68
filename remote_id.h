@@ -22,6 +22,9 @@ typedef struct {
     int16_t  alt_geoid_m;   // m, ASTM encoding decoded to metres
     uint16_t speed_cm_s;    // horizontal, approx cm/s
     uint16_t heading_deg;   // 0..359, 361 = unknown
+    int32_t  op_lat_e7;     // operator / takeoff from System msg
+    int32_t  op_lon_e7;
+    uint8_t  has_operator;
     uint32_t last_ms;
     uint32_t flash_ms;      // last_ms already persisted to drone_store
     uint8_t  sys_pending;   // System msg seen since last main-loop observe
@@ -49,3 +52,10 @@ uint32_t remote_id_active_count(void);
 uint32_t remote_id_last_unix(void);
 // How many successful TIME SYNCs were applied from RID System timestamps.
 uint32_t remote_id_time_sync_count(void);
+
+// Operator/array origin from the latest System message (lat/lon e7). False if unknown.
+bool remote_id_origin_get(int32_t *lat_e7, int32_t *lon_e7);
+
+// Convert aircraft GPS (relative to origin) → DOA-frame az/el (deg) and range (m).
+// DOA frame: +X north, +Y east, az = atan2(east, north) in [0,360).
+bool remote_id_aircraft_azel(const rid_track_t *t, float *az_deg, float *el_deg, float *rng_m);

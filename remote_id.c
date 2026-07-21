@@ -29,12 +29,19 @@ void remote_id_list_uart(void) {
 uint32_t remote_id_active_count(void) { return 0; }
 uint32_t remote_id_last_unix(void) { return 0; }
 uint32_t remote_id_time_sync_count(void) { return 0; }
+bool remote_id_origin_get(int32_t *lat_e7, int32_t *lon_e7) {
+    (void)lat_e7; (void)lon_e7; return false;
+}
+bool remote_id_aircraft_azel(const rid_track_t *t, float *az_deg, float *el_deg, float *rng_m) {
+    (void)t; (void)az_deg; (void)el_deg; (void)rng_m; return false;
+}
 
 #else // HET68_BT_RID
 
 #include "btstack.h"
 #include "pico/cyw43_arch.h"
 #include "pico/btstack_cyw43.h"
+#include <math.h>
 
 #define RID_SERVICE_UUID   0xFFFAu
 #define RID_APP_CODE       0x0Du
@@ -48,6 +55,9 @@ uint32_t remote_id_time_sync_count(void) { return 0; }
 #define RID_TIME_DRIFT_SEC  2u
 
 static rid_track_t g_tracks[RID_MAX_TRACKS];
+static bool g_have_origin;
+static int32_t g_origin_lat_e7;
+static int32_t g_origin_lon_e7;
 static btstack_packet_callback_registration_t g_hci_cb;
 static volatile bool g_ready;
 static volatile bool g_enabled = true;
@@ -144,8 +154,18 @@ static void offer_odid_system_time(uint32_t odid_ts_2019, int8_t rssi) {
 }
 
 static void parse_system(rid_track_t *t, const uint8_t *m) {
-    // System message (type 4): Operator Lat/Lon + Timestamp @ bytes 20..23 (LE).
+    // System message (type 4): Flags @1, Operator Lat @2..5, Lon @6..9,
+    // Timestamp @20..23 (seconds since 2019-01-01 UTC).
     t->sys_pending = 1;
+    t->op_lat_e7 = rd_i32_le(&m[2]);
+    t->op_lon_e7 = rd_i32_le(&m[6]);
+    // Reject null island / unset.
+    if (t->op_lat_e7 != 0 || t->op_lon_e7 != 0) {
+        t->has_operator = 1;
+        g_origin_lat_e7 = t->op_lat_e7;
+        g_origin_lon_e7 = t->op_lon_e7;
+        g_have_origin = true;
+    }
     offer_odid_system_time(rd_u32_le(&m[20]), t->rssi);
 }
 
@@ -236,6 +256,29 @@ static void maybe_log_track(const rid_track_t *t, uint32_t now_ms) {
         dbg_puts(" alt_m=");
         if (t->alt_geoid_m < 0) { dbg_putc('-'); dbg_putu32((uint32_t)(-t->alt_geoid_m)); }
         else dbg_putu32((uint32_t)t->alt_geoid_m);
+        {
+            float az, el, rng;
+            if (remote_id_aircraft_azel(t, &az, &el, &rng)) {
+                // tenths of a degree / metres (integer)
+                int32_t az10 = (int32_t)(az * 10.0f + (az >= 0.0f ? 0.5f : -0.5f));
+                int32_t el10 = (int32_t)(el * 10.0f + (el >= 0.0f ? 0.5f : -0.5f));
+                int32_t rm = (int32_t)(rng + 0.5f);
+                dbg_puts(" rid_az=");
+                if (az10 < 0) { dbg_putc('-'); az10 = -az10; }
+                dbg_putu32((uint32_t)(az10 / 10));
+                dbg_putc('.');
+                dbg_putu32((uint32_t)(az10 % 10));
+                dbg_puts(" rid_el=");
+                if (el10 < 0) { dbg_putc('-'); el10 = -el10; }
+                dbg_putu32((uint32_t)(el10 / 10));
+                dbg_putc('.');
+                dbg_putu32((uint32_t)(el10 % 10));
+                dbg_puts(" rid_rng=");
+                if (rm < 0) { dbg_putc('-'); rm = -rm; }
+                dbg_putu32((uint32_t)rm);
+                dbg_puts("m");
+            }
+        }
     }
     dbg_putc('\n');
     dbg_line_unlock(lock);
@@ -415,6 +458,39 @@ uint32_t remote_id_active_count(void) { return remote_id_count(); }
 uint32_t remote_id_last_unix(void) { return g_last_unix; }
 
 uint32_t remote_id_time_sync_count(void) { return g_time_sync_count; }
+
+bool remote_id_origin_get(int32_t *lat_e7, int32_t *lon_e7) {
+    if (!g_have_origin) return false;
+    if (lat_e7) *lat_e7 = g_origin_lat_e7;
+    if (lon_e7) *lon_e7 = g_origin_lon_e7;
+    return true;
+}
+
+bool remote_id_aircraft_azel(const rid_track_t *t, float *az_deg, float *el_deg, float *rng_m) {
+    if (!t || !t->has_location || !g_have_origin) return false;
+    // Local tangent plane at operator/array origin (WGS84 approx sphere).
+    const float R = 6371000.0f;
+    const float deg2rad = 3.14159265358979323846f / 180.0f;
+    float lat0 = (float)g_origin_lat_e7 * 1e-7f * deg2rad;
+    float lat = (float)t->lat_e7 * 1e-7f * deg2rad;
+    float lon0 = (float)g_origin_lon_e7 * 1e-7f * deg2rad;
+    float lon = (float)t->lon_e7 * 1e-7f * deg2rad;
+    float north = (lat - lat0) * R;
+    float east = (lon - lon0) * R * cosf(lat0);
+    // Height relative to array plane: use reported geoid altitude as AGL proxy
+    // (operator altitude is not in ASTM System message).
+    float up = (float)t->alt_geoid_m;
+    float horiz = sqrtf(east * east + north * north);
+    float rng = sqrtf(horiz * horiz + up * up);
+    if (rng < 1.0f) return false;
+    float az = atan2f(east, north) * (180.0f / 3.14159265358979323846f);
+    if (az < 0.0f) az += 360.0f;
+    float el = atan2f(up, horiz) * (180.0f / 3.14159265358979323846f);
+    if (az_deg) *az_deg = az;
+    if (el_deg) *el_deg = el;
+    if (rng_m) *rng_m = rng;
+    return true;
+}
 
 const rid_track_t *remote_id_track(uint32_t index) {
     uint32_t n = 0;
