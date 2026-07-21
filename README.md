@@ -210,7 +210,7 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   statistics (also printed on boot). **v1.2.1:** optional Grove **DPS310**
   barometer on GP2/GP3 (`BARO`). Non-wireless `pico2` builds compile a stub
   for RID. Flash end layout: DRONE / BT TLV / DET / ENT (two sectors each).
-  **v1.2.6:** with `LOG ON`, UART prints `CMP` lines comparing microphone DOA
+  **v1.2.5:** with `LOG ON`, UART prints `CMP` lines comparing microphone DOA
   az/el to RID GPS az/el (local ENU from System-message operator lat/lon).
 
   ```
