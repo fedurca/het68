@@ -7,6 +7,9 @@ a měří vzájemnou vzdálenost přes palubní **4 kHz piezo PS1240** (GP6/GP7)
 **pole 6 mikrofonů se vzorkováním 48 kHz** — spojení "chirp" zavedené ve firmwaru
 **v1.3.0** ([`acoustic_link.c`](acoustic_link.c), [`node_store.c`](node_store.c)).
 
+Kratší přehled formou FAQ (UART logování, variabilita rámce, zasazení do
+zbytku firmware): [`wiki.cs.md`](wiki.cs.md) / [`wiki.md`](wiki.md).
+
 - Cíle návrhu: odolnost vůči kolizím při provozu více nodů, vzájemná
   synchronizace času, vzájemné měření vzdálenosti, dobrý dosah a co nejmenší
   postřehnutelnost pro lidské ucho.
