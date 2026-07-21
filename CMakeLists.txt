@@ -21,12 +21,22 @@ set(SRCS
     remote_id.c
     drone_store.c
     dps310.c
+    acoustic_link.c
+    node_store.c
 )
 
 add_executable(pico_6mic_soundcard ${SRCS})
 
 # Version stamp (UART help / docs). Semver core for releases.
-add_compile_definitions(HET68_VERSION_STR=\"1.2.7\")
+add_compile_definitions(HET68_VERSION_STR=\"1.3.1\")
+
+# Optional fixed acoustic-link node id (0..7). Default 0; also settable at
+# runtime via the LINK ID CLI command.
+#   HET68_NODE_ID=3 ./build.sh
+if(DEFINED HET68_NODE_ID)
+    add_compile_definitions(HET68_NODE_ID=${HET68_NODE_ID})
+    message(STATUS "het68: acoustic node id=${HET68_NODE_ID}")
+endif()
 message(STATUS "het68: PICO_BOARD=${PICO_BOARD} platform=${PICO_PLATFORM}")
 
 # PIO header po add_executable
@@ -121,6 +131,8 @@ if (PICO_CYW43_SUPPORTED)
     message(STATUS "het68: CYW43 board — enabling BLE OpenDroneID (HET68_BT_RID)")
     target_compile_definitions(pico_6mic_soundcard PRIVATE
         HET68_BT_RID=1
+        # Acoustic-link Wi-Fi wake can bring up CYW43 STA on these boards.
+        HET68_WIFI_WAKE=1
         # 6 * 4096 — keep expression numeric; FLASH_SECTOR_SIZE is 4096 on RP2
         PICO_FLASH_BANK_TOTAL_SIZE=8192
         PICO_FLASH_BANK_STORAGE_OFFSET=\(PICO_FLASH_SIZE_BYTES-24576\)
@@ -134,7 +146,7 @@ if (PICO_CYW43_SUPPORTED)
         ${CMAKE_CURRENT_LIST_DIR}  # btstack_config.h
     )
 else()
-    target_compile_definitions(pico_6mic_soundcard PRIVATE HET68_BT_RID=0)
+    target_compile_definitions(pico_6mic_soundcard PRIVATE HET68_BT_RID=0 HET68_WIFI_WAKE=0)
 endif()
 
 # core1 stack lives in SCRATCH_X (4 KiB on RP2350); default 2 KiB is enough because

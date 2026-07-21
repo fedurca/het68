@@ -62,9 +62,10 @@ het68_time_src_t het68_time_source(void) {
 
 const char *het68_time_source_name(het68_time_src_t src) {
     switch (src) {
-        case HET68_TIME_SRC_UART: return "uart";
-        case HET68_TIME_SRC_RID:  return "rid";
-        default:                  return "none";
+        case HET68_TIME_SRC_UART:     return "uart";
+        case HET68_TIME_SRC_RID:      return "rid";
+        case HET68_TIME_SRC_ACOUSTIC: return "acoustic";
+        default:                      return "none";
     }
 }
 
