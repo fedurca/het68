@@ -26,7 +26,7 @@ set(SRCS
 add_executable(pico_6mic_soundcard ${SRCS})
 
 # Version stamp (UART help / docs). Semver core for releases.
-add_compile_definitions(HET68_VERSION_STR=\"1.2.5\")
+add_compile_definitions(HET68_VERSION_STR=\"1.2.6\")
 message(STATUS "het68: PICO_BOARD=${PICO_BOARD} platform=${PICO_PLATFORM}")
 
 # PIO header po add_executable

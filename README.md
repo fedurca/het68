@@ -212,6 +212,7 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   for RID. Flash end layout: DRONE / BT TLV / DET / ENT (two sectors each).
   **v1.2.5:** with `LOG ON`, UART prints `CMP` lines comparing microphone DOA
   az/el to RID GPS az/el (local ENU from System-message operator lat/lon).
+  **v1.2.6:** documents the `CMP` field abbreviations (see below).
 
   ```
   SRC class=wind az=180.0 el=10.0 inten=-22.5dB
@@ -220,6 +221,21 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   DET id=3 class=wind first=1720000000 last=1720000012 occ=8 max_gap_ms=400 az=180.0 el=10.0 inten=-22.5dB
   TRACKS drone=1 vehicle=0 bird=0 walker=0 wind=1 entity=0
   ```
+
+  `CMP` field meanings (mic = acoustic DOA, rid = OpenDroneID BLE GPS):
+
+  | Field | Meaning |
+  |-------|---------|
+  | `CMP` | Compare: mic DOA vs RID position in the same az/el frame |
+  | `mic_id` | Acoustic drone track index (0…) |
+  | `mic_az` / `mic_el` | Mic DOA azimuth / elevation (degrees). Azimuth 0° = array +X (mic 1 / north), elevation 0° = horizon |
+  | `rid_id` | UAS ID from RID Basic ID (or `?` if unknown) |
+  | `rid_az` / `rid_el` | RID aircraft lat/lon/alt → local az/el relative to System-message **operator** origin (same frame as DOA) |
+  | `d_az` / `d_el` | Difference mic − rid (degrees); `d_az` wrapped to ±180° |
+  | `rid_rng` | Slant range from operator origin to aircraft (metres) |
+
+  If the System origin is missing, `CMP` may print RID `lat`/`lon` with `(no origin)` instead of az/el.
+  If only RID is present (no acoustic drone), the line starts with `CMP mic=none | …`.
 
   - Species / ICE·EV / wind direction / re-ID are best-effort heuristics
     (v1.0.7: soft score bands, gait regularity, ambiguity→generic bird, tighter
