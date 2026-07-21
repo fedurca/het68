@@ -116,6 +116,8 @@ void __attribute__((noreturn)) het68_panic(const char *fmt, ...) {
 }
 
 void __attribute__((naked)) isr_hardfault(void) {
+#if defined(PICO_RP2350) && PICO_RP2350
+    // Cortex-M33 (Thumb-2): IT block is fine.
     __asm volatile (
         "tst lr, #4        \n"
         "ite eq            \n"
@@ -124,6 +126,22 @@ void __attribute__((naked)) isr_hardfault(void) {
         "b het68_hardfault \n"
         ::: "r0"
     );
+#else
+    // Cortex-M0+ (RP2040): no IT / conditional MRS — use branches.
+    __asm volatile (
+        "movs r0, #4       \n"
+        "mov  r1, lr       \n"
+        "tst  r1, r0       \n"
+        "beq  1f           \n"
+        "mrs  r0, psp      \n"
+        "b    2f           \n"
+        "1:                \n"
+        "mrs  r0, msp      \n"
+        "2:                \n"
+        "b het68_hardfault \n"
+        ::: "r0", "r1"
+    );
+#endif
 }
 
 void __attribute__((noreturn)) het68_hardfault(uint32_t *frame) {

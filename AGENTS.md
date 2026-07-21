@@ -2,7 +2,8 @@
 
 ## Project
 
-This is a Raspberry Pi Pico 2 / RP2350 embedded USB audio firmware project.
+This is a Raspberry Pi Pico / Pico 2 USB audio firmware project
+(RP2040 and RP2350).
 
 Goal:
 - 6-channel USB audio input
@@ -32,6 +33,8 @@ Build command:
 Default target board:
 
 PICO_BOARD=pico2
+
+Also supported: pico, pico_w, pico2_w, pimoroni_pico_plus2_w_rp2350.
 
 ## Flash/debug assumption
 

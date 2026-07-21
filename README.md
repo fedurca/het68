@@ -197,7 +197,8 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   `DRONE LIST|CLEAR`, `BARO`, `RID LIST|ON|OFF`. See [`TEST_SCENARIOS_1.0.6.md`](TEST_SCENARIOS_1.0.6.md).
 
 * **OpenDroneID / EU Direct Remote ID (v1.1.0+).** On CYW43 boards
-  (`PICO_BOARD=pico2_w`, `pimoroni_pico_plus2_w_rp2350`, or other Pico W variants) the
+  (`PICO_BOARD=pico_w`, `pico2_w`, `pimoroni_pico_plus2_w_rp2350`, or other Pico W
+  variants) the
   firmware scans BLE advertisements for service UUID `0xFFFA` and parses ASTM
   F3411 Basic ID + Location + **System** messages (e.g. Dronetag / built-in RID).
   Tracks show up in the heartbeat as `rid=N`, via `RID LIST`, and as DET class
@@ -246,7 +247,8 @@ Pre-built firmware for each tagged release is published on GitHub Releases:
 
 Create a GitHub Release whose tag is SemVer core ([semver.org](https://semver.org/))
 — `x.y.z` or `vx.y.z` (e.g. `1.2.4` / `v1.2.4`) — and CI builds firmware for
-**pico2**, **pico2_w** (RP2350 + CYW43439 Wi‑Fi/BT), and **Pico Plus 2 W**, then
+**pico**, **pico_w**, **pico2**, **pico2_w** (RP2350 + CYW43439 Wi‑Fi/BT), and
+**Pico Plus 2 W**, then
 attaches `.uf2` / `.elf` assets to that release.
 
 ## Build
@@ -268,15 +270,22 @@ Select a different board with `PICO_BOARD`:
 
 ```bash
 ./build.sh                                          # default: pico2
+PICO_BOARD=pico ./build.sh                          # Pico (RP2040)
+PICO_BOARD=pico_w ./build.sh                        # Pico W (RP2040 + CYW43439)
 PICO_BOARD=pico2_w ./build.sh                       # Pico 2 W: RP2350A + CYW43439 Wi-Fi/BT
 PICO_BOARD=pimoroni_pico_plus2_w_rp2350 ./build.sh  # 16 MB flash, 8 MB PSRAM, Wi-Fi/BT
 ```
 
 | Board | `PICO_BOARD` | Notes |
 |---|---|---|
+| Pico | `pico` | RP2040, 2 MB flash, no wireless |
+| Pico W | `pico_w` | RP2040 + **CYW43439** Wi‑Fi/BT (OpenDroneID) |
 | Pico 2 | `pico2` | RP2350A, 4 MB flash, no wireless |
 | **Pico 2 W** | **`pico2_w`** | RP2350A + **CYW43439** Wi‑Fi/BT (OpenDroneID) |
 | Pico Plus 2 W | `pimoroni_pico_plus2_w_rp2350` | RP2350B, 16 MB flash, 8 MB PSRAM, Wi‑Fi/BT |
+
+RP2040 builds (`pico` / `pico_w`) use the same Grove pin map and UAC2 pipeline;
+DOA runs with soft-float (no FPU). Prefer Pico 2 / Pico 2 W for production.
 
 The **Pimoroni Pico Plus 2 W** (RP2350B) is the recommended upgrade for multi-node
 work: 16 MB flash, 8 MB PSRAM (headroom for recording / on-device detection), and

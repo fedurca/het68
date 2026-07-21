@@ -32,18 +32,21 @@ ho volá automaticky a na konci vypíše `✓ All patches OK`.
 
 ## 1) `dcd_rp2040.c` — DCD (RP2350 specifika)
 
-### Fix 1a — `hw_endpoint_abort_xfer()` bez HW abort spinu
-Zruší probíhající transfer **bez** čekání na `abort_done`. Na RP2350 ten HW bit
-nikdy nesepne → původní `while(...abort_done...)` zamrzne USB ISR.
+### Fix 1a — `hw_endpoint_abort_xfer()` (platform-aware)
+Zruší probíhající transfer. Na **RP2350** přeskočí HW `abort_done` spin (bit
+nikdy nesepne → zamrzne USB ISR). Na **RP2040** B2+ použije standardní
+`EP_ABORT` handshake (Errata E2: B0/B1 bez abortu).
 
 ```c
-// Abort a pending transfer. EP_ABORT hardware spin (abort_done) is skipped:
-// on RP2350 it never completes, freezing the USB ISR.
+// Abort a pending transfer.
+// RP2350: EP_ABORT/abort_done never completes — skip the HW handshake.
+// RP2040: Errata E2 — ABORT is only reliable on B2+; use the spin there.
 static void hw_endpoint_abort_xfer(struct hw_endpoint* ep) {
-  uint32_t buf_ctrl = USB_BUF_CTRL_SEL;
-  if (ep->next_pid) buf_ctrl |= USB_BUF_CTRL_DATA1_PID;
-  _hw_endpoint_buffer_control_set_value32(ep, buf_ctrl);
-  hw_endpoint_reset_transfer(ep);
+#if defined(PICO_RP2350) && PICO_RP2350
+  /* soft abort without spin */
+#else
+  /* RP2040 B2+: usb_hw abort + abort_done spin */
+#endif
 }
 ```
 

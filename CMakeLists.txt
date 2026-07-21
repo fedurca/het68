@@ -26,7 +26,8 @@ set(SRCS
 add_executable(pico_6mic_soundcard ${SRCS})
 
 # Version stamp (UART help / docs). Semver core for releases.
-add_compile_definitions(HET68_VERSION_STR=\"1.2.4\")
+add_compile_definitions(HET68_VERSION_STR=\"1.2.5\")
+message(STATUS "het68: PICO_BOARD=${PICO_BOARD} platform=${PICO_PLATFORM}")
 
 # PIO header po add_executable
 pico_generate_pio_header(pico_6mic_soundcard ${CMAKE_CURRENT_LIST_DIR}/pio/i2s_rx.pio)
@@ -113,7 +114,7 @@ target_link_libraries(pico_6mic_soundcard
     tinyusb_board
 )
 
-# OpenDroneID BLE scanner on CYW43 boards (Pico W / Pico Plus 2 W).
+# OpenDroneID BLE scanner on CYW43 boards (Pico W / Pico 2 W / Pico Plus 2 W).
 # Flash end layout (4 KiB sectors): DRONE[-8,-7], BT[-6,-5], DET[-4,-3], ENT[-2,-1].
 # Relocate BTstack TLV so it does not collide with DRONE/DET/ENT ACID slots.
 if (PICO_CYW43_SUPPORTED)

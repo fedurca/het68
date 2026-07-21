@@ -1,7 +1,7 @@
 # Build firmware on a GitHub Release whose tag is semver core (semver.org):
 #   x.y.z   or   vx.y.z
 # Uploads UF2 + ELF as release assets:
-#   pico2 | pico2_w (CYW43439 Wi-Fi/BT) | Pico Plus 2 W
+#   pico | pico_w (RP2040) | pico2 | pico2_w (CYW43439) | Pico Plus 2 W
 # After a successful build, force-moves the floating git tag `latest` to that
 # commit and marks the GitHub Release as the repo "Latest" release.
 name: Release firmware
@@ -81,6 +81,46 @@ jobs:
           cp -v build/pico_6mic_soundcard.uf2 "dist/het68-${VERSION}-pico2.uf2"
           cp -v build/pico_6mic_soundcard.elf "dist/het68-${VERSION}-pico2.elf"
 
+      - name: Build Pico (RP2040) firmware
+        env:
+          PICO_BOARD: pico
+          CC: gcc
+          CXX: g++
+        run: |
+          set -Eeuo pipefail
+          rm -rf build
+          ./build.sh
+
+      - name: Stage Pico (RP2040) artifacts
+        env:
+          VERSION: ${{ steps.semver.outputs.version }}
+        run: |
+          set -Eeuo pipefail
+          test -f build/pico_6mic_soundcard.uf2
+          test -f build/pico_6mic_soundcard.elf
+          cp -v build/pico_6mic_soundcard.uf2 "dist/het68-${VERSION}-pico.uf2"
+          cp -v build/pico_6mic_soundcard.elf "dist/het68-${VERSION}-pico.elf"
+
+      - name: Build Pico W (RP2040 + CYW43439) firmware
+        env:
+          PICO_BOARD: pico_w
+          CC: gcc
+          CXX: g++
+        run: |
+          set -Eeuo pipefail
+          rm -rf build
+          ./build.sh
+
+      - name: Stage Pico W artifacts
+        env:
+          VERSION: ${{ steps.semver.outputs.version }}
+        run: |
+          set -Eeuo pipefail
+          test -f build/pico_6mic_soundcard.uf2
+          test -f build/pico_6mic_soundcard.elf
+          cp -v build/pico_6mic_soundcard.uf2 "dist/het68-${VERSION}-pico-w.uf2"
+          cp -v build/pico_6mic_soundcard.elf "dist/het68-${VERSION}-pico-w.elf"
+
       - name: Build Pico 2 W firmware (CYW43439 Wi-Fi/BT, BLE Remote ID)
         env:
           PICO_BOARD: pico2_w
@@ -128,6 +168,10 @@ jobs:
           tag_name: ${{ steps.semver.outputs.tag }}
           make_latest: true
           files: |
+            dist/het68-${{ steps.semver.outputs.version }}-pico.uf2
+            dist/het68-${{ steps.semver.outputs.version }}-pico.elf
+            dist/het68-${{ steps.semver.outputs.version }}-pico-w.uf2
+            dist/het68-${{ steps.semver.outputs.version }}-pico-w.elf
             dist/het68-${{ steps.semver.outputs.version }}-pico2.uf2
             dist/het68-${{ steps.semver.outputs.version }}-pico2.elf
             dist/het68-${{ steps.semver.outputs.version }}-pico2-w.uf2

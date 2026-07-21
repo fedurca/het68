@@ -40,9 +40,13 @@ static void core1_probe_entry(void) {
 }
 
 void het68_core1_setup(void) {
+    // Enable CP10/CP11 (FPU) on Cortex-M33 (RP2350). RP2040 (M0+) has no FPU —
+    // CPACR is unimplemented; do not poke SCS there.
+#if defined(PICO_RP2350) && PICO_RP2350
     *(volatile uint32_t *)0xE000ED88u |= (0xFu << 20);
     __asm volatile ("dsb");
     __asm volatile ("isb");
+#endif
 }
 
 static void launch_with_settle_ms(uint32_t settle_ms, void (*entry)(void)) {

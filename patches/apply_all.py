@@ -113,17 +113,37 @@ static void hw_endpoint_xfer(uint8_t ep_addr, uint8_t* buffer, uint16_t total_by
   hw_endpoint_xfer_start(ep, buffer, total_bytes);
 }
 
-// Abort a pending transfer.  EP_ABORT hardware spin (abort_done) is skipped:
-// on RP2350 it never completes, freezing the USB ISR.
+// Abort a pending transfer.
+// RP2350: EP_ABORT/abort_done never completes — skip the HW handshake.
+// RP2040: Errata E2 — ABORT is only reliable on B2+; use the spin there.
 static void hw_endpoint_abort_xfer(struct hw_endpoint* ep) {
+#if defined(PICO_RP2350) && PICO_RP2350
   uint32_t buf_ctrl = USB_BUF_CTRL_SEL;
   if (ep->next_pid) buf_ctrl |= USB_BUF_CTRL_DATA1_PID;
   _hw_endpoint_buffer_control_set_value32(ep, buf_ctrl);
   hw_endpoint_reset_transfer(ep);
+#else
+  uint8_t const epnum = tu_edpt_number(ep->ep_addr);
+  uint8_t const dir = tu_edpt_dir(ep->ep_addr);
+  // EP_ABORT bit layout: IN = 2*epnum, OUT = 2*epnum+1
+  uint32_t const abort_mask = 1u << (2u * epnum + (dir == TUSB_DIR_OUT ? 1u : 0u));
+  if (rp2040_chip_version() >= 2) {
+    usb_hw_set->abort = abort_mask;
+    while ((usb_hw->abort_done & abort_mask) != abort_mask) {}
+  }
+  uint32_t buf_ctrl = USB_BUF_CTRL_SEL;
+  if (ep->next_pid) buf_ctrl |= USB_BUF_CTRL_DATA1_PID;
+  _hw_endpoint_buffer_control_set_value32(ep, buf_ctrl);
+  hw_endpoint_reset_transfer(ep);
+  if (rp2040_chip_version() >= 2) {
+    usb_hw_clear->abort_done = abort_mask;
+    usb_hw_clear->abort = abort_mask;
+  }
+#endif
 }
 
 static void __tusb_irq_path_func(hw_handle_buff_status)(void) {""",
-        "Fix 1a – add hw_endpoint_abort_xfer()")
+        "Fix 1a – add hw_endpoint_abort_xfer() (RP2350 skip / RP2040 spin)")
 
     apply(DCD,
         """\
