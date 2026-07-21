@@ -196,22 +196,16 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   `DET LIST|EXPORT|BACKUP|IMPORT|DEL|CLEAR`, `ENT LIST|EXPORT|IMPORT`,
   `DRONE LIST|CLEAR`, `BARO`, `LINK`, `RID LIST|ON|OFF`. See [`TEST_SCENARIOS_1.0.6.md`](TEST_SCENARIOS_1.0.6.md).
 
-* **Acoustic node link (v1.3.0+).** Nodes talk to each other over the existing
-  GP6/GP7 4 kHz PS1240 piezo using **DSSS-BPSK**: a per-node CDMA code
-  (length-127 Gold family) spreads a fixed frame carrying a **Hamming(7,4) FEC +
-  CRC32** payload, with reserved `key_id`/`nonce`/`encrypted` fields for future
-  AEAD. RX rides on the 6-mic 48 kHz capture (mono mix → matched filter). The
-  link does **single-sided two-way ranging** (mutual distance, using the
-  baro-corrected speed of sound), **coarse time sync** (an unsynced node adopts a
-  synced peer's epoch as `TIME` source `acoustic`), and carries `BEACON` /
-  `DETECT` / `CTRL` frames. `CTRL WIFI_WAKE` requests bringing up Wi-Fi for bulk
-  sync / OTA on CYW43 boards. Collisions are handled by CDMA code separation plus
-  randomized beacon jitter. Stealth is best-effort (spread spectrum + low duty),
-  not true inaudibility, since the PS1240 resonates at 4 kHz. UART: `LINK`,
-  `LINK ID <0-7>`, `LINK BEACON`, `LINK WIFI`. Understanding + FAQ:
-  [`wiki.md`](wiki.md) (English) / [`wiki.cs.md`](wiki.cs.md) (Čeština).
-  Full protocol docs: [`chirp.md`](chirp.md) / [`chirp.cs.md`](chirp.cs.md);
-  see also [`acoustic_link.h`](acoustic_link.h) / [`node_store.h`](node_store.h).
+* **Acoustic node link (v1.4.0+).** Nodes talk over the existing GP6/GP7 PS1240
+  piezo with a **fast FHSS PHY**: 31-chip BPSK preamble at 4 kHz (CDMA) plus
+  **non-coherent 2-FSK** data on an 8-tone hop set (~3–5.4 kHz). One frame is
+  **~70 ms on air** (&lt; 100 ms budget; v1.3 was ~7 s and wire-incompatible).
+  Fixed 31-byte frame + CRC32 (no Hamming); reserved crypto fields for future
+  AEAD. RX uses the 6-mic 48 kHz mono mix. Features: **SS-TWR ranging** (baro
+  \(c\)), **coarse time sync** (`TIME` source `acoustic`), `BEACON` / `DETECT` /
+  `CTRL` (`WIFI_WAKE`). UART: `LINK`, `LINK ID <0-7>`, `LINK BEACON`, `LINK WIFI`.
+  FAQ: [`wiki.md`](wiki.md) / [`wiki.cs.md`](wiki.cs.md). Protocol:
+  [`chirp.md`](chirp.md) / [`chirp.cs.md`](chirp.cs.md).
 
 * **OpenDroneID / EU Direct Remote ID (v1.1.0+).** On CYW43 boards
   (`PICO_BOARD=pico_w`, `pico2_w`, `pimoroni_pico_plus2_w_rp2350`, or other Pico W
@@ -271,12 +265,9 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   what to build it from, and a full edge-length trade-off analysis (accuracy, speed,
   compute, memory) are in [`array_cube_design.md`](array_cube_design.md).
 
-* **Synchronisation beacon.** The PS1240 piezo emits a periodic BPSK-modulated
-  m-sequence burst on a ~4 kHz carrier (its resonance), driven differentially via
-  the GP6/GP7 software H-bridge. This pseudo-noise code is what neighbouring nodes
-  will cross-correlate (matched filter) for acoustic ranging / clock sync; the
-  receive/ranging side is a later phase. The beacon count appears in the heartbeat
-  (`bcn=`).
+* **Synchronisation / node beacons.** The PS1240 is driven differentially on
+  GP6/GP7. From v1.4.0 the acoustic link owns short FHSS chirps (~70 ms); a rare
+  idle PN keepalive may still bump `bcn=` in the heartbeat.
 
 ## Downloads
 

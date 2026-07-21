@@ -895,7 +895,7 @@ int main(void)
         node_id = (uint8_t)(HET68_NODE_ID);
 #endif
         acoustic_link_init(node_id);
-        dbg_puts("LINK: acoustic node link (GP6/GP7 4kHz DSSS) node=");
+        dbg_puts("LINK: acoustic node link (GP6/GP7 FHSS-BPSK <100ms) node=");
         dbg_putu32(node_id);
         dbg_putc('\n');
     }

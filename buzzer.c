@@ -1,80 +1,81 @@
-// buzzer.c — PS1240 piezo synchronisation beacon. See buzzer.h.
+// buzzer.c — PS1240 piezo PHY. See buzzer.h.
 //
 // Drive scheme (software H-bridge):
 //   GP6 = PWM slice channel A, GP7 = same slice channel B.
-//   Carrier = 50%% square at BUZZER_CARRIER_HZ (PS1240 resonance ~4 kHz).
-//   - SILENT  : both channels same polarity  -> pins in phase -> 0 V across
-//               the element -> no sound.
-//   - DRIVE   : channels opposite polarity    -> differential ±VDD -> sound.
-//   BPSK      : flipping which channel is inverted flips the carrier phase by
-//               180°, i.e. encodes one PN chip.
+//   - SILENT  : both channels same polarity  -> 0 V across the element
+//   - DRIVE   : opposite polarity             -> differential ±VDD
+//   BPSK      : flipping which channel is inverted flips carrier phase 180°
 //
-// A single repeating hardware timer at the chip rate advances the PN code and
-// the beacon schedule. The ISR only writes PWM polarity registers (a few
-// cycles) — it never blocks, never touches UART, and never allocates, so it is
-// safe alongside the realtime USB/I2S path on core0.
+// Chip dwell is fixed (BUZZER_CHIP_US) independent of the instantaneous carrier
+// so FHSS can retune the PWM wrap every chip without stretching air-time.
 #include "buzzer.h"
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 #include <stddef.h>
 
-#define BUZZER_PIN_A        6u
-#define BUZZER_PIN_B        7u
-#define BUZZER_CARRIER_HZ   4000u     // PS1240 resonance
-#define BUZZER_CYCLES_CHIP  8u        // carrier cycles per PN chip
-#define BUZZER_PN_LEN       127u      // m-sequence length (LFSR x^7 + x^6 + 1)
-#define BUZZER_PERIOD_MS    1000u     // one beacon burst per second
+#define BUZZER_PIN_A         6u
+#define BUZZER_PIN_B         7u
+#define BUZZER_CARRIER_HZ    4000u     // PS1240 resonance (default / preamble)
+#define BUZZER_CHIP_US       250u      // 0.25 ms/chip -> 279 chips ~= 70 ms
+#define BUZZER_PN_LEN        31u       // short idle keepalive (rare)
+#define BUZZER_PERIOD_MS     30000u    // idle PN at most once per 30 s
 
-// Chip period in microseconds: BUZZER_CYCLES_CHIP carrier cycles.
-#define BUZZER_CHIP_US      ((BUZZER_CYCLES_CHIP * 1000000u) / BUZZER_CARRIER_HZ)
-// Idle chips between bursts (period minus burst length).
-#define BUZZER_IDLE_CHIPS   (((BUZZER_PERIOD_MS * 1000u) / BUZZER_CHIP_US) > BUZZER_PN_LEN \
-                             ? ((BUZZER_PERIOD_MS * 1000u) / BUZZER_CHIP_US) - BUZZER_PN_LEN \
-                             : 1u)
+#define BUZZER_IDLE_CHIPS    (((BUZZER_PERIOD_MS * 1000u) / BUZZER_CHIP_US) > BUZZER_PN_LEN \
+                              ? ((BUZZER_PERIOD_MS * 1000u) / BUZZER_CHIP_US) - BUZZER_PN_LEN \
+                              : 1u)
 
-static uint            s_slice;
-static uint8_t         s_pn[BUZZER_PN_LEN];
+static uint              s_slice;
+static uint8_t           s_pn[BUZZER_PN_LEN];
 static repeating_timer_t s_timer;
+static uint32_t          s_cur_hz;
 
-static volatile int32_t  s_chip = -1;          // -1 = idle, else 0..PN_LEN-1
+static volatile int32_t  s_chip = -1;
 static volatile uint32_t s_idle = 0;
 static volatile uint32_t s_beacons = 0;
 
-// --- Chip-stream TX state (acoustic link) -----------------------------------
-static const uint8_t   *volatile s_stream;      // chip buffer (referenced)
+static const uint8_t   *volatile s_stream_phase;
+static const uint16_t  *volatile s_stream_freq;   // NULL => default carrier
 static volatile uint32_t s_stream_len;
 static volatile uint32_t s_stream_idx;
 static volatile bool     s_stream_active;
-static volatile bool     s_stream_pending;      // commit flag; ISR starts next tick
+static volatile bool     s_stream_pending;
 static volatile uint64_t s_stream_start_us;
 
-// Differential drive for one PN chip: chip=1 -> phase 0, chip=0 -> phase 180.
-static inline void buzzer_set_drive(uint8_t chip) {
-    // (a_inv, b_inv): (false,true) and (true,false) are the two opposite
-    // differential phases; both produce sound, 180° apart.
-    pwm_set_output_polarity(s_slice, chip == 0u, chip != 0u);
+static inline void buzzer_set_drive(uint8_t phase_bit) {
+    pwm_set_output_polarity(s_slice, phase_bit == 0u, phase_bit != 0u);
 }
 
-// In-phase on both pins -> no differential voltage -> silent.
 static inline void buzzer_set_silent(void) {
     pwm_set_output_polarity(s_slice, false, false);
 }
 
+static void buzzer_set_freq_hz(uint32_t hz) {
+    if (hz < 1000u) hz = 1000u;
+    if (hz > 12000u) hz = 12000u;
+    if (hz == s_cur_hz) return;
+    uint32_t sys = clock_get_hz(clk_sys);
+    uint32_t wrap = sys / hz;
+    if (wrap < 2u) wrap = 2u;
+    if (wrap > 65536u) wrap = 65536u;
+    pwm_set_wrap(s_slice, (uint16_t)(wrap - 1u));
+    pwm_set_both_levels(s_slice, (uint16_t)(wrap / 2u), (uint16_t)(wrap / 2u));
+    s_cur_hz = hz;
+}
+
 static void buzzer_build_pn(void) {
-    // 7-bit Fibonacci LFSR, taps 7 and 6 -> maximal length 127.
-    uint8_t lfsr = 0x7Fu;
+    // Degree-5 m-sequence (x^5 + x^2 + 1), length 31.
+    uint8_t lfsr = 0x1Fu;
     for (uint32_t i = 0; i < BUZZER_PN_LEN; i++) {
-        uint8_t bit = (uint8_t)(((lfsr >> 6) ^ (lfsr >> 5)) & 1u);
+        uint8_t bit = (uint8_t)(((lfsr >> 4) ^ (lfsr >> 1)) & 1u);
         s_pn[i] = (uint8_t)(lfsr & 1u);
-        lfsr = (uint8_t)(((lfsr << 1) | bit) & 0x7Fu);
+        lfsr = (uint8_t)(((lfsr << 1) | bit) & 0x1Fu);
     }
 }
 
 static bool buzzer_tick(repeating_timer_t *t) {
     (void)t;
 
-    // Acoustic-link chip stream pre-empts the periodic PN beacon.
     if (s_stream_pending && !s_stream_active) {
         s_stream_active = true;
         s_stream_pending = false;
@@ -83,20 +84,25 @@ static bool buzzer_tick(repeating_timer_t *t) {
     if (s_stream_active) {
         uint32_t idx = s_stream_idx;
         if (idx == 0u) s_stream_start_us = time_us_64();
-        buzzer_set_drive(s_stream[idx]);
+        uint32_t hz = BUZZER_CARRIER_HZ;
+        if (s_stream_freq != NULL) hz = s_stream_freq[idx];
+        buzzer_set_freq_hz(hz);
+        buzzer_set_drive(s_stream_phase[idx]);
         idx++;
         s_stream_idx = idx;
         if (idx >= s_stream_len) {
             s_stream_active = false;
             buzzer_set_silent();
-            // Do not immediately fire the beacon on top of the stream tail.
+            buzzer_set_freq_hz(BUZZER_CARRIER_HZ);
             s_chip = -1;
             s_idle = 0;
         }
         return true;
     }
 
+    // Rare idle keepalive (mostly silent — acoustic_link owns real beacons).
     if (s_chip >= 0) {
+        buzzer_set_freq_hz(BUZZER_CARRIER_HZ);
         buzzer_set_drive(s_pn[s_chip]);
         s_chip++;
         if ((uint32_t)s_chip >= BUZZER_PN_LEN) {
@@ -107,29 +113,26 @@ static bool buzzer_tick(repeating_timer_t *t) {
         }
     } else {
         if (++s_idle >= BUZZER_IDLE_CHIPS) {
-            s_chip = 0;   // start a new burst on the next tick
+            s_chip = 0;
         }
     }
-    return true;  // keep repeating
+    return true;
 }
 
 void buzzer_init(void) {
     buzzer_build_pn();
+    s_cur_hz = 0;
 
     gpio_set_function(BUZZER_PIN_A, GPIO_FUNC_PWM);
     gpio_set_function(BUZZER_PIN_B, GPIO_FUNC_PWM);
-    s_slice = pwm_gpio_to_slice_num(BUZZER_PIN_A);   // GP6/GP7 share one slice
+    s_slice = pwm_gpio_to_slice_num(BUZZER_PIN_A);
 
-    uint32_t wrap = clock_get_hz(clk_sys) / BUZZER_CARRIER_HZ;
-    if (wrap == 0u) wrap = 1u;
     pwm_config c = pwm_get_default_config();
-    pwm_config_set_wrap(&c, (uint16_t)(wrap - 1u));
     pwm_init(s_slice, &c, false);
-    pwm_set_both_levels(s_slice, (uint16_t)(wrap / 2u), (uint16_t)(wrap / 2u));
+    buzzer_set_freq_hz(BUZZER_CARRIER_HZ);
     buzzer_set_silent();
     pwm_set_enabled(s_slice, true);
 
-    // Negative period => fixed cadence independent of callback duration.
     add_repeating_timer_us(-(int64_t)BUZZER_CHIP_US, buzzer_tick, NULL, &s_timer);
 }
 
@@ -137,13 +140,18 @@ uint32_t buzzer_beacon_count(void) {
     return s_beacons;
 }
 
-bool buzzer_tx_chips(const uint8_t *chips, uint32_t n_chips) {
-    if (chips == NULL || n_chips == 0u) return false;
+bool buzzer_tx_chips(const uint8_t *phase_bits, uint32_t n_chips) {
+    return buzzer_tx_chips_fh(phase_bits, NULL, n_chips);
+}
+
+bool buzzer_tx_chips_fh(const uint8_t *phase_bits, const uint16_t *freq_hz,
+                        uint32_t n_chips) {
+    if (phase_bits == NULL || n_chips == 0u) return false;
     if (s_stream_active || s_stream_pending) return false;
-    s_stream = chips;
+    s_stream_phase = phase_bits;
+    s_stream_freq = freq_hz;
     s_stream_len = n_chips;
     s_stream_idx = 0;
-    // Commit last: the ISR only starts once s_stream_pending is observed true.
     s_stream_pending = true;
     return true;
 }
@@ -154,4 +162,8 @@ bool buzzer_tx_busy(void) {
 
 uint64_t buzzer_tx_start_us(void) {
     return s_stream_start_us;
+}
+
+uint32_t buzzer_chip_us(void) {
+    return BUZZER_CHIP_US;
 }

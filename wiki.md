@@ -3,7 +3,7 @@
 Language: **English** · [Čeština](wiki.cs.md)
 
 This wiki explains the **current** het68 solution as shipped on `main`
-(acoustic node link **v1.3.x** and related subsystems). It expands the practical
+(acoustic node link **v1.4.x** and related subsystems). It expands the practical
 questions that come up when reading UART logs and the chirp wire format, and
 ties them into the rest of the stack.
 
@@ -49,7 +49,7 @@ flowchart TB
     cli["UART CLI"]
   end
   subgraph air [Acoustic node link]
-    piezo["PS1240 GP6/GP7 DSSS-BPSK"]
+    piezo["PS1240 GP6/GP7 FHSS ~70ms"]
     peers["node_store peers / dist / offset"]
   end
   mics --> usb
@@ -66,8 +66,8 @@ flowchart TB
   time --> cli
 ```
 
-- **TX path for chirp:** APP frame → CRC32 + Hamming(7,4) → Gold CDMA chips →
-  `buzzer_tx_chips()` on GP6/GP7.
+- **TX path for chirp:** APP frame → CRC32 → 31-chip BPSK preamble @ 4 kHz +
+  2-FSK FHSS data chips → `buzzer_tx_chips_fh()` on GP6/GP7 (~70 ms air-time).
 - **RX path for chirp:** six mics mixed to mono inside `build_usb_frame_from_i2s()`
   → `acoustic_link_rx_push()` (cheap ring) → matched filter in
   `acoustic_link_poll()` (bounded, main loop).
@@ -91,7 +91,7 @@ On **automatic receive**, only a few frame types print a line. Successful
 
 | Event | Typical UART line | Notes |
 |---|---|---|
-| Boot / init | `LINK: acoustic node link … node=` | Once at bring-up |
+| Boot / init | `LINK: acoustic node link (… FHSS-BPSK <100ms) node=` | Once at bring-up |
 | `DETECT` frame | `LINK DETECT from=<id> cls=<n>` | Logs peer id + class byte |
 | `CTRL` `WIFI_WAKE` | `LINK: WIFI_WAKE token=…` or “no Wi-Fi on this board” | Also sets wake-pending flag |
 | `CTRL` `OTA_REQ` | `LINK: OTA_REQ received` | Placeholder; no OTA transfer yet |
@@ -105,7 +105,7 @@ tables are **not** spammed on every decode.
 `acoustic_link_status_uart()` then `node_store_list_uart()`:
 
 ```
-LINK node=<id> tx=<n> rx=<n> bad_crc=<n> peers=<n> wifi_wake=<0|1>
+LINK node=<id> ver=2 air_ms=69 tx=<n> rx=<n> bad_crc=<n> peers=<n> wifi_wake=<0|1>
 === node peers ===
 NODE id=<id> rx=<n> q=<0.xx> dist_m=<m>|dist=? offset_us=<…> synced=<0|1>
 …
@@ -113,6 +113,7 @@ NODE id=<id> rx=<n> q=<0.xx> dist_m=<m>|dist=? offset_us=<…> synced=<0|1>
 
 | Field | Meaning |
 |---|---|
+| `ver` / `air_ms` | Wire version (2) and nominal chirp air-time |
 | `tx` / `rx` / `bad_crc` | Local link counters |
 | `peers` | Occupied slots in `node_store` (max 8) |
 | `q` | Last matched-filter quality \(0..1\) |
@@ -124,9 +125,9 @@ CLI: `LINK`, `LINK ID <0-7>`, `LINK BEACON`, `LINK WIFI` — see [`cli.c`](cli.c
 
 ### Why BEACON is quiet
 
-A beacon is ~7.2 s on air and repeats often. Logging every decode would flood
-UART and hide DET/RID/CMP traffic. The design is: **silent store + explicit
-dump**.
+A beacon is only ~70 ms on air but still repeats often. Logging every decode
+would flood UART and hide DET/RID/CMP traffic. The design is: **silent store +
+explicit dump**.
 
 ---
 
@@ -134,12 +135,11 @@ dump**.
 
 ### Fixed on-air size (always)
 
-Every frame is a **fixed 31-byte plaintext** before FEC, then always the same
-coded length on the air. RX sizing stays constant.
+Every frame is a **fixed 31-byte plaintext**. On air (v1.4 / wire v2):
 
 | Offset | Field | Bytes |
 |---|---|---|
-| 0 | `version` (`ALINK_VERSION` = 1) | 1 |
+| 0 | `version` (`ALINK_VERSION` = **2**) | 1 |
 | 1 | `node_id` (sender, 0..7) | 1 |
 | 2 | `type` | 1 |
 | 3 | `seq` | 1 |
@@ -150,8 +150,8 @@ coded length on the air. RX sizing stays constant.
 | 11..26 | `payload` (always padded to 16) | 16 |
 | 27..30 | CRC32 LE over bytes 0..26 | 4 |
 
-Then: Hamming(7,4) → **434** coded bits → DSSS SF=8 → **3472** data chips +
-**127** preamble chips = **3599** chips ≈ **7.2 s** at 500 chip/s.
+Then: **248 raw bits** (no Hamming) as 2-FSK hops + **31** BPSK preamble chips
+@ 4 kHz = **279** chips × **250 µs** ≈ **70 ms**.
 
 ### What actually varies
 
@@ -160,11 +160,11 @@ Variability is **semantic**, not length:
 1. **`type`** — `BEACON=0`, `DETECT=1`, `CTRL=2`, `ACK=3`
 2. **`flags`** — `ENCRYPTED` (0x01, stub), `ACK_REQ` (0x02), `SYNCED` (0x04)
 3. **`seq`**, **`node_id`**, counters / timestamps inside payload
-4. **CDMA code** — chosen by sender `node_id` (Gold family); not a payload field
-5. **`len`** — declared 0..16, but TX still pads the 16-byte payload slot
+4. **CDMA preamble shift** + **hop-pair base** — from sender `node_id`
+5. **Per-bit hop tone** — which of two FSK frequencies carries the bit
+6. **`len`** — declared 0..16; TX still pads the 16-byte payload slot
 
-What does **not** vary today: frame byte count, coded bit count, chip count,
-carrier (4 kHz), chip rate, spreading factor.
+What does **not** vary: frame byte count, chip count, chip dwell, air-time.
 
 ### Payload layouts (inside the fixed 16 B)
 
@@ -220,17 +220,15 @@ Acoustic quality is intentionally below UART/RID so a direct source wins.
 
 ## 6. Multiple access, rate, and audibility
 
-- **CDMA:** up to 8 Gold codes (`ALINK_MAX_NODES`); correlator picks strongest
-  preamble match (`rho > 0.30` + energy gate).
-- **Slotted-ALOHA jitter:** beacon base ~1500 ms + 0..500 ms random; plus
-  listen-before-talk (`buzzer_tx_busy()`).
-- **Throughput:** ~31 info bytes / ~7.2 s ≈ **34 bit/s** — control/ranging plane
-  only. Bulk / OTA → `WIFI_WAKE` then Wi-Fi (STA path still deferred).
-- **Audibility:** 4 kHz is in the sensitive hearing band; spread spectrum + low
-  duty make it “faint clicks/hiss”, not silent.
-
-Trade-offs for a faster link (future): lower `ALINK_DATA_SF`, shorter frame, or
-higher chip rate (`ALINK_CYCLES_CHIP`).
+- **CDMA preamble:** 8 shifts of a length-31 m-sequence; correlator picks the
+  strongest match (`rho > 0.28` + energy gate).
+- **FHSS data:** 8-tone hop set; bit = energy compare of a tone pair.
+- **Slotted-ALOHA jitter:** beacon base ~2000 ms + 0..800 ms random; LBT via
+  `buzzer_tx_busy()`.
+- **Throughput:** ~31 info bytes / ~70 ms burst, duty ~3.5% at 2 s period —
+  control/ranging plane. Bulk / OTA → `WIFI_WAKE` then Wi-Fi (deferred).
+- **Audibility:** short hopped ticks instead of a multi-second 4 kHz whistle;
+  still not silent.
 
 ---
 
@@ -279,11 +277,13 @@ Deep protocol: [`chirp.md`](chirp.md). Sources: `acoustic_link.*`, `node_store.*
 ## 9. Known limits (honest snapshot)
 
 - Not fully hardware-validated (thresholds, Gold pair, ToA accuracy).
-- ToA is **chip-resolution** today (~2 ms ≈ 0.69 m at \(c \approx 343\,\mathrm{m/s}\));
-  sub-chip peak interpolation would sharpen ranging.
+- ToA is **chip-resolution** (~250 µs ≈ 8.6 cm at \(c \approx 343\,\mathrm{m/s}\));
+  sub-chip peak interpolation would sharpen ranging further.
+- No Hamming FEC — CRC + frequent short beacons.
 - SS-TWR ≠ double-sided TWR (skew cancellation incomplete).
 - Crypto and Wi-Fi OTA are hooks/stubs, not end-to-end features yet.
 - BEACON RX stays off the UART by design — use `LINK` to inspect peers.
+- v1.4 (`version=2`) is **not** interoperable with v1.3 DSSS frames.
 
 ---
 
