@@ -23,13 +23,14 @@
 
 // ---------------------------------------------------------------------------
 // Array geometry — cube standing on a vertex, mics at the six face centres.
-// Override edge:   HET68_DOA_EDGE_MM=150 ./build.sh
+// Override edge:   HET68_DOA_EDGE_MM=512 ./build.sh
 // Override height: HET68_DOA_HEIGHT_MM=1000 ./build.sh
+// Default 384 mm: sweet-spot for N=256 + filter settle (see array_cube_design.md).
 // ---------------------------------------------------------------------------
 #ifdef HET68_DOA_EDGE_MM
 #define DOA_EDGE_MM     HET68_DOA_EDGE_MM
 #else
-#define DOA_EDGE_MM     512
+#define DOA_EDGE_MM     384
 #endif
 #define DOA_EDGE_M      (DOA_EDGE_MM * 0.001f)
 #define DOA_FACE_R      (DOA_EDGE_M * 0.5f)

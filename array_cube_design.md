@@ -32,9 +32,9 @@ so every microphone sits on a sphere of radius `edge/2` (the face-centre radius)
 
 Baselines that the TDOA estimator sees:
 
-- **Opposite faces (max baseline):** `edge`   (e.g. 512 mm)
-- **Adjacent faces:** `edge / √2`             (e.g. 362 mm) — these are orthogonal directions
-- **Face-centre radius:** `edge / 2`          (e.g. 256 mm)
+- **Opposite faces (max baseline):** `edge`   (e.g. 384 mm)
+- **Adjacent faces:** `edge / √2`             (e.g. 271 mm) — these are orthogonal directions
+- **Face-centre radius:** `edge / 2`          (e.g. 192 mm)
 
 ```
             mic1 (+35.26 deg)
@@ -63,8 +63,11 @@ delta_d = c / Fs = 343 / 48000 = 7.15 mm of path difference per sample
 ```
 
 Everything below — resolution, lag search size, window length — is this 7.15 mm
-quantum measured against the chosen baseline. `DOA_MAXLAG = 72` in `doa.c` exists
-precisely because the 512 mm max baseline spans `512 / 7.15 = 72` samples.
+quantum measured against the chosen baseline. `DOA_MAXLAG` is derived from the
+edge (and a cold-air 300 m/s sizing floor); at the default **384 mm** that is
+64 samples. The old 512 mm default spanned ~72 samples at 343 m/s, but with
+filter settle (`DOA_FILT_SETTLE = 48`) it left only ~40 usable correlation
+samples in the 256-sample window.
 
 ---
 
@@ -123,7 +126,7 @@ than a rebuild.
 
 ---
 
-## 5. Edge length: 128 vs 256 vs 512 vs 1024 mm
+## 5. Edge length: 128 vs 256 vs 384 vs 512 vs 1024 mm
 
 All figures use `delta_d = 7.15 mm/sample`, the octahedral geometry above, and the
 existing time-domain GCC estimator in `doa.c`. "Baseline" for resolution/aliasing
@@ -133,13 +136,15 @@ is the max (opposite-face) baseline = `edge`.
 
 - **128 mm** → 18 samples
 - **256 mm** → 36 samples
-- **512 mm** → 72 samples  (current `DOA_MAXLAG`)
+- **384 mm** → 54 samples at 343 m/s (firmware `DOA_MAXLAG` 64 at the 300 m/s floor)
+- **512 mm** → 72 samples at 343 m/s (firmware `DOA_MAXLAG` 84 at the 300 m/s floor)
 - **1024 mm** → 143 samples
 
 ### 5.2 Angular resolution (raw, at broadside ≈ delta_d / edge)
 
 - **128 mm** → **3.20°**
 - **256 mm** → **1.60°**
+- **384 mm** → **1.07°**
 - **512 mm** → **0.80°**
 - **1024 mm** → **0.40°**
 
@@ -153,6 +158,7 @@ limited by noise/coherence, not geometry, so the *relative* ranking is unchanged
 
 - **128 mm** → 1340 Hz
 - **256 mm** → 670 Hz
+- **384 mm** → 447 Hz
 - **512 mm** → 335 Hz
 - **1024 mm** → 167 Hz
 
@@ -171,7 +177,11 @@ The correlation core sums over `DOA_N - 2·DOA_MAXLAG` samples. With the current
 
 - **128 mm** (maxlag 18): 220 usable samples — comfortable.
 - **256 mm** (maxlag 36): 184 usable — comfortable.
-- **512 mm** (maxlag 72): 112 usable — fine, current default.
+- **384 mm** (maxlag 64 at the 300 m/s floor): ~80 usable after filter settle —
+  **current default**, comfortable.
+- **512 mm** (maxlag 84): ~40 usable after filter settle — still in `N = 256`,
+  but the window is tight. Prefer `HET68_DOA_EDGE_MM=512` only if you also accept
+  that shorter correlation, or raise `DOA_N`.
 - **1024 mm** (maxlag 143): `256 - 286 < 0` — **does not fit**. Requires
   `DOA_N ≥ ~512` (e.g. 226 usable at N=512). A longer window means more latency
   and the wavefront must traverse the whole array *within* one window — a plain
@@ -197,6 +207,7 @@ Per edge (DOA total = ring + `g_work` + `s_corr` + `g_energy`):
 - **150 mm** → N=256, `g_work` 6.1 kB, ~30.2 kB
 - **200 mm** → N=256, `g_work` 6.1 kB, ~30.3 kB
 - **256 mm** → N=256, ~30.3 kB
+- **384 mm** → N=256, ~30.4 kB
 - **512 mm** → N=256, ~30.6 kB
 - **700 mm** → N=512, `g_work` 12.3 kB, ~36.8 kB
 - **1300 mm** → N=1024, `g_work` 24.6 kB, ~49.5 kB
@@ -215,6 +226,7 @@ solve, at the ~5 Hz update rate (`DOA_OUT_SAMPLES = 9600`):
 
 - **128 mm** (N=256): ~8.1 k/pair
 - **256 mm** (N=256): ~13.4 k/pair
+- **384 mm** (N=256): ~16 k/pair
 - **512 mm** (N=256): ~16.2 k/pair
 - **1024 mm** (N=512): ~64.9 k/pair → ~1.6 MMAC per solve, ~1.6 MMAC/s at 5 Hz
 
@@ -243,28 +255,24 @@ resolution gain).
 
 ## 6. Recommendation and alternative dimensions
 
-- **Default: ~512 mm (current).** Best all-round balance: 0.80° raw / sub-0.1°
-  interpolated resolution, fits the existing `DOA_N = 256` window, low latency,
-  far-field for any real target. Keep it.
-- **Compact / portable variant: 256 mm.** Half the resolution (1.6° raw) but half
-  the size, stiffer, lower latency, easier to hand-carry and weatherproof. Good for
-  a mobile or short-range node.
+- **Default: 384 mm (v1.5.0+).** Sweet-spot for the current estimator: ~1.07° raw
+  / sub-0.2° interpolated, `N = 256` with ~80 usable correlation samples after
+  filter settle, cube height on a vertex ~665 mm, still portable. Pre-built
+  release UF2 assumes this size.
+- **Compact / portable variant: 256 mm.** Coarser (~1.6° raw) but stiffer, shorter
+  cables, easier to hand-carry. `HET68_DOA_EDGE_MM=256`.
+- **Legacy / extra resolution: 512 mm.** ~0.80° raw, but with today's
+  `DOA_FILT_SETTLE` the 256-sample window is tight (~40 usable samples). Existing
+  512 mm hardware: `HET68_DOA_EDGE_MM=512 ./build.sh`.
 - **High-resolution fixed install: 1024 mm.** Only when mounted permanently and
-  rigid, and only after raising `DOA_N` to ≥512. Buys 0.40° raw resolution at the
-  cost of latency, bulk and wind sensitivity.
+  rigid; firmware auto-bumps `DOA_N` to 512. Buys 0.40° raw at the cost of
+  latency, bulk and wind sensitivity.
 - **Avoid 128 mm** except for very compact / higher-frequency-only use: 3.2° raw is
-  marginal and the 1340 Hz aliasing edge starts cutting into useful drone bandwidth
-  from below-ish only if you rely on tones, but the coarse resolution is the real
-  problem.
+  marginal.
 
-**Proposed sweet-spot band: ~350-500 mm.** If you want a single fixed size other
-than 512 mm, **~384 mm** is a good compromise (≈1.07° raw resolution, maxlag ≈ 54,
-comfortably inside `DOA_N = 256`, still portable). Practically, though, the
-strongest recommendation is to **build the modular 2020 frame (Section 3) and
-measure**: keep the mics/firmware fixed, swap rail lengths across 256 / 384 / 512 /
-768 mm against a known source, and pick the smallest edge that meets your accuracy
-target — resolution is only worth buying up to the point where wind coherence and
-mechanical rigidity stop limiting you.
+**Sweet-spot band: ~350-450 mm.** 384 mm is the single recommended number. A
+modular 2020 frame (Section 3) can still swap rails across 256 / 384 / 512 mm to
+confirm empirically — take the smallest edge that meets the accuracy target.
 
 ---
 
@@ -273,7 +281,7 @@ mechanical rigidity stop limiting you.
 The geometry lives in [`doa.c`](doa.c):
 
 - `DOA_EDGE_MM` — **the one knob**: cube edge in millimetres (integer). Positions
-  scale by `edge/2`; `DOA_MAXLAG` and `DOA_N` derive from it. Default 512 mm.
+  scale by `edge/2`; `DOA_MAXLAG` and `DOA_N` derive from it. Default **384 mm**.
 - `MIC_DIR[6][3]` — the six face-centre unit directions (unchanged when you only
   scale the cube).
 - `DOA_MAXLAG` — auto-derived as `ceil(edge / 7.15 mm) + 2` samples (the +2 is
@@ -286,8 +294,8 @@ The geometry lives in [`doa.c`](doa.c):
 Any integer edge is supported. Select it at build time without editing source:
 
 ```bash
-HET68_DOA_EDGE_MM=150 ./build.sh     # 50 / 100 / 128 / 150 / 200 / 256 / 512 ...
-./build.sh                            # default 512 mm
+HET68_DOA_EDGE_MM=512 ./build.sh     # legacy 512 mm hardware
+./build.sh                            # default 384 mm
 ```
 
 Rebuild per [`AGENTS.md`](AGENTS.md). The compact sizes (50-200 mm) all share the

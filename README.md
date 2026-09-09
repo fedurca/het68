@@ -227,6 +227,8 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   **v1.2.7:** release CI Node 24 actions, fixed `openocd` submodule mapping;
   release assets include `SHA256SUMS.txt` (+ signing placeholders — see
   [`signing/README.md`](signing/README.md)).
+  **v1.5.0:** default array edge **384 mm** (was 512 mm). Rebuild existing 512 mm
+  cubes with `HET68_DOA_EDGE_MM=512`.
 
   ```
   SRC class=wind az=180.0 el=10.0 inten=-22.5dB
@@ -256,14 +258,15 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
     cross-class gates). Still not a trained model.
   - Walker tracking assumes **one** walking entity at a time.
 
-* **Array geometry.** A cube standing on a vertex, **512 mm** edge. Mics 1–3 are
-  the three upper faces (mic 1 = north, then +120°, +240° azimuth, all at +35.26°
-  elevation); mics 4–6 are the opposite lower faces (−35.26° elevation, azimuths
-  interleaved by 60°). Select the edge at build time with any integer size —
-  `HET68_DOA_EDGE_MM=150 ./build.sh` (default 512 mm); `DOA_MAXLAG` and the
-  comparison window derive from it automatically. How to physically build the cube,
-  what to build it from, and a full edge-length trade-off analysis (accuracy, speed,
-  compute, memory) are in [`array_cube_design.md`](array_cube_design.md).
+* **Array geometry.** A cube standing on a vertex, **384 mm** edge (v1.5.0+).
+  Mics 1–3 are the three upper faces (mic 1 = north, then +120°, +240° azimuth,
+  all at +35.26° elevation); mics 4–6 are the opposite lower faces (−35.26°
+  elevation, azimuths interleaved by 60°). Select the edge at build time with any
+  integer size — `HET68_DOA_EDGE_MM=512 ./build.sh` (default **384 mm**);
+  `DOA_MAXLAG` and the comparison window derive from it automatically. How to
+  physically build the cube, what to build it from, and a full edge-length
+  trade-off analysis (accuracy, speed, compute, memory) are in
+  [`array_cube_design.md`](array_cube_design.md).
 
 * **Synchronisation / node beacons.** The PS1240 is driven differentially on
   GP6/GP7. From v1.4.0 the acoustic link owns short FHSS chirps (~70 ms); a rare
