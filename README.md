@@ -229,6 +229,8 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   [`signing/README.md`](signing/README.md)).
   **v1.5.0:** default array edge **384 mm** (was 512 mm). Rebuild existing 512 mm
   cubes with `HET68_DOA_EDGE_MM=512`.
+  **v1.5.1:** release CI pins `HET68_DOA_EDGE_MM=384` and ignores a stale Google
+  Chrome apt source that was failing `apt-get update` on GitHub runners.
 
   ```
   SRC class=wind az=180.0 el=10.0 inten=-22.5dB

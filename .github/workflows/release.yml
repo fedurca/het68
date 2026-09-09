@@ -49,6 +49,10 @@ jobs:
       - name: Install ARM toolchain and build deps
         run: |
           set -Eeuo pipefail
+          # GitHub-hosted images sometimes ship a Google Chrome apt source whose
+          # Packages.gz hash is stale; that fails `apt-get update` with exit 100.
+          sudo rm -f /etc/apt/sources.list.d/google-chrome*.list \
+            /etc/apt/sources.list.d/google-chrome*.sources || true
           sudo apt-get update -qq
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             build-essential \
@@ -69,6 +73,7 @@ jobs:
       - name: Build pico2 firmware
         env:
           PICO_BOARD: pico2
+          HET68_DOA_EDGE_MM: "384"
           CC: gcc
           CXX: g++
         run: ./build.sh
@@ -87,6 +92,7 @@ jobs:
       - name: Build Pico (RP2040) firmware
         env:
           PICO_BOARD: pico
+          HET68_DOA_EDGE_MM: "384"
           CC: gcc
           CXX: g++
         run: |
@@ -107,6 +113,7 @@ jobs:
       - name: Build Pico W (RP2040 + CYW43439) firmware
         env:
           PICO_BOARD: pico_w
+          HET68_DOA_EDGE_MM: "384"
           CC: gcc
           CXX: g++
         run: |
@@ -127,6 +134,7 @@ jobs:
       - name: Build Pico 2 W firmware (CYW43439 Wi-Fi/BT, BLE Remote ID)
         env:
           PICO_BOARD: pico2_w
+          HET68_DOA_EDGE_MM: "384"
           CC: gcc
           CXX: g++
         run: |
@@ -147,6 +155,7 @@ jobs:
       - name: Build Pico Plus 2 W firmware (BLE Remote ID)
         env:
           PICO_BOARD: pimoroni_pico_plus2_w_rp2350
+          HET68_DOA_EDGE_MM: "384"
           CC: gcc
           CXX: g++
         run: |
