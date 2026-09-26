@@ -49,7 +49,7 @@ void dbg_line_unlock(uint32_t saved) {
     if (dbg_spin) spin_unlock(dbg_spin, saved);
 }
 
-void dbg_putc(char c) {
+static void dbg_putc_raw(char c) {
     // UART first, and never blocked by USB state. Bounded spin so the main loop
     // / tud_task() can never stall here even if the UART FIFO is wedged. The
     // bound must exceed one byte time at the configured baud (~87 us @115200,
@@ -65,6 +65,13 @@ void dbg_putc(char c) {
         tud_cdc_write_char(c);
     }
 #endif
+}
+
+void dbg_putc(char c) {
+    // Minicom and other raw terminals do not return to column 0 on LF alone,
+    // so each following line starts where the previous one ended.
+    if (c == '\n') dbg_putc_raw('\r');
+    dbg_putc_raw(c);
 }
 
 void dbg_flush(void) {

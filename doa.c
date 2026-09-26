@@ -1,12 +1,9 @@
-// doa.c — multi-source 3D DOA on core1 with drone + walker + vehicle + bird + wind.
+// doa.c — 3D DOA on core1. Only drones are classified and logged.
+// Walker, vehicle, bird and wind estimators remain in this file but are not run.
 //
 // core0 pushes each 6-channel frame via doa_ring_push() from the USB/I2S feed.
-// core1 runs:
-//   • drone band (~800 Hz–6 kHz): continuous TDOA, up to 2 tracks (primary + SIC)
-//   • wind (LPF ~250 Hz): keep wind gate for drones; also report intensity + direction
-//   • walker band (~150–600 Hz): single walking entity — onset bout → human/cat/dog
-//   • vehicle band (~80 Hz–2.5 kHz): pass-by → ICE vs EV
-//   • bird band (~2–8 kHz): songbird / corvid / bird
+// core1 runs the drone band (~800 Hz–6 kHz): continuous TDOA, up to 2 tracks.
+// Low-frequency wind energy still gates that band. It is not reported.
 // Entity signatures → entity_store; timed events → detection_log (after TIME SYNC).
 //
 // core1 must be launched with het68_launch_core1() (see core1_launch.c).
@@ -1595,37 +1592,16 @@ static void report_rid_cmp(void) {
 
 static void report_tracks(void) {
     g_doa_ndrone = track_count_drones();
-    g_doa_nwalker = g_walker.used ? 1u : 0u;
-    g_doa_nvehicle = track_count_vehicles();
-    g_doa_nbird = track_count_birds();
-    if (g_walker.used && g_walker.entity_id) g_doa_entity_id = g_walker.entity_id;
+    g_doa_nwalker = 0;
+    g_doa_nvehicle = 0;
+    g_doa_nbird = 0;
+    g_doa_wind = 0;
 
-    // Persist live tracks into DET log (only after TIME SYNC — see detection_log).
+    // Persist live drone tracks into DET log (only after TIME SYNC — see detection_log).
     for (int i = 0; i < DOA_MAX_DRONE; i++) {
         if (!g_drones[i].used) continue;
         (void)detection_log_observe(DET_DRONE, 0, g_drones[i].az, g_drones[i].el,
                                     g_drones[i].lvl_db, g_drones[i].conf);
-    }
-    for (int i = 0; i < DOA_MAX_VEHICLE; i++) {
-        if (!g_vehicles[i].used || g_vehicles[i].cls == CLS_NONE) continue;
-        (void)detection_log_observe(det_from_src(g_vehicles[i].cls), g_vehicles[i].entity_id,
-                                    g_vehicles[i].az, g_vehicles[i].el,
-                                    g_vehicles[i].lvl_db, g_vehicles[i].conf);
-    }
-    for (int i = 0; i < DOA_MAX_BIRD; i++) {
-        if (!g_birds[i].used || g_birds[i].cls == CLS_NONE) continue;
-        (void)detection_log_observe(det_from_src(g_birds[i].cls), g_birds[i].entity_id,
-                                    g_birds[i].az, g_birds[i].el,
-                                    g_birds[i].lvl_db, g_birds[i].conf);
-    }
-    if (g_walker.used && g_walker.cls != CLS_NONE) {
-        (void)detection_log_observe(det_from_src(g_walker.cls), g_walker.entity_id,
-                                    g_walker.az, g_walker.el,
-                                    g_walker.lvl_db, g_walker.conf);
-    }
-    if (g_doa_wind) {
-        (void)detection_log_observe(DET_WIND, 0, g_doa_wind_az, g_doa_wind_el,
-                                    g_doa_wind_db, 0.5f);
     }
 
     if (!dbg_log_enabled()) {
@@ -1634,15 +1610,6 @@ static void report_tracks(void) {
     }
 
     uint32_t lock = dbg_line_lock();
-    if (g_doa_wind) {
-        dbg_puts("SRC class=wind az=");
-        put_f1(g_doa_wind_az);
-        dbg_puts(" el=");
-        put_f1(g_doa_wind_el);
-        dbg_puts(" inten=");
-        put_f1(g_doa_wind_db);
-        dbg_puts("dB\n");
-    }
     for (int i = 0; i < DOA_MAX_DRONE; i++) {
         if (!g_drones[i].used) continue;
         dbg_puts("SRC class=drone id=");
@@ -1653,75 +1620,9 @@ static void report_tracks(void) {
         dbg_puts(" lvl="); put_f1(g_drones[i].lvl_db);
         dbg_puts("dB\n");
     }
-    for (int i = 0; i < DOA_MAX_VEHICLE; i++) {
-        if (!g_vehicles[i].used) continue;
-        dbg_puts("SRC class=");
-        dbg_puts(g_vehicles[i].cls == CLS_NONE ? "vehicle" : class_name(g_vehicles[i].cls));
-        dbg_puts(" entity=");
-        dbg_putu32(g_vehicles[i].entity_id);
-        dbg_puts(" az="); put_f1(g_vehicles[i].az);
-        dbg_puts(" el="); put_f1(g_vehicles[i].el);
-        dbg_puts(" conf="); put_f1(g_vehicles[i].conf);
-        dbg_puts(" lvl="); put_f1(g_vehicles[i].lvl_db);
-        dbg_puts("dB");
-        if (g_vehicles[i].cls != CLS_NONE) {
-            dbg_puts(" match=");
-            put_f2(g_vehicles[i].match);
-        }
-        dbg_putc('\n');
-    }
-    for (int i = 0; i < DOA_MAX_BIRD; i++) {
-        if (!g_birds[i].used) continue;
-        dbg_puts("SRC class=");
-        dbg_puts(g_birds[i].cls == CLS_NONE ? "bird" : class_name(g_birds[i].cls));
-        dbg_puts(" entity=");
-        dbg_putu32(g_birds[i].entity_id);
-        dbg_puts(" az="); put_f1(g_birds[i].az);
-        dbg_puts(" el="); put_f1(g_birds[i].el);
-        dbg_puts(" conf="); put_f1(g_birds[i].conf);
-        dbg_puts(" lvl="); put_f1(g_birds[i].lvl_db);
-        dbg_puts("dB");
-        if (g_birds[i].cls != CLS_NONE) {
-            dbg_puts(" match=");
-            put_f2(g_birds[i].match);
-        }
-        dbg_puts(" pos=az/el\n");
-    }
-    if (g_walker.used) {
-        dbg_puts("SRC class=");
-        dbg_puts(g_walker.cls == CLS_NONE ? "walker" : class_name(g_walker.cls));
-        dbg_puts(" entity=");
-        dbg_putu32(g_walker.entity_id);
-        dbg_puts(" az="); put_f1(g_walker.az);
-        dbg_puts(" el="); put_f1(g_walker.el);
-        dbg_puts(" conf="); put_f1(g_walker.conf);
-        dbg_puts(" lvl="); put_f1(g_walker.lvl_db);
-        dbg_puts("dB");
-        if (g_walker.cls != CLS_NONE) {
-            dbg_puts(" match=");
-            put_f2(g_walker.match);
-            dbg_puts(" cadence=");
-            put_f2(g_walker.cadence_hz);
-            dbg_puts("Hz");
-        }
-        if (g_walker.have_xy) {
-            dbg_puts(" rng="); put_f1(g_walker.range_m);
-            dbg_puts("m x="); put_f1(g_walker.x_m);
-            dbg_puts(" y="); put_f1(g_walker.y_m);
-        }
-        dbg_putc('\n');
-    }
     report_rid_cmp();
     dbg_puts("TRACKS drone=");
     dbg_putu32(g_doa_ndrone);
-    dbg_puts(" vehicle=");
-    dbg_putu32(g_doa_nvehicle);
-    dbg_puts(" bird=");
-    dbg_putu32(g_doa_nbird);
-    dbg_puts(" walker=");
-    dbg_putu32(g_doa_nwalker);
-    dbg_puts(" wind=");
-    dbg_putu32(g_doa_wind);
     dbg_puts(" entity=");
     dbg_putu32(g_doa_entity_id);
     dbg_putc('\n');
@@ -1738,15 +1639,9 @@ static void analyse_drone(uint32_t h) {
     load_raw_window(h);
     (void)prepare_drone_band(active, &wind);
 
-    // Keep wind gate for drones; also publish wind intensity + steered direction.
-    if (wind.present) {
-        g_doa_wind = 1;
-        g_doa_wind_az = wind.az;
-        g_doa_wind_el = wind.el;
-        g_doa_wind_db = wind.intensity_db;
-    } else {
-        g_doa_wind = 0;
-    }
+    // Wind energy still gates the drone band. It is not a reported source.
+    (void)wind;
+    g_doa_wind = 0;
 
     doa_fix_t primary = solve_tdoa(active);
     if (!primary.ok || primary.conf < DOA_DRONE_CONF_MIN) return;
@@ -1786,6 +1681,17 @@ static void analyse_walker_onset(uint32_t h) {
     bout_add_step(g_last_onset_pos, &r, &feat);
 }
 
+// Referenced so the retired classifiers stay compiling. if (0) never runs them.
+static void het68_retired_classifiers(void) {
+    if (0) {
+        stream_step_samples(0);
+        finalize_bout_if_needed(0, false);
+        analyse_walker_onset(0);
+        analyse_vehicle(0);
+        analyse_bird(0);
+    }
+}
+
 static bool doa_core1_verify(void) {
     if (!g_core1_alive) return false;
     uint32_t t0 = g_doa_iter;
@@ -1816,34 +1722,16 @@ static void doa_core1_main(void) {
     memset(g_vehicles, 0, sizeof(g_vehicles));
     memset(g_birds, 0, sizeof(g_birds));
     g_doa_wind = 0;
+    het68_retired_classifiers();
 
     for (;;) {
         g_doa_iter++;
         uint32_t h = g_head;
 
-        stream_step_samples(h);
-        finalize_bout_if_needed(g_cons, false);
-
-        if (g_onset_pending) {
-            g_onset_pending = false;
-            analyse_walker_onset(h);
-        }
-
         if ((uint32_t)(h - last_drone) >= DOA_OUT_SAMPLES) {
             last_drone = h;
             track_age_drones();
-            track_age_vehicles();
-            track_age_birds();
-            if (g_walker.used) {
-                g_walker.age++;
-                if (g_walker.age > DOA_TRACK_TTL) {
-                    g_walker.used = false;
-                    g_doa_nwalker = 0;
-                }
-            }
             analyse_drone(h);
-            analyse_vehicle(h);
-            analyse_bird(h);
             report_tracks();
         } else {
             tight_loop_contents();

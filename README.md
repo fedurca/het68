@@ -173,16 +173,13 @@ BOM and module layout: `wiring_and_bom.md`.
 
 Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
 
-* **Multi-source DOA (drone + vehicle + bird + walker + wind) with CLI + DET log.**
-  core1 runs parallel front-ends:
+* **Drone-only DOA with CLI + DET log (v1.6.0).**
+  core1 classifies drones only. The low-frequency wind energy still gates the
+  drone band, but wind, vehicles, birds and walkers are not tracked or logged.
 
   | Class | Band | Cue | Tracks |
   |---|---|---|---|
   | **drone** | ~800 Hz–6 kHz | continuous, **wind gate kept**, crest limit | up to **2** |
-  | **wind** | LPF ~250 Hz | same energy as the gate → **intensity + steered az/el** | status |
-  | **vehicle** | ~80 Hz–2.5 kHz | pass-by → **ICE** / **EV** | up to **2** |
-  | **bird** | ~2–8 kHz | chirp bout → songbird / corvid / bird | up to **2** |
-  | **walker** | ~150 Hz–600 Hz | footstep bout (≥3 steps) → human/cat/dog | **1** |
 
   **Entity gallery** (`entity_store`) = classification templates (ACID dual-slot,
   last two flash sectors). **Detection log** (`detection_log`) = timed events in a
@@ -231,13 +228,14 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   cubes with `HET68_DOA_EDGE_MM=512`.
   **v1.5.1:** release CI pins `HET68_DOA_EDGE_MM=384` and ignores a stale Google
   Chrome apt source that was failing `apt-get update` on GitHub runners.
+  **v1.6.0:** UART debug lines end with CR+LF so minicom returns to column 0.
+  Heartbeat is 3 Hz. Acoustic classification is drones only.
 
   ```
-  SRC class=wind az=180.0 el=10.0 inten=-22.5dB
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB
   CMP mic_id=0 mic_az=137.4 mic_el=22.8 | rid_id=UAV123 rid_az=140.1 rid_el=21.0 d_az=-2.7 d_el=1.8 rid_rng=85.0m
-  DET id=3 class=wind first=1720000000 last=1720000012 occ=8 max_gap_ms=400 az=180.0 el=10.0 inten=-22.5dB
-  TRACKS drone=1 vehicle=0 bird=0 walker=0 wind=1 entity=0
+  DET id=3 class=drone first=1720000000 last=1720000012 occ=8 max_gap_ms=400 az=137.4 el=22.8
+  TRACKS drone=1 entity=0
   ```
 
   `CMP` field meanings (mic = acoustic DOA, rid = OpenDroneID BLE GPS):

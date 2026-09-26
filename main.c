@@ -746,9 +746,7 @@ static void dbg_heartbeat(uint32_t hb_count)
 #if !HET68_USB_DIAG
     {
         extern volatile uint32_t g_doa_out, g_doa_nactive, g_doa_iter;
-        extern volatile uint32_t g_doa_ndrone, g_doa_nwalker, g_doa_nvehicle;
-        extern volatile uint32_t g_doa_nbird, g_doa_entity_id, g_doa_wind;
-        extern volatile float g_doa_wind_db;
+        extern volatile uint32_t g_doa_ndrone, g_doa_entity_id;
         dbg_puts(" doa(out/act/iter)=");
         dbg_putu32(g_doa_out);
         dbg_putc('/');
@@ -757,24 +755,6 @@ static void dbg_heartbeat(uint32_t hb_count)
         dbg_putu32(g_doa_iter);
         dbg_puts(" drone=");
         dbg_putu32(g_doa_ndrone);
-        dbg_puts(" veh=");
-        dbg_putu32(g_doa_nvehicle);
-        dbg_puts(" bird=");
-        dbg_putu32(g_doa_nbird);
-        dbg_puts(" walker=");
-        dbg_putu32(g_doa_nwalker);
-        dbg_puts(" wind=");
-        dbg_putu32(g_doa_wind);
-        if (g_doa_wind) {
-            dbg_puts("@");
-            // one decimal via integer tenths
-            int32_t t = (int32_t)(g_doa_wind_db * 10.0f);
-            if (t < 0) { dbg_putc('-'); t = -t; }
-            dbg_putu32((uint32_t)(t / 10));
-            dbg_putc('.');
-            dbg_putu32((uint32_t)(t % 10));
-            dbg_puts("dB");
-        }
         dbg_puts(" entity=");
         dbg_putu32(g_doa_entity_id);
         dbg_puts(" det=");
@@ -878,7 +858,7 @@ int main(void)
 
     // Direction-of-arrival on core1 (het68_launch_core1 resets core1 after SWD flash).
     doa_start();
-    dbg_puts("DOA: drone+vehicle+bird+walker+wind (DET log needs TIME SYNC)\n");
+    dbg_puts("DOA: drones only (DET log needs TIME SYNC)\n");
 
     // OpenDroneID BLE scanner (no-op stub on non-CYW43 boards).
     if (remote_id_init())
@@ -928,7 +908,8 @@ int main(void)
     bool led_state = false;
     absolute_time_t next_led = make_timeout_time_ms(500);
 #endif
-    absolute_time_t next_heartbeat = make_timeout_time_ms(2000);
+    // Three UART heartbeats per second (period 1/3 s).
+    absolute_time_t next_heartbeat = make_timeout_time_us(333333);
     uint32_t hb_count = 0;
 
     for (;;) {
@@ -976,7 +957,7 @@ int main(void)
         if (absolute_time_diff_us(get_absolute_time(), next_heartbeat) <= 0) {
             hb_count++;
             dbg_heartbeat(hb_count);
-            next_heartbeat = make_timeout_time_ms(2000);
+            next_heartbeat = make_timeout_time_us(333333);
         }
     }
 }
