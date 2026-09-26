@@ -230,6 +230,10 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   Chrome apt source that was failing `apt-get update` on GitHub runners.
   **v1.6.0:** UART debug lines end with CR+LF so minicom returns to column 0.
   Heartbeat is 3 Hz. Acoustic classification is drones only.
+  **v1.7.0:** `HB OFF` stops the periodic heartbeat (`HB ON` resumes it).
+  A tone inside the drone band (~800 Hz–6 kHz; use **2000 Hz**) is reported
+  even when the microphones are not on the cube (`pos=band`). A geometric
+  lock, when the array matches the model, is `pos=tdoa`.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB

@@ -34,6 +34,8 @@ void cli_print_help(void) {
     dbg_puts("TIME SYNC <unix>     — sync wall clock (required for DET timestamps)\n");
     dbg_puts("LOG ON | LOG OFF     — enable/disable SRC/ENTITY stdout logging\n");
     dbg_puts("LOG                  — show log status\n");
+    dbg_puts("HB ON | HB OFF       — enable/disable the periodic heartbeat\n");
+    dbg_puts("HB                   — show heartbeat status\n");
     dbg_puts("DET LIST             — list saved detections\n");
     dbg_puts("DET EXPORT           — NVR JSON Lines (NVREVT)\n");
     dbg_puts("DET BACKUP           — hex blob download (DETBLOB)\n");
@@ -242,6 +244,23 @@ static void handle_line(char *line) {
     if (strcmp(line, "LOG OFF") == 0) {
         dbg_log_set(false);
         dbg_puts("LOG stdout=off\n");
+        return;
+    }
+
+    if (strcmp(line, "HB") == 0) {
+        dbg_puts("HB stdout=");
+        dbg_puts(dbg_hb_enabled() ? "on" : "off");
+        dbg_putc('\n');
+        return;
+    }
+    if (strcmp(line, "HB ON") == 0) {
+        dbg_hb_set(true);
+        dbg_puts("HB stdout=on\n");
+        return;
+    }
+    if (strcmp(line, "HB OFF") == 0) {
+        dbg_hb_set(false);
+        dbg_puts("HB stdout=off\n");
         return;
     }
 

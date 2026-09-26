@@ -25,6 +25,10 @@ void dbg_line_unlock(uint32_t saved);
 void dbg_log_set(bool enabled);
 bool dbg_log_enabled(void);
 
+// Periodic status line. CLI replies always print.
+void dbg_hb_set(bool enabled);
+bool dbg_hb_enabled(void);
+
 // Single-character checkpoint macro: writes 'X\n' to UART.
 // Usable from any .c file that includes this header.
 #define DBG_CP(letter) do { dbg_putc(letter); dbg_putc('\n'); } while(0)

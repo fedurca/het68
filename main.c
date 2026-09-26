@@ -956,7 +956,7 @@ int main(void)
 
         if (absolute_time_diff_us(get_absolute_time(), next_heartbeat) <= 0) {
             hb_count++;
-            dbg_heartbeat(hb_count);
+            if (dbg_hb_enabled()) dbg_heartbeat(hb_count);
             next_heartbeat = make_timeout_time_us(333333);
         }
     }

@@ -27,6 +27,7 @@
 // debug lines through it so UART output never interleaves.
 static spin_lock_t *dbg_spin;
 static volatile bool g_log_enabled = true;
+static volatile bool g_hb_enabled = true;
 
 void dbg_init(void) {
     uart_init(uart_default, 115200);
@@ -40,6 +41,9 @@ void dbg_init(void) {
 
 void dbg_log_set(bool enabled) { g_log_enabled = enabled; }
 bool dbg_log_enabled(void) { return g_log_enabled; }
+
+void dbg_hb_set(bool enabled) { g_hb_enabled = enabled; }
+bool dbg_hb_enabled(void) { return g_hb_enabled; }
 
 uint32_t dbg_line_lock(void) {
     return dbg_spin ? spin_lock_blocking(dbg_spin) : 0u;

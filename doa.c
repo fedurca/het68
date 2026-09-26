@@ -717,10 +717,9 @@ static float prepare_drone_band(bool active[6], wind_est_t *wind_out) {
     if (wind_out) *wind_out = estimate_wind_from_energy(e_wind_ch);
     g_doa_nactive = (uint32_t)nactive;
     float crest = crest_num / crest_den;
-    if (crest > DOA_DRONE_CREST_MAX) {
-        for (int c = 0; c < 6; c++) active[c] = false;
-        g_doa_nactive = 0;
-    }
+    (void)crest;
+    // Any in-band waveform counts, including a pure tone (crest ~1.4) and a
+    // buzzier drone. The old crest cap rejected those as "too impulsive".
     return crest;
 }
 
@@ -1618,7 +1617,8 @@ static void report_tracks(void) {
         dbg_puts(" el="); put_f1(g_drones[i].el);
         dbg_puts(" conf="); put_f1(g_drones[i].conf);
         dbg_puts(" lvl="); put_f1(g_drones[i].lvl_db);
-        dbg_puts("dB\n");
+        dbg_puts("dB");
+        dbg_puts(g_drones[i].conf < DOA_DRONE_CONF_MIN ? " pos=band\n" : " pos=tdoa\n");
     }
     report_rid_cmp();
     dbg_puts("TRACKS drone=");
@@ -1643,11 +1643,24 @@ static void analyse_drone(uint32_t h) {
     (void)wind;
     g_doa_wind = 0;
 
-    doa_fix_t primary = solve_tdoa(active);
-    if (!primary.ok || primary.conf < DOA_DRONE_CONF_MIN) return;
+    int n_band = 0;
+    float rms_sum = 0.0f;
+    for (int c = 0; c < 6; c++) {
+        if (!active[c]) continue;
+        n_band++;
+        rms_sum += sqrtf(g_energy[c] / (float)(DOA_CORR_HI - DOA_CORR_LO));
+    }
+    // One mic in the drone band is enough. The cube geometry is not required,
+    // so a tone on a scattered bench array still counts.
+    if (n_band < 1) return;
+    float lvl_db = 20.0f * log10f((rms_sum / (float)n_band + 1e-6f) / 32768.0f);
 
-    // Prefer airborne / not deep ground clutter for drone locks.
-    if (primary.el < -50.0f) return;
+    doa_fix_t primary = solve_tdoa(active);
+    bool geom = primary.ok && primary.conf >= DOA_DRONE_CONF_MIN && primary.el >= -50.0f;
+    if (!geom) {
+        drone_upsert(0.0f, 0.0f, 0.05f, lvl_db);
+        return;
+    }
 
     drone_upsert(primary.az, primary.el, primary.conf, primary.lvl_db);
 
