@@ -2,6 +2,11 @@
 // PRIMARY channel and is fully independent of the Pico USB stack, so it survives
 // a USB/UAC2 freeze.
 //
+// Bytes are queued in RAM and drained by dbg_poll() on core 0. Printing must not
+// spin on the UART baud rate and must not mask IRQs: the I2S state machines stall
+// (and lose left/right phase) if the CPU stops emptying the PIO FIFO, and the
+// USB task misses isochronous frames if the main loop blocks for tens of ms.
+//
 // USB CDC mirroring is OPTIONAL (HET68_DEBUG_CDC) and is intentionally OFF by
 // default: when USB wedges, CDC writes are useless and must never delay the
 // UART path that we rely on to debug exactly that freeze.
@@ -9,7 +14,7 @@
 #include "tusb_config.h"
 #include "hardware/uart.h"
 #include "pico/stdlib.h"
-#include "pico/sync.h"
+#include "pico/multicore.h"
 
 // Mirror debug to USB CDC as a secondary channel. Off by default — see header.
 #ifndef HET68_DEBUG_CDC
@@ -23,20 +28,25 @@
 #define HET68_DEBUG_CDC_ACTIVE 0
 #endif
 
-// Cross-core line lock. Claimed once in dbg_init(); both cores serialise full
-// debug lines through it so UART output never interleaves.
-static spin_lock_t *dbg_spin;
+#define DBG_RING_SZ 4096u
+
+static uint8_t dbg_ring[DBG_RING_SZ];
+static volatile uint16_t dbg_ring_w;
+static volatile uint16_t dbg_ring_r;
+static volatile uint32_t dbg_ring_drop;
+static volatile uint8_t dbg_line_owner;
 static volatile bool g_log_enabled = true;
 static volatile bool g_hb_enabled = true;
+// Boot prints drain inline so the banner is visible before the main loop.
+// Streaming switches this off: dbg_poll() then drains between USB tasks.
+static volatile bool g_tx_async;
 
 void dbg_init(void) {
     uart_init(uart_default, 115200);
     gpio_set_function(PICO_DEFAULT_UART_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(PICO_DEFAULT_UART_RX_PIN, GPIO_FUNC_UART);
-    if (!dbg_spin) {
-        dbg_spin = spin_lock_init((uint)spin_lock_claim_unused(true));
-    }
     g_log_enabled = true;
+    g_tx_async = false;
 }
 
 void dbg_log_set(bool enabled) { g_log_enabled = enabled; }
@@ -45,30 +55,80 @@ bool dbg_log_enabled(void) { return g_log_enabled; }
 void dbg_hb_set(bool enabled) { g_hb_enabled = enabled; }
 bool dbg_hb_enabled(void) { return g_hb_enabled; }
 
+void dbg_tx_async(bool async) { g_tx_async = async; }
+
 uint32_t dbg_line_lock(void) {
-    return dbg_spin ? spin_lock_blocking(dbg_spin) : 0u;
+    uint8_t me = (uint8_t)(get_core_num() + 1u);
+    for (;;) {
+        uint32_t irq = save_and_disable_interrupts();
+        if (dbg_line_owner == 0u) {
+            dbg_line_owner = me;
+            restore_interrupts(irq);
+            return 0u;
+        }
+        restore_interrupts(irq);
+        tight_loop_contents();
+    }
 }
 
 void dbg_line_unlock(uint32_t saved) {
-    if (dbg_spin) spin_unlock(dbg_spin, saved);
+    (void)saved;
+    uint32_t irq = save_and_disable_interrupts();
+    dbg_line_owner = 0u;
+    restore_interrupts(irq);
+}
+
+static void ring_push(char c) {
+    uint32_t irq = save_and_disable_interrupts();
+    uint16_t next = (uint16_t)((dbg_ring_w + 1u) & (DBG_RING_SZ - 1u));
+    if (next == dbg_ring_r) {
+        dbg_ring_drop++;
+        restore_interrupts(irq);
+        return;
+    }
+    dbg_ring[dbg_ring_w] = (uint8_t)c;
+    dbg_ring_w = next;
+    restore_interrupts(irq);
+}
+
+static int ring_pop(void) {
+    uint32_t irq = save_and_disable_interrupts();
+    if (dbg_ring_r == dbg_ring_w) {
+        restore_interrupts(irq);
+        return -1;
+    }
+    int c = dbg_ring[dbg_ring_r];
+    dbg_ring_r = (uint16_t)((dbg_ring_r + 1u) & (DBG_RING_SZ - 1u));
+    restore_interrupts(irq);
+    return c;
+}
+
+void dbg_poll(void) {
+    if (get_core_num() != 0u) return;
+    while (uart_is_writable(uart_default)) {
+        int c = ring_pop();
+        if (c < 0) return;
+        uart_putc_raw(uart_default, (char)c);
+#if HET68_DEBUG_CDC_ACTIVE
+        if (tud_cdc_connected()) tud_cdc_write_char((char)c);
+#endif
+    }
+#if HET68_DEBUG_CDC_ACTIVE
+    if (tud_cdc_connected()) tud_cdc_write_flush();
+#endif
 }
 
 static void dbg_putc_raw(char c) {
-    // UART first, and never blocked by USB state. Bounded spin so the main loop
-    // / tud_task() can never stall here even if the UART FIFO is wedged. The
-    // bound must exceed one byte time at the configured baud (~87 us @115200,
-    // i.e. tens of thousands of cycles) or the 32-byte TX FIFO overflows and we
-    // drop characters. The HW FIFO always drains at the baud rate even with no
-    // listener, so this can never hang in practice.
-    for (uint32_t spin = 0; spin < 200000u && !uart_is_writable(uart_default); spin++) { }
-    if (uart_is_writable(uart_default)) {
-        uart_putc_raw(uart_default, c);
+    ring_push(c);
+    if (get_core_num() != 0u) return;
+    if (!g_tx_async) {
+        while (dbg_ring_r != dbg_ring_w) {
+            dbg_poll();
+            if (!uart_is_writable(uart_default)) tight_loop_contents();
+        }
+    } else {
+        dbg_poll();
     }
-#if HET68_DEBUG_CDC_ACTIVE
-    if (tud_cdc_connected()) {
-        tud_cdc_write_char(c);
-    }
-#endif
 }
 
 void dbg_putc(char c) {
@@ -79,6 +139,7 @@ void dbg_putc(char c) {
 }
 
 void dbg_flush(void) {
+    if (get_core_num() == 0u) dbg_poll();
 #if HET68_DEBUG_CDC_ACTIVE
     if (tud_cdc_connected()) {
         tud_cdc_write_flush();

@@ -184,7 +184,15 @@ void __attribute__((noreturn)) __wrap_panic(const char *fmt, ...) {
 #define I2S_CLK_SM              3u
 #define I2S_PIO_CLK             pio0
 #define I2S_WORDS_PER_FRAME     (AUDIO_SAMPLES_PER_USB_FRAME * 2u)   // L+R slots per line
-#define I2S_PINGPONG_WORDS      (I2S_WORDS_PER_FRAME * 2u)
+// Endless DMA ring. 16384 bytes is the largest wrap the DMA controller allows
+// short of 32768; ~42 ms of stereo slots so a late main loop cannot lose a wrap.
+#define I2S_RING_BITS           14u
+#define I2S_RING_BYTES          (1u << I2S_RING_BITS)
+#define I2S_RING_WORDS          (I2S_RING_BYTES / 4u)
+#define I2S_PREFILL_FRAMES      4u
+#define I2S_READ_GUARD_WORDS    8u
+_Static_assert((I2S_RING_WORDS & (I2S_RING_WORDS - 1u)) == 0u, "I2S ring must be a power of two");
+_Static_assert(I2S_RING_WORDS >= I2S_WORDS_PER_FRAME * 16u, "I2S ring shorter than 16 ms");
 
 // One SD GPIO per mic (Grove data port pin 1). SEL hardwired to GND on each module.
 static const uint PIN_I2S_SD[I2S_NUM_LINES] = { 16, 18, 20, 26, 27, 28 };
@@ -212,14 +220,20 @@ static uint32_t diag_frame_counter;
 static uint i2s_sm[I2S_NUM_LINES];
 static PIO i2s_pio_line[I2S_NUM_LINES];
 static int i2s_dma[I2S_NUM_LINES];
-static uint32_t i2s_cap[I2S_NUM_LINES][I2S_PINGPONG_WORDS];
-static volatile uint8_t i2s_ready_half;
-static volatile uint8_t i2s_completed_half;
-static volatile uint32_t i2s_frame_seq;
+// Each row is one DMA ring and must be aligned to the ring size.
+static uint32_t i2s_cap[I2S_NUM_LINES][I2S_RING_WORDS]
+    __attribute__((aligned(I2S_RING_BYTES)));
 static bool i2s_started;
 
-// USB-side I2S sync (1 ms frame sequence from DMA IRQ).
-static uint32_t usb_i2s_seq;
+// Write cursor is accumulated from the DMA write address so a late USB task
+// skips forward instead of restarting DMA (a restart drops slots and, with
+// SEL tied to GND, the following audio is the empty right channel — silence).
+static bool i2s_wr_live;
+static uint32_t i2s_wr_abs;
+static uint32_t i2s_wr_snap;
+static uint32_t i2s_rd_abs;
+static uint8_t i2s_phase;
+static uint8_t i2s_phase_bad;
 static bool usb_have_frame;
 static uint8_t usb_last_frame[AUDIO_PACKET_SIZE];
 
@@ -259,21 +273,21 @@ static void i2s_data_sm_init(PIO pio, uint sm, uint offset, uint pin_data, float
     pio_sm_init(pio, sm, offset, &c);
 }
 
-static void i2s_dma_start_half(uint8_t half) {
-    uint32_t base_off = (uint32_t)half * I2S_WORDS_PER_FRAME;
-    for (uint i = 0; i < I2S_NUM_LINES; i++) {
-        dma_channel_set_write_addr(i2s_dma[i], &i2s_cap[i][base_off], false);
-        dma_channel_set_trans_count(i2s_dma[i], I2S_WORDS_PER_FRAME, true);
-    }
+static uint32_t i2s_dma_pos(void) {
+    uintptr_t addr = (uintptr_t)dma_channel_hw_addr(i2s_dma[0])->write_addr;
+    uintptr_t base = (uintptr_t)i2s_cap[0];
+    return (uint32_t)(((addr - base) / 4u) & (I2S_RING_WORDS - 1u));
 }
 
-static void __isr i2s_dma_irq(void) {
-    dma_hw->ints0 = (1u << i2s_dma[0]);
-    dbg_i2s_dma_irq++;
-    i2s_ready_half = (uint8_t)(1u - i2s_ready_half);
-    i2s_completed_half = (uint8_t)(1u - i2s_ready_half);
-    i2s_frame_seq++;
-    i2s_dma_start_half(i2s_ready_half);
+// Call from the core0 main loop (and from the USB feed, which runs there).
+// The DMA itself never stops, so this only advances a software cursor.
+static void i2s_wr_poll(void) {
+    if (!i2s_wr_live) return;
+    uint32_t pos = i2s_dma_pos();
+    uint32_t d = (pos - i2s_wr_snap) & (I2S_RING_WORDS - 1u);
+    i2s_wr_abs += d;
+    i2s_wr_snap = pos;
+    dbg_i2s_dma_irq = i2s_wr_abs / I2S_WORDS_PER_FRAME;
 }
 
 static void i2s_capture_init(uint32_t sample_rate) {
@@ -294,36 +308,45 @@ static void i2s_capture_init(uint32_t sample_rate) {
         i2s_sm[i] = i % 3u;
         i2s_data_sm_init(pio, i2s_sm[i], offset, PIN_I2S_SD[i], div);
 
+        pio_sm_clear_fifos(pio, i2s_sm[i]);
+
         i2s_dma[i] = dma_claim_unused_channel(true);
         dma_channel_config c = dma_channel_get_default_config(i2s_dma[i]);
         channel_config_set_transfer_data_size(&c, DMA_SIZE_32);
         channel_config_set_read_increment(&c, false);
         channel_config_set_write_increment(&c, true);
         channel_config_set_dreq(&c, pio_get_dreq(pio, i2s_sm[i], false));
+        channel_config_set_ring(&c, true, I2S_RING_BITS);
+#if PICO_RP2040
+        uint32_t xfer = 0xffffffffu;
+#else
+        uint32_t xfer = dma_encode_endless_transfer_count();
+#endif
         dma_channel_configure(
             i2s_dma[i], &c,
             &i2s_cap[i][0],
             &pio->rxf[i2s_sm[i]],
-            I2S_WORDS_PER_FRAME,
+            xfer,
             false);
     }
 
-    i2s_ready_half = 0;
-    i2s_completed_half = 0;
-    i2s_frame_seq = 0;
-    usb_i2s_seq = 0;
     usb_have_frame = false;
+    i2s_rd_abs = 0;
+    i2s_phase = 0;
+    i2s_phase_bad = 0;
 
-    dma_channel_set_irq0_enabled(i2s_dma[0], true);
-    irq_set_exclusive_handler(DMA_IRQ_0, i2s_dma_irq);
-    irq_set_enabled(DMA_IRQ_0, true);
-
-    i2s_dma_start_half(0);
+    // Arm DMA before the clock starts so the first PIO push is stored and the
+    // left slot stays on even word indices for the life of the capture.
+    for (uint i = 0; i < I2S_NUM_LINES; i++) dma_channel_start(i2s_dma[i]);
 
     uint32_t irq_state = save_and_disable_interrupts();
     pio_enable_sm_mask_in_sync(pio_lo, 0xFu);
     pio_enable_sm_mask_in_sync(pio_hi, 0x7u);
     restore_interrupts(irq_state);
+
+    i2s_wr_snap = i2s_dma_pos();
+    i2s_wr_abs = i2s_wr_snap;
+    i2s_wr_live = true;
 
     dbg_puts("I2S started 6x mono clk_sm=");
     dbg_putu32(I2S_CLK_SM);
@@ -344,18 +367,21 @@ static inline int32_t i2s_word_to_s24(uint32_t raw, uint lshift) {
     return (int32_t)(w >> 8);
 }
 
-static void build_usb_frame_from_i2s(uint8_t read_half) {
-    uint32_t base = (uint32_t)read_half * I2S_WORDS_PER_FRAME;
-
+static void build_usb_frame_from_ring(uint32_t word_abs) {
     uint8_t *out = usb_frame_buf;
     uint16_t peak[6] = {0, 0, 0, 0, 0, 0};
     uint32_t raw_at_peak[6] = {0, 0, 0, 0, 0, 0};
+    uint32_t sel_e = 0;
+    uint32_t oth_e = 0;
+    uint32_t phase = i2s_phase & 1u;
     for (uint32_t s = 0; s < AUDIO_SAMPLES_PER_USB_FRAME; s++) {
-        uint32_t w = base + s * 2u;
+        uint32_t slot = word_abs + s * 2u;
+        uint32_t w = (slot + phase) & (I2S_RING_WORDS - 1u);
+        uint32_t wo = (slot + (phase ^ 1u)) & (I2S_RING_WORDS - 1u);
 
         int16_t ring6[6];
         for (int i = 0; i < 6; i++) {
-            uint32_t raw = i2s_cap[i][w];   // left slot (SEL=GND)
+            uint32_t raw = i2s_cap[i][w];   // left slot (SEL=GND), unless phase flipped
             int32_t s24 = i2s_word_to_s24(raw, I2S_LSHIFT_LEFT);
             int32_t v = s24 < 0 ? -s24 : s24;
             uint16_t a = (uint16_t)(v >> 8);
@@ -364,6 +390,11 @@ static void build_usb_frame_from_i2s(uint8_t read_half) {
                 raw_at_peak[i] = raw;
             }
             ring6[i] = (int16_t)(s24 >> 8);
+            if (i == 0) {
+                sel_e += (uint32_t)v >> 8;
+                int32_t o24 = i2s_word_to_s24(i2s_cap[0][wo], I2S_LSHIFT_LEFT);
+                oth_e += (uint32_t)(o24 < 0 ? -o24 : o24) >> 8;
+            }
             if (master_mute) s24 = 0;
             *out++ = (uint8_t)(s24 & 0xFF);
             *out++ = (uint8_t)((s24 >> 8) & 0xFF);
@@ -380,6 +411,16 @@ static void build_usb_frame_from_i2s(uint8_t read_half) {
     for (int i = 0; i < 6; i++) {
         dbg_i2s_peak[i] = peak[i];
         dbg_i2s_raw[i] = raw_at_peak[i];
+    }
+    // SEL=GND: the other slot is silent. If a dropped word ever swaps them,
+    // follow the slot that actually has energy instead of streaming zeros.
+    if (oth_e > sel_e * 8u + 8000u && oth_e > 20000u) {
+        if (++i2s_phase_bad >= 4u) {
+            i2s_phase ^= 1u;
+            i2s_phase_bad = 0;
+        }
+    } else if (sel_e > oth_e) {
+        i2s_phase_bad = 0;
     }
 }
 #endif  // !HET68_USB_DIAG
@@ -433,29 +474,44 @@ static inline void usb_audio_feed_one_frame(void) {
 #if HET68_USB_DIAG
     build_diag_frame();
 #else
-    uint32_t seq;
-    uint8_t half;
-    uint32_t irq_state = save_and_disable_interrupts();
-    seq = i2s_frame_seq;
-    half = i2s_completed_half;
-    restore_interrupts(irq_state);
-
-    if (seq != 0u && seq != usb_i2s_seq) {
-        if (seq > usb_i2s_seq + 1u) {
-            dbg_i2s_feed_late += seq - usb_i2s_seq - 1u;
+    i2s_wr_poll();
+    uint32_t avail = i2s_wr_abs - i2s_rd_abs;
+    bool sent_new = false;
+    if (!i2s_wr_live) {
+        avail = 0;
+    } else if (!usb_have_frame) {
+        if (avail >= I2S_PREFILL_FRAMES * I2S_WORDS_PER_FRAME) {
+            uint32_t target = i2s_wr_abs - I2S_PREFILL_FRAMES * I2S_WORDS_PER_FRAME;
+            target -= target % I2S_WORDS_PER_FRAME;
+            i2s_rd_abs = target;
+            avail = i2s_wr_abs - i2s_rd_abs;
         }
-        build_usb_frame_from_i2s(half);
-        usb_i2s_seq = seq;
+    } else if (avail > (I2S_RING_WORDS / 2u)) {
+        uint32_t target = i2s_wr_abs - I2S_PREFILL_FRAMES * I2S_WORDS_PER_FRAME;
+        target -= target % I2S_WORDS_PER_FRAME;
+        uint32_t skipped = target - i2s_rd_abs;
+        if (skipped < I2S_RING_WORDS)
+            dbg_i2s_feed_late += skipped / I2S_WORDS_PER_FRAME;
+        i2s_rd_abs = target;
+        avail = i2s_wr_abs - i2s_rd_abs;
+    }
+    if (avail >= I2S_WORDS_PER_FRAME + I2S_READ_GUARD_WORDS) {
+        build_usb_frame_from_ring(i2s_rd_abs);
+        i2s_rd_abs += I2S_WORDS_PER_FRAME;
         memcpy(usb_last_frame, usb_frame_buf, sizeof(usb_frame_buf));
         usb_have_frame = true;
         dbg_i2s_feed_ok++;
-    } else if (usb_have_frame) {
-        dbg_i2s_feed_miss++;
-        dbg_i2s_feed_hold++;
-        memcpy(usb_frame_buf, usb_last_frame, sizeof(usb_frame_buf));
-    } else {
-        dbg_i2s_feed_miss++;
-        memset(usb_frame_buf, 0, sizeof(usb_frame_buf));
+        sent_new = true;
+    }
+    if (!sent_new) {
+        if (usb_have_frame) {
+            dbg_i2s_feed_miss++;
+            dbg_i2s_feed_hold++;
+            memcpy(usb_frame_buf, usb_last_frame, sizeof(usb_frame_buf));
+        } else {
+            dbg_i2s_feed_miss++;
+            memset(usb_frame_buf, 0, sizeof(usb_frame_buf));
+        }
     }
 #endif
     // tud_audio_write() copies into the EP IN FIFO. It returns 0 only if the FIFO
@@ -507,16 +563,9 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_reques
     dbg_last_alt = alt;
     dbg_set_itf++;
 #if !HET68_USB_DIAG
-    // I2S runs from mount; align USB frame seq when streaming starts/stops so we
-    // do not treat pre-buffered DMA frames as "late" on the first ISO IN packet.
-    if (alt != 0u) {
-        uint32_t irq_state = save_and_disable_interrupts();
-        usb_i2s_seq = i2s_frame_seq;
-        restore_interrupts(irq_state);
-    } else {
-        usb_i2s_seq = 0u;
-        usb_have_frame = false;
-    }
+    // I2S keeps running across alt changes. Drop the prefill latch so the next
+    // stream waits for a few fresh milliseconds instead of a stale cursor.
+    usb_have_frame = false;
 #endif
     // Non-blocking UART checkpoint: "SETIF <itf> <alt>"
     dbg_puts("SETIF ");
@@ -701,6 +750,8 @@ static void dbg_heartbeat_i2s(void) {
     dbg_putu32(dbg_i2s_feed_hold);
     dbg_puts(" late=");
     dbg_putu32(dbg_i2s_feed_late);
+    dbg_puts(" ph=");
+    dbg_putu32(i2s_phase);
     dbg_puts(" pk=");
     for (int i = 0; i < 6; i++) {
         if (i) dbg_putc(',');
@@ -912,7 +963,12 @@ int main(void)
     absolute_time_t next_heartbeat = make_timeout_time_us(333333);
     uint32_t hb_count = 0;
 
+    // From here, UART text is queued. dbg_poll() below drains it between USB
+    // tasks so a heartbeat cannot mask IRQs or stall isochronous IN.
+    dbg_tx_async(true);
+
     for (;;) {
+        dbg_poll();
         tud_task();
 
 #if !HET68_USB_DIAG
@@ -920,6 +976,7 @@ int main(void)
             i2s_capture_init(AUDIO_SAMPLE_RATE);
             i2s_started = true;
         }
+        if (i2s_started) i2s_wr_poll();
 
         // Opportunistic ACID flash: only when USB audio streaming is idle (alt=0).
         // At most one flash store advances per poll (one erase/page max).

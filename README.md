@@ -35,8 +35,8 @@ arecord -D hw:<card>,0 -c 6 -r 48000 -f S24_3LE -d 3 capture.wav
 - Six PIO RX state machines (one per mic SD line on GP16/18/20/26/27/28) capture
   serial data. Mics 1–3 use PIO0; mics 4–6 use PIO1 (same clkdiv, started
   together). Each line reads the **left** I2S slot (SEL hardwired GND on modules).
-- DMA moves the captured 32-bit slots into a double-buffered memory region; the
-  USB device task packs them into 24-bit `S24_3LE` frames.
+- DMA writes both I2S slots into a continuous ring (the PIO FIFO is never left
+  to stall). The USB device task packs the left slot into 24-bit `S24_3LE` frames.
 
 ## Hardware wiring (Grove Shield for Pi Pico)
 
@@ -234,6 +234,9 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   A tone inside the drone band (~800 Hz–6 kHz; use **2000 Hz**) is reported
   even when the microphones are not on the cube (`pos=band`). A geometric
   lock, when the array matches the model, is `pos=tdoa`.
+  **v1.8.0:** USB capture no longer drops out while the UART heartbeat or DOA
+  log is printing. I2S DMA runs as an endless ring, and debug text is queued
+  so the main loop can keep servicing isochronous IN.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB

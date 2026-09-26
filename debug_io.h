@@ -16,10 +16,20 @@ bool dbg_rx_available(void);
 int dbg_getc(void);   // -1 if none
 
 // Coarse, cross-core line lock so debug lines emitted from core0 (heartbeat)
-// and core1 (DOA) never interleave on the shared UART. Wrap one full line:
+// and core1 (DOA) never interleave. The lock does not mask IRQs and does not
+// wait on the UART. Drain the byte queue from the core0 main loop:
+//   dbg_poll();
+// Wrap one full line:
 //   uint32_t s = dbg_line_lock(); dbg_puts(...); ...; dbg_line_unlock(s);
 uint32_t dbg_line_lock(void);
 void dbg_line_unlock(uint32_t saved);
+
+// Move queued bytes into the UART FIFO. Core 0 only; never blocks.
+void dbg_poll(void);
+
+// When async, dbg_putc only queues. Call once the USB main loop is running
+// so a heartbeat cannot stall isochronous IN.
+void dbg_tx_async(bool async);
 
 // Optional telemetry gate (SRC / ENTITY / TRACKS). CLI replies always print.
 void dbg_log_set(bool enabled);
