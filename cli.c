@@ -17,8 +17,10 @@ static uint32_t g_len;
 static bool g_ent_import;
 static bool g_det_import;
 static bool g_help_shown;
+static bool g_skip_lf;
 
 void cli_print_help(void) {
+    dbg_print_banner();
     uint32_t lock = dbg_line_lock();
     dbg_puts("=== het68 CLI ");
 #ifdef HET68_VERSION_STR
@@ -54,6 +56,7 @@ void cli_print_help(void) {
     dbg_puts("LINK WIFI            — broadcast WIFI_WAKE (bulk sync / OTA)\n");
     dbg_puts("RID LIST             — OpenDroneID BLE tracks (CYW43 boards)\n");
     dbg_puts("RID ON | RID OFF     — enable/disable BLE Remote ID scan\n");
+    dbg_puts("Note: debug is on after reboot (HB ON, LOG ON). Enter submits a command.\n");
     dbg_puts("Note: DET timestamps after TIME SYNC (UART or RID System msg).\n");
     dbg_puts("Note: LOG ON prints CMP mic az/el vs RID GPS az/el (needs System origin).\n");
     dbg_puts("=================\n");
@@ -427,8 +430,14 @@ void cli_rx_byte(int ch) {
     // First byte from host → treat as "connected" and show help once.
     if (!g_help_shown) cli_on_connect();
 
-    if (ch == '\r') return;
-    if (ch == '\n') {
+    // Minicom Enter sends CR. A following LF must not run the line twice.
+    if (ch == '\n' && g_skip_lf) {
+        g_skip_lf = false;
+        return;
+    }
+    g_skip_lf = false;
+    if (ch == '\r' || ch == '\n') {
+        g_skip_lf = (ch == '\r');
         g_buf[g_len < sizeof(g_buf) ? g_len : (sizeof(g_buf) - 1u)] = '\0';
         handle_line(g_buf);
         g_len = 0;

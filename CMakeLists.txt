@@ -28,7 +28,12 @@ set(SRCS
 add_executable(pico_6mic_soundcard ${SRCS})
 
 # Version stamp (UART help / docs). Semver core for releases.
-add_compile_definitions(HET68_VERSION_STR=\"1.8.0\")
+string(TIMESTAMP HET68_BUILD_STAMP "%Y-%m-%d %H:%M:%S")
+add_compile_definitions(
+    HET68_VERSION_STR=\"1.9.0\"
+    HET68_BUILD_STAMP=\"${HET68_BUILD_STAMP}\"
+)
+message(STATUS "het68: version 1.9.0  build ${HET68_BUILD_STAMP}")
 
 # Optional fixed acoustic-link node id (0..7). Default 0; also settable at
 # runtime via the LINK ID CLI command.
@@ -68,11 +73,11 @@ else()
     message(STATUS "het68: I2S mic mode — UART debug on GP0/GP1 (Grove UART0)")
 endif()
 
-# Diagnostic: mirror debug output to the Pico's own USB CDC (ttyACM1) in
-# addition to the probe UART. Default OFF — the probe UART is the freeze-proof
-# primary channel. Enable to isolate firmware vs. UART wiring:
-#   HET68_DEBUG_CDC=1 ./build.sh
-option(HET68_DEBUG_CDC "Mirror debug to Pico USB CDC (ttyACM1)" OFF)
+# Mirror debug to the Pico's own USB CDC as well as the probe UART, so a
+# terminal on either ACM port sees the log. Writes never block: if the CDC
+# buffer is full the byte stays on the probe UART only.
+#   HET68_DEBUG_CDC=0 ./build.sh
+option(HET68_DEBUG_CDC "Mirror debug to the Pico USB CDC serial port" ON)
 if(HET68_DEBUG_CDC)
     add_compile_definitions(HET68_DEBUG_CDC=1)
 endif()

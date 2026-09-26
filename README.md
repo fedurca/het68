@@ -237,6 +237,11 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   **v1.8.0:** USB capture no longer drops out while the UART heartbeat or DOA
   log is printing. I2S DMA runs as an endless ring, and debug text is queued
   so the main loop can keep servicing isochronous IN.
+  **v1.9.0:** debug logging is on after every reboot (`HB` and `LOG`). The
+  first console line is `het68 <version>  build <YYYY-MM-DD HH:MM:SS>  debug=on`.
+  The same line is repeated when the USB serial port is opened. Enter in
+  minicom submits a command. Debug is mirrored to the Pico USB CDC port as
+  well as the probe UART.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB

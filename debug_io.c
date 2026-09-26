@@ -45,8 +45,36 @@ void dbg_init(void) {
     uart_init(uart_default, 115200);
     gpio_set_function(PICO_DEFAULT_UART_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(PICO_DEFAULT_UART_RX_PIN, GPIO_FUNC_UART);
+    // Debug stays on across reboot until the operator sends HB OFF / LOG OFF.
+    g_hb_enabled = true;
     g_log_enabled = true;
     g_tx_async = false;
+}
+
+void dbg_print_banner(void) {
+    uint32_t lock = dbg_line_lock();
+    dbg_puts("het68 ");
+#ifdef HET68_VERSION_STR
+    dbg_puts(HET68_VERSION_STR);
+#else
+    dbg_puts("?");
+#endif
+    dbg_puts("  build ");
+#ifdef HET68_BUILD_STAMP
+    dbg_puts(HET68_BUILD_STAMP);
+#else
+    dbg_puts(__DATE__);
+    dbg_putc(' ');
+    dbg_puts(__TIME__);
+#endif
+    dbg_puts("  debug=");
+    dbg_puts((g_hb_enabled && g_log_enabled) ? "on" : "partial");
+    dbg_puts("  HB=");
+    dbg_puts(g_hb_enabled ? "on" : "off");
+    dbg_puts("  LOG=");
+    dbg_puts(g_log_enabled ? "on" : "off");
+    dbg_putc('\n');
+    dbg_line_unlock(lock);
 }
 
 void dbg_log_set(bool enabled) { g_log_enabled = enabled; }
@@ -105,16 +133,21 @@ static int ring_pop(void) {
 
 void dbg_poll(void) {
     if (get_core_num() != 0u) return;
+    bool cdc_wrote = false;
     while (uart_is_writable(uart_default)) {
         int c = ring_pop();
-        if (c < 0) return;
+        if (c < 0) break;
         uart_putc_raw(uart_default, (char)c);
 #if HET68_DEBUG_CDC_ACTIVE
-        if (tud_cdc_connected()) tud_cdc_write_char((char)c);
+        // Non-blocking mirror. A full CDC buffer must not stall the UART or USB audio.
+        if (tud_cdc_connected() && tud_cdc_write_available()) {
+            tud_cdc_write_char((char)c);
+            cdc_wrote = true;
+        }
 #endif
     }
 #if HET68_DEBUG_CDC_ACTIVE
-    if (tud_cdc_connected()) tud_cdc_write_flush();
+    if (cdc_wrote) tud_cdc_write_flush();
 #endif
 }
 

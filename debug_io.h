@@ -4,6 +4,9 @@
 
 // UART (GP0/GP1 via PICO_DEFAULT_UART_*_PIN) + optional USB CDC debug output.
 void dbg_init(void);
+
+// One line: version, build stamp, and whether HB/LOG debug is enabled.
+void dbg_print_banner(void);
 void dbg_putc(char c);
 void dbg_flush(void);
 void dbg_puts(const char *s);

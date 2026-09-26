@@ -850,17 +850,24 @@ void tud_umount_cb(void)
     dbg_puts("USB unmounted\n");
 }
 
+// Opening the Pico USB serial port (DTR) reprints the identity line, so a
+// terminal attached after boot still sees the version and build stamp.
+static volatile bool cdc_banner_pending;
+
+void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts)
+{
+    (void)itf;
+    (void)rts;
+    if (dtr) cdc_banner_pending = true;
+}
+
 // ---------------------------------------------------------------------------
 int main(void)
 {
     dbg_init();
-    dbg_puts("het68 ");
-#ifdef HET68_VERSION_STR
-    dbg_puts(HET68_VERSION_STR);
-#else
-    dbg_puts("?");
-#endif
-    dbg_putc('\n');
+    dbg_hb_set(true);
+    dbg_log_set(true);
+    dbg_print_banner();
 
 #if HET68_USB_DIAG
     diag_build_lut();
@@ -875,11 +882,6 @@ int main(void)
 #endif
 
     dbg_puts("\n=== het68 UAC2 6ch ===\n");
-    dbg_puts("build ");
-    dbg_puts(__DATE__);
-    dbg_putc(' ');
-    dbg_puts(__TIME__);
-    dbg_putc('\n');
 #if !HET68_USB_DIAG
     dbg_puts("debug: UART GP0/GP1 Grove UART0 (pins 1/2/3)\n");
     dbg_puts("mode: I2S 6x mono (SEL=GND)\n");
@@ -966,10 +968,15 @@ int main(void)
     // From here, UART text is queued. dbg_poll() below drains it between USB
     // tasks so a heartbeat cannot mask IRQs or stall isochronous IN.
     dbg_tx_async(true);
+    dbg_print_banner();
 
     for (;;) {
         dbg_poll();
         tud_task();
+        if (cdc_banner_pending) {
+            cdc_banner_pending = false;
+            dbg_print_banner();
+        }
 
 #if !HET68_USB_DIAG
         if (tud_audio_mounted() && !i2s_started) {
