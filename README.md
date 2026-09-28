@@ -427,6 +427,19 @@ device directly):
 ./record10s.sh capture.wav      # custom path
 ```
 
+Local 3D view of the detection cube (default edge **128 mm**, same geometry as
+`doa.c`). A single node draws the drone on the direction ray; the distance is
+the display radius, not a measured range. Build the matching firmware with
+`HET68_DOA_EDGE_MM=128 ./build.sh`.
+
+```bash
+./detect_local.py --self-test
+./detect_local.py --demo                 # synthetic drone, no sound card
+./detect_local.py                        # live Pico 6ch USB input
+./detect_local.py --wav capture.wav
+./detect_local.py --uart /dev/ttyACM0    # plot firmware SRC lines
+```
+
 ## Usage
 
 After reset the Pico enumerates as a standard 6-channel 48 kHz / 24-bit USB audio
