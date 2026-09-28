@@ -245,6 +245,9 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   **v1.10.0:** default detection cube edge is **128 mm** (was 384 mm). The
   longest baseline is then one edge, so a 2 kHz tone stays inside a single
   spatial period. `DOA_MAXLAG` still follows the edge.
+  **v1.11.0:** DJI Neo 2 gate. Direction uses 400 Hz–2.5 kHz (blade-pass
+  500–1400 Hz). A distant vacuum near 70–130 Hz, and a blade-rate that is
+  only a harmonic of that tone, is logged as `VAC` and is not a drone.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB

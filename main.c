@@ -920,7 +920,7 @@ int main(void)
 
     // Direction-of-arrival on core1 (het68_launch_core1 resets core1 after SWD flash).
     doa_start();
-    dbg_puts("DOA: drones only (DET log needs TIME SYNC)\n");
+    dbg_puts("DOA: DJI Neo 2 (400 Hz-2.5 kHz, vacuum 70-130 Hz rejected)\n");
 
     // OpenDroneID BLE scanner (no-op stub on non-CYW43 boards).
     if (remote_id_init())

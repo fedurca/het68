@@ -555,6 +555,96 @@ typedef struct {
     int nactive;
 } doa_fix_t;
 
+// Goertzel power at freq_hz over x[0..n).
+static float goertzel_power(const float *x, int n, float freq_hz) {
+    float k = roundf(freq_hz * (float)n / (float)DOA_FS_HZ);
+    if (k < 1.0f) k = 1.0f;
+    float w = 2.0f * (float)M_PI * k / (float)n;
+    float coeff = 2.0f * cosf(w);
+    float s1 = 0.0f, s2 = 0.0f;
+    for (int i = 0; i < n; i++) {
+        float s0 = x[i] + coeff * s1 - s2;
+        s2 = s1;
+        s1 = s0;
+    }
+    return s1 * s1 + s2 * s2 - coeff * s1 * s2;
+}
+
+// True when f is an integer harmonic of f0 (the distant-vacuum comb).
+static bool neo2_is_harmonic(float f, float f0) {
+    if (f0 < 50.0f || f < f0 * 1.5f) return false;
+    float n = roundf(f / f0);
+    if (n < 2.0f || n > 24.0f) return false;
+    float err = fabsf(f - n * f0) / f;
+    return err < 0.035f;
+}
+
+// Loudest mic, last 2048 samples. Neo 2 blade-pass is 500–1400 Hz.
+// A vacuum near 70–130 Hz and its harmonics must not pass as that blade rate.
+static bool neo2_gate(uint32_t h, float *f0_hz, float *vac_hz, bool *vacuum) {
+    static float buf[DOA_RING_SZ];
+    int loud = 0;
+    float loud_e = -1.0f;
+    uint32_t start = h - DOA_RING_SZ;
+    for (int c = 0; c < 6; c++) {
+        float e = 0.0f;
+        for (uint32_t n = 0; n < DOA_RING_SZ; n += 8u) {
+            float s = (float)g_ring[(start + n) & DOA_RING_MASK][c];
+            e += s * s;
+        }
+        if (e > loud_e) { loud_e = e; loud = c; }
+    }
+    float mean = 0.0f;
+    for (uint32_t n = 0; n < DOA_RING_SZ; n++) {
+        float s = (float)g_ring[(start + n) & DOA_RING_MASK][loud];
+        buf[n] = s;
+        mean += s;
+    }
+    mean /= (float)DOA_RING_SZ;
+    for (uint32_t n = 0; n < DOA_RING_SZ; n++) buf[n] -= mean;
+
+    float vac_f = 85.0f, vac_p = 0.0f;
+    for (float f = 70.0f; f <= 130.0f; f += 4.0f) {
+        float p = goertzel_power(buf, DOA_RING_SZ, f);
+        if (p > vac_p) { vac_p = p; vac_f = f; }
+    }
+    float vac_stack = vac_p;
+    for (int hrm = 2; hrm <= 8; hrm++) {
+        float fh = vac_f * (float)hrm;
+        if (fh > 2000.0f) break;
+        vac_stack += goertzel_power(buf, DOA_RING_SZ, fh);
+    }
+
+    float best_f = 0.0f, best_s = -1.0f;
+    for (float f0 = 500.0f; f0 <= 1400.0f; f0 += 20.0f) {
+        float s = 0.0f;
+        int cnt = 0;
+        for (int hrm = 1; hrm <= 4; hrm++) {
+            float fh = f0 * (float)hrm;
+            if (fh > 4200.0f) break;
+            s += goertzel_power(buf, DOA_RING_SZ, fh);
+            cnt++;
+        }
+        if (cnt > 0) s /= (float)cnt;
+        if (s > best_s) { best_s = s; best_f = f0; }
+    }
+    *f0_hz = best_f;
+    *vac_hz = vac_f;
+    bool harm = neo2_is_harmonic(best_f, vac_f);
+    *vacuum = harm && vac_p > 0.2f * goertzel_power(buf, DOA_RING_SZ, best_f);
+    if (*vacuum) return false;
+    float neo_fund = goertzel_power(buf, DOA_RING_SZ, best_f);
+    float neo_2 = goertzel_power(buf, DOA_RING_SZ, best_f * 2.0f);
+    // Need a real blade line, not a flat floor. Vacuums that only match as
+    // a low fundamental are already rejected above.
+    if (neo_fund + neo_2 < vac_stack * 0.35f) return false;
+    (void)best_s;
+    return neo_fund > 0.0f;
+}
+
+static float g_neo_f0;
+static uint32_t g_vac_log_h;
+
 static void load_raw_window(uint32_t h) {
     uint32_t start = h - DOA_N;
     for (uint32_t n = 0; n < DOA_N; n++) {
@@ -696,8 +786,10 @@ static float prepare_drone_band(bool active[6], wind_est_t *wind_out) {
         for (uint32_t n = 0; n < DOA_N; n++) {
             float x = g_work[c][n] - mean;
             float w = biquad_step(&k_lpf250, &wind, x);
-            float y = biquad_step(&k_hpf800, &hp, x);
-            y = biquad_step(&k_lpf6000, &lp, y);
+            // Neo 2 blade-pass sits near 0.5–1.4 kHz. HPF 400 Hz keeps that
+            // stack and knocks down a distant vacuum fundamental (~85 Hz).
+            float y = biquad_step(&k_hpf400, &hp, x);
+            y = biquad_step(&k_lpf2500, &lp, y);
             g_work[c][n] = y;
             if (n >= DOA_FILT_SETTLE) {
                 e_bp += y * y;
@@ -1620,7 +1712,9 @@ static void report_tracks(void) {
         dbg_puts(" el="); put_f1(g_drones[i].el);
         dbg_puts(" conf="); put_f1(g_drones[i].conf);
         dbg_puts(" lvl="); put_f1(g_drones[i].lvl_db);
-        dbg_puts("dB");
+        dbg_puts("dB f0=");
+        put_f1(g_neo_f0);
+        dbg_puts("Hz");
         dbg_puts(g_drones[i].conf < DOA_DRONE_CONF_MIN ? " pos=band\n" : " pos=tdoa\n");
     }
     report_rid_cmp();
@@ -1639,6 +1733,25 @@ static void report_tracks(void) {
 static void analyse_drone(uint32_t h) {
     bool active[6];
     wind_est_t wind;
+    float f0 = 0.0f, vac_f = 0.0f;
+    bool vacuum = false;
+    if (!neo2_gate(h, &f0, &vac_f, &vacuum)) {
+        g_neo_f0 = f0;
+        if (vacuum && dbg_log_enabled() &&
+            (uint32_t)(h - g_vac_log_h) > DOA_FS_HZ) {
+            g_vac_log_h = h;
+            uint32_t lock = dbg_line_lock();
+            dbg_puts("VAC f=");
+            put_f1(vac_f);
+            dbg_puts("Hz blocks f0=");
+            put_f1(f0);
+            dbg_puts("Hz\n");
+            dbg_line_unlock(lock);
+        }
+        return;
+    }
+    g_neo_f0 = f0;
+
     load_raw_window(h);
     (void)prepare_drone_band(active, &wind);
 
