@@ -7,6 +7,13 @@ include(${CMAKE_CURRENT_LIST_DIR}/pico-sdk/external/pico_sdk_import.cmake)
 project(pico_6mic_soundcard C CXX ASM)
 pico_sdk_init()
 
+# The wideband detector's static tables do not fit in RP2040 SRAM (264 KB).
+if(PICO_PLATFORM STREQUAL "rp2040")
+    message(FATAL_ERROR
+        "het68 requires RP2350 (Pico 2, Pico 2 W, or Pico Plus 2 W). "
+        "RP2040 (Pico / Pico W) is not supported.")
+endif()
+
 set(SRCS
     main.c
     usb_descriptors.c
@@ -31,10 +38,10 @@ add_executable(pico_6mic_soundcard ${SRCS})
 # Version stamp (UART help / docs). Semver core for releases.
 string(TIMESTAMP HET68_BUILD_STAMP "%Y-%m-%d %H:%M:%S")
 add_compile_definitions(
-    HET68_VERSION_STR=\"1.14.0\"
+    HET68_VERSION_STR=\"1.15.0\"
     HET68_BUILD_STAMP=\"${HET68_BUILD_STAMP}\"
 )
-message(STATUS "het68: version 1.14.0  build ${HET68_BUILD_STAMP}")
+message(STATUS "het68: version 1.15.0  build ${HET68_BUILD_STAMP}")
 
 # Optional fixed acoustic-link node id (0..7). Default 0; also settable at
 # runtime via the LINK ID CLI command.
@@ -130,7 +137,7 @@ target_link_libraries(pico_6mic_soundcard
     tinyusb_board
 )
 
-# OpenDroneID BLE scanner on CYW43 boards (Pico W / Pico 2 W / Pico Plus 2 W).
+# OpenDroneID BLE scanner on CYW43 boards (Pico 2 W / Pico Plus 2 W).
 # Flash end layout (4 KiB sectors): DRONE[-8,-7], BT[-6,-5], DET[-4,-3], ENT[-2,-1].
 # Relocate BTstack TLV so it does not collide with DRONE/DET/ENT ACID slots.
 if (PICO_CYW43_SUPPORTED)

@@ -14,7 +14,7 @@ Přehled projektu a build: [`README.md`](README.md), [`BUILDING.md`](BUILDING.md
 
 ## 1. Co firmware je
 
-het68 je USB audio firmware pro Raspberry Pi Pico / Pico 2 (RP2040 / RP2350):
+het68 je USB audio firmware pro Raspberry Pi Pico 2 (RP2350):
 
 | Role | Co dělá |
 |---|---|

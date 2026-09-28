@@ -15,7 +15,7 @@ Project overview and build: [`README.md`](README.md), [`BUILDING.md`](BUILDING.m
 
 ## 1. What the firmware is
 
-het68 is Raspberry Pi Pico / Pico 2 USB audio firmware (RP2040 / RP2350):
+het68 is Raspberry Pi Pico 2 USB audio firmware (RP2350):
 
 | Role | What it does |
 |---|---|

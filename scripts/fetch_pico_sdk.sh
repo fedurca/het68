@@ -31,7 +31,7 @@ fi
 echo "pico-sdk: init tinyusb submodule"
 git -C "${SDK_DIR}" submodule update --init --depth 1 lib/tinyusb
 
-# Needed for CYW43 / BLE OpenDroneID builds (Pico W, Pico Plus 2 W).
+# Needed for CYW43 / BLE OpenDroneID builds (Pico 2 W, Pico Plus 2 W).
 echo "pico-sdk: init btstack + cyw43-driver submodules"
 git -C "${SDK_DIR}" submodule update --init --depth 1 lib/btstack lib/cyw43-driver
 

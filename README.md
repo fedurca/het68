@@ -205,7 +205,7 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   [`chirp.md`](chirp.md) / [`chirp.cs.md`](chirp.cs.md).
 
 * **OpenDroneID / EU Direct Remote ID (v1.1.0+).** On CYW43 boards
-  (`PICO_BOARD=pico_w`, `pico2_w`, `pimoroni_pico_plus2_w_rp2350`, or other Pico W
+  (`PICO_BOARD=pico2_w`, `pimoroni_pico_plus2_w_rp2350`, or other Pico 2 W
   variants) the
   firmware scans BLE advertisements for service UUID `0xFFFA` and parses ASTM
   F3411 Basic ID + Location + **System** messages (e.g. Dronetag / built-in RID).
@@ -266,6 +266,9 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   needs a tonal 70–130 Hz hum at least as strong as the blade line, so
   ordinary outdoor hum no longer drops a distant drone. `SRC` adds `q=`, the
   SRP coherence of the tracked peak.
+  **v1.15.0:** releases and local builds are RP2350 only (Pico 2, Pico 2 W,
+  Pico Plus 2 W). Pico and Pico W (RP2040, 264 KB RAM) are no longer built;
+  the SRP tables do not fit there. The detector itself is unchanged from 1.14.0.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB
@@ -317,8 +320,8 @@ Pre-built firmware for each tagged release is published on GitHub Releases:
 
 Create a GitHub Release whose tag is SemVer core ([semver.org](https://semver.org/))
 — `x.y.z` or `vx.y.z` (e.g. `1.2.4` / `v1.2.4`) — and CI builds firmware for
-**pico**, **pico_w**, **pico2**, **pico2_w** (RP2350 + CYW43439 Wi‑Fi/BT), and
-**Pico Plus 2 W**, then
+**pico2**, **pico2_w** (RP2350 + CYW43439 Wi‑Fi/BT), and
+**Pico Plus 2 W**. Pico and Pico W are not built. CI then
 attaches `.uf2` / `.elf` assets plus **`SHA256SUMS.txt`** and **`SIGNING.txt`**
 (reserved for future detached signatures; see [`signing/README.md`](signing/README.md)).
 
@@ -346,22 +349,18 @@ Select a different board with `PICO_BOARD`:
 
 ```bash
 ./build.sh                                          # default: pico2
-PICO_BOARD=pico ./build.sh                          # Pico (RP2040)
-PICO_BOARD=pico_w ./build.sh                        # Pico W (RP2040 + CYW43439)
 PICO_BOARD=pico2_w ./build.sh                       # Pico 2 W: RP2350A + CYW43439 Wi-Fi/BT
 PICO_BOARD=pimoroni_pico_plus2_w_rp2350 ./build.sh  # 16 MB flash, 8 MB PSRAM, Wi-Fi/BT
 ```
 
 | Board | `PICO_BOARD` | Notes |
 |---|---|---|
-| Pico | `pico` | RP2040, 2 MB flash, no wireless |
-| Pico W | `pico_w` | RP2040 + **CYW43439** Wi‑Fi/BT (OpenDroneID) |
 | Pico 2 | `pico2` | RP2350A, 4 MB flash, no wireless |
 | **Pico 2 W** | **`pico2_w`** | RP2350A + **CYW43439** Wi‑Fi/BT (OpenDroneID) |
 | Pico Plus 2 W | `pimoroni_pico_plus2_w_rp2350` | RP2350B, 16 MB flash, 8 MB PSRAM, Wi‑Fi/BT |
 
-RP2040 builds (`pico` / `pico_w`) use the same Grove pin map and UAC2 pipeline;
-DOA runs with soft-float (no FPU). Prefer Pico 2 / Pico 2 W for production.
+Pico and Pico W (RP2040) are not supported from v1.15.0. The detector's static
+tables need more than 264 KB of SRAM.
 
 The **Pimoroni Pico Plus 2 W** (RP2350B) is the recommended upgrade for multi-node
 work: 16 MB flash, 8 MB PSRAM (headroom for recording / on-device detection), and

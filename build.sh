@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 # build.sh — přepíše err_build.log a loguje úplně vše (configure + verbose build)
 #
-# Supported PICO_BOARD values (default: pico2):
-#   pico                              — Raspberry Pi Pico (RP2040)
-#   pico_w                            — Raspberry Pi Pico W (RP2040 + CYW43439)
+# Supported PICO_BOARD values (default: pico2). RP2040 (Pico / Pico W) is not
+# built: the detector does not fit in 264 KB RAM.
 #   pico2                             — Raspberry Pi Pico 2 (RP2350)
 #   pico2_w                           — Raspberry Pi Pico 2 W (RP2350 + CYW43439)
 #   pimoroni_pico_plus2_w_rp2350      — Pimoroni Pico Plus 2 W
 #
 # Example:
-#   PICO_BOARD=pico ./build.sh
-#   PICO_BOARD=pico_w ./build.sh
+#   PICO_BOARD=pico2_w ./build.sh
 
 set -Eeuo pipefail
 set -x
@@ -20,10 +18,15 @@ exec > >(tee err_build.log) 2>&1
 
 PICO_BOARD="${PICO_BOARD:-pico2}"
 case "${PICO_BOARD}" in
-  pico|pico_w|pico2|pico2_w|pimoroni_pico_plus2_w_rp2350) ;;
+  pico|pico_w)
+    echo "PICO_BOARD='${PICO_BOARD}' is RP2040 and is no longer supported." >&2
+    echo "het68 requires RP2350: pico2, pico2_w, or pimoroni_pico_plus2_w_rp2350." >&2
+    exit 1
+    ;;
+  pico2|pico2_w|pimoroni_pico_plus2_w_rp2350) ;;
   *)
     echo "Unsupported PICO_BOARD='${PICO_BOARD}'." >&2
-    echo "Supported: pico pico_w pico2 pico2_w pimoroni_pico_plus2_w_rp2350" >&2
+    echo "Supported: pico2 pico2_w pimoroni_pico_plus2_w_rp2350" >&2
     exit 1
     ;;
 esac

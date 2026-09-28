@@ -1,5 +1,5 @@
 // btstack_config.h — minimal BTstack config for OpenDroneID BLE scan (LE central).
-// Only used on CYW43 boards (Pico W / Pico Plus 2 W).
+// Only used on CYW43 boards (Pico 2 W / Pico Plus 2 W).
 #ifndef HET68_BTSTACK_CONFIG_H
 #define HET68_BTSTACK_CONFIG_H
 
