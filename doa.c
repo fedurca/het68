@@ -2,8 +2,9 @@
 // Walker, vehicle, bird and wind estimators remain in this file but are not run.
 //
 // core0 pushes each 6-channel frame via doa_ring_push() from the USB/I2S feed.
-// core1 runs the drone band (~800 Hz–6 kHz): continuous TDOA, up to 2 tracks.
-// Low-frequency wind energy still gates that band. It is not reported.
+// core1 reports a DJI Neo 2 only when a sharp 0.9–1.36 kHz blade line is
+// present and its inter-mic phase fits the 128 mm cube. A 70–130 Hz vacuum
+// whose harmonic lands on that line is rejected. Weak locks are not reported.
 // Entity signatures → entity_store; timed events → detection_log (after TIME SYNC).
 //
 // core1 must be launched with het68_launch_core1() (see core1_launch.c).
@@ -114,6 +115,18 @@ uint32_t doa_edge_mm(void) { return (uint32_t)DOA_EDGE_MM; }
 #define DOA_MAX_BIRD        2
 #define DOA_GATE_DEG        30.0f
 #define DOA_TRACK_TTL       12u
+// Neo 2 blade line measured on the clean 2026-09-28 circle (motors off: prominence
+// < 14 and RMS < 100; in flight the line sits near 1.0–1.2 kHz).
+#define NEO_F_LO            900.0f
+#define NEO_F_HI            1360.0f
+#define NEO_F_STEP          20.0f
+#define NEO_NFREQ           24
+#define NEO_PROM_MIN        40.0f
+#define NEO_RMS_MIN         250.0f
+#define NEO_FIT_MIN         0.70f
+#define NEO_JUMP_DEG        40.0f
+#define NEO_STREAK_MIN      3u
+#define NEO_DRONE_TTL       6u
 #define DOA_VEH_MIN_FRAMES  5u       // ~1.0 s continuous before vehicle entity
 #define DOA_VEH_GAP_FRAMES  3u
 #define DOA_VEH_RMS         6.5f
@@ -353,7 +366,7 @@ static void track_age_drones(void) {
     for (int i = 0; i < DOA_MAX_DRONE; i++) {
         if (!g_drones[i].used) continue;
         g_drones[i].age++;
-        if (g_drones[i].age > DOA_TRACK_TTL) g_drones[i].used = false;
+        if (g_drones[i].age > NEO_DRONE_TTL) g_drones[i].used = false;
     }
 }
 
@@ -555,19 +568,53 @@ typedef struct {
     int nactive;
 } doa_fix_t;
 
-// Goertzel power at freq_hz over x[0..n).
-static float goertzel_power(const float *x, int n, float freq_hz) {
+typedef struct { float re, im; } neo_phasor_t;
+
+typedef struct {
+    bool ok;
+    bool vacuum;
+    float f0;
+    float vac_f;
+    float az, el, conf, lvl_db;
+} neo2_fix_t;
+
+// Complex Goertzel at freq_hz. Phase difference is the opposite of a DFT delay.
+static neo_phasor_t goertzel_phasor(const float *x, int n, float freq_hz) {
     float k = roundf(freq_hz * (float)n / (float)DOA_FS_HZ);
     if (k < 1.0f) k = 1.0f;
     float w = 2.0f * (float)M_PI * k / (float)n;
     float coeff = 2.0f * cosf(w);
+    float cw = cosf(w);
+    float sw = sinf(w);
     float s1 = 0.0f, s2 = 0.0f;
     for (int i = 0; i < n; i++) {
         float s0 = x[i] + coeff * s1 - s2;
         s2 = s1;
         s1 = s0;
     }
-    return s1 * s1 + s2 * s2 - coeff * s1 * s2;
+    neo_phasor_t p;
+    p.re = s1 - s2 * cw;
+    p.im = s2 * sw;
+    return p;
+}
+
+static float neo_pow(neo_phasor_t p) {
+    return p.re * p.re + p.im * p.im;
+}
+
+static float neo_median(float *v, int n) {
+    for (int i = 1; i < n; i++) {
+        float key = v[i];
+        int j = i - 1;
+        while (j >= 0 && v[j] > key) {
+            v[j + 1] = v[j];
+            j--;
+        }
+        v[j + 1] = key;
+    }
+    if (n <= 0) return 0.0f;
+    if (n & 1) return v[n / 2];
+    return 0.5f * (v[n / 2 - 1] + v[n / 2]);
 }
 
 // True when f is an integer harmonic of f0 (the distant-vacuum comb).
@@ -579,9 +626,35 @@ static bool neo2_is_harmonic(float f, float f0) {
     return err < 0.035f;
 }
 
-// Loudest mic, last 2048 samples. Neo 2 blade-pass is 500–1400 Hz.
-// A vacuum near 70–130 Hz and its harmonics must not pass as that blade rate.
-static bool neo2_gate(uint32_t h, float *f0_hz, float *vac_hz, bool *vacuum) {
+static neo_phasor_t goertzel_ring(uint32_t start, int ch, float freq_hz) {
+    const int n = (int)DOA_RING_SZ;
+    float mean = 0.0f;
+    for (int i = 0; i < n; i++)
+        mean += (float)g_ring[(start + (uint32_t)i) & DOA_RING_MASK][ch];
+    mean /= (float)n;
+    float k = roundf(freq_hz * (float)n / (float)DOA_FS_HZ);
+    if (k < 1.0f) k = 1.0f;
+    float w = 2.0f * (float)M_PI * k / (float)n;
+    float coeff = 2.0f * cosf(w);
+    float s1 = 0.0f, s2 = 0.0f;
+    for (int i = 0; i < n; i++) {
+        float x = (float)g_ring[(start + (uint32_t)i) & DOA_RING_MASK][ch] - mean;
+        float s0 = x + coeff * s1 - s2;
+        s2 = s1;
+        s1 = s0;
+    }
+    neo_phasor_t p;
+    p.re = s1 - s2 * cosf(w);
+    p.im = s2 * sinf(w);
+    return p;
+}
+
+// Loudest mic, last 2048 samples. Pass only a sharp Neo 2 blade line
+// (0.9–1.36 kHz) with a plane-wave phase fit. A 70–130 Hz vacuum whose
+// harmonic sits on that line is rejected.
+static neo2_fix_t neo2_measure(uint32_t h) {
+    neo2_fix_t fx;
+    memset(&fx, 0, sizeof(fx));
     static float buf[DOA_RING_SZ];
     int loud = 0;
     float loud_e = -1.0f;
@@ -596,54 +669,109 @@ static bool neo2_gate(uint32_t h, float *f0_hz, float *vac_hz, bool *vacuum) {
     }
     float mean = 0.0f;
     for (uint32_t n = 0; n < DOA_RING_SZ; n++) {
-        float s = (float)g_ring[(start + n) & DOA_RING_MASK][loud];
-        buf[n] = s;
-        mean += s;
+        buf[n] = (float)g_ring[(start + n) & DOA_RING_MASK][loud];
+        mean += buf[n];
     }
     mean /= (float)DOA_RING_SZ;
-    for (uint32_t n = 0; n < DOA_RING_SZ; n++) buf[n] -= mean;
+    float acc = 0.0f;
+    for (uint32_t n = 0; n < DOA_RING_SZ; n++) {
+        buf[n] -= mean;
+        acc += buf[n] * buf[n];
+    }
+    float rms = sqrtf(acc / (float)DOA_RING_SZ);
+    fx.lvl_db = 20.0f * log10f((rms + 1e-6f) / 32768.0f);
+    if (rms < NEO_RMS_MIN) return fx;
+
+    float pw[NEO_NFREQ];
+    float fr[NEO_NFREQ];
+    int best = 0;
+    for (int i = 0; i < NEO_NFREQ; i++) {
+        fr[i] = NEO_F_LO + NEO_F_STEP * (float)i;
+        pw[i] = neo_pow(goertzel_phasor(buf, (int)DOA_RING_SZ, fr[i]));
+        if (pw[i] > pw[best]) best = i;
+    }
+    float noise[NEO_NFREQ];
+    int nn = 0;
+    for (int i = 0; i < NEO_NFREQ; i++) {
+        if (fabsf(fr[i] - fr[best]) >= 60.0f) noise[nn++] = pw[i];
+    }
+    float prom = pw[best] / (neo_median(noise, nn) + 1e-12f);
+    fx.f0 = fr[best];
+    if (prom < NEO_PROM_MIN) return fx;
 
     float vac_f = 85.0f, vac_p = 0.0f;
     for (float f = 70.0f; f <= 130.0f; f += 4.0f) {
-        float p = goertzel_power(buf, DOA_RING_SZ, f);
+        float p = neo_pow(goertzel_phasor(buf, (int)DOA_RING_SZ, f));
         if (p > vac_p) { vac_p = p; vac_f = f; }
     }
-    float vac_stack = vac_p;
-    for (int hrm = 2; hrm <= 8; hrm++) {
-        float fh = vac_f * (float)hrm;
-        if (fh > 2000.0f) break;
-        vac_stack += goertzel_power(buf, DOA_RING_SZ, fh);
+    fx.vac_f = vac_f;
+    if (neo2_is_harmonic(fr[best], vac_f) && vac_p > 0.2f * pw[best]) {
+        fx.vacuum = true;
+        return fx;
     }
 
-    float best_f = 0.0f, best_s = -1.0f;
-    for (float f0 = 500.0f; f0 <= 1400.0f; f0 += 20.0f) {
-        float s = 0.0f;
-        int cnt = 0;
-        for (int hrm = 1; hrm <= 4; hrm++) {
-            float fh = f0 * (float)hrm;
-            if (fh > 4200.0f) break;
-            s += goertzel_power(buf, DOA_RING_SZ, fh);
-            cnt++;
-        }
-        if (cnt > 0) s /= (float)cnt;
-        if (s > best_s) { best_s = s; best_f = f0; }
+    neo_phasor_t ph[6];
+    float magv[6];
+    int ref = 0;
+    for (int c = 0; c < 6; c++) {
+        ph[c] = goertzel_ring(start, c, fr[best]);
+        magv[c] = neo_pow(ph[c]);
+        if (magv[c] > magv[ref]) ref = c;
     }
-    *f0_hz = best_f;
-    *vac_hz = vac_f;
-    bool harm = neo2_is_harmonic(best_f, vac_f);
-    *vacuum = harm && vac_p > 0.2f * goertzel_power(buf, DOA_RING_SZ, best_f);
-    if (*vacuum) return false;
-    float neo_fund = goertzel_power(buf, DOA_RING_SZ, best_f);
-    float neo_2 = goertzel_power(buf, DOA_RING_SZ, best_f * 2.0f);
-    // Need a real blade line, not a flat floor. Vacuums that only match as
-    // a low fundamental are already rejected above.
-    if (neo_fund + neo_2 < vac_stack * 0.35f) return false;
-    (void)best_s;
-    return neo_fund > 0.0f;
+    float AtA[3][3] = {{0}};
+    float Atb[3] = {0};
+    float rows[5][3];
+    float bbs[5];
+    int npair = 0;
+    for (int i = 0; i < 6; i++) {
+        if (i == ref) continue;
+        float re = ph[i].re * ph[ref].re + ph[i].im * ph[ref].im;
+        float im = ph[i].im * ph[ref].re - ph[i].re * ph[ref].im;
+        float tau = atan2f(im, re) / (2.0f * (float)M_PI * fr[best]);
+        float bb = g_c_sound_m_s * tau;
+        rows[npair][0] = MIC_POS[i][0] - MIC_POS[ref][0];
+        rows[npair][1] = MIC_POS[i][1] - MIC_POS[ref][1];
+        rows[npair][2] = MIC_POS[i][2] - MIC_POS[ref][2];
+        bbs[npair] = bb;
+        for (int r = 0; r < 3; r++) {
+            for (int cc = 0; cc < 3; cc++) AtA[r][cc] += rows[npair][r] * rows[npair][cc];
+            Atb[r] += rows[npair][r] * bb;
+        }
+        npair++;
+    }
+    float d[3];
+    if (!solve3(AtA, Atb, d)) return fx;
+    float magd = sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+    if (magd < 1e-6f) return fx;
+    d[0] /= magd; d[1] /= magd; d[2] /= magd;
+    float resid2 = 0.0f, span2 = 0.0f;
+    for (int i = 0; i < npair; i++) {
+        float pred = rows[i][0] * d[0] + rows[i][1] * d[1] + rows[i][2] * d[2];
+        float err = pred - bbs[i];
+        resid2 += err * err;
+        span2 += bbs[i] * bbs[i];
+    }
+    float fit = 1.0f - sqrtf(resid2 / (float)npair) /
+                         (sqrtf(span2 / (float)npair) + 1e-12f);
+    if (fit < NEO_FIT_MIN) return fx;
+
+    float az = atan2f(d[1], d[0]) * (180.0f / (float)M_PI);
+    if (az < 0.0f) az += 360.0f;
+    fx.az = az;
+    fx.el = asinf(d[2]) * (180.0f / (float)M_PI);
+    fx.conf = fit;
+    fx.ok = true;
+    return fx;
 }
 
 static float g_neo_f0;
 static uint32_t g_vac_log_h;
+static uint8_t g_neo_streak;
+static float g_neo_cand_az;
+static uint32_t g_neo_cand_h;
+static bool g_neo_have;
+static float g_neo_az;
+static uint32_t g_neo_lock_h;
 
 static void load_raw_window(uint32_t h) {
     uint32_t start = h - DOA_N;
@@ -1731,72 +1859,45 @@ static void report_tracks(void) {
 // Analysis entry points
 // ---------------------------------------------------------------------------
 static void analyse_drone(uint32_t h) {
-    bool active[6];
-    wind_est_t wind;
-    float f0 = 0.0f, vac_f = 0.0f;
-    bool vacuum = false;
-    if (!neo2_gate(h, &f0, &vac_f, &vacuum)) {
-        g_neo_f0 = f0;
-        if (vacuum && dbg_log_enabled() &&
-            (uint32_t)(h - g_vac_log_h) > DOA_FS_HZ) {
+    neo2_fix_t fx = neo2_measure(h);
+    g_neo_f0 = fx.f0;
+    g_doa_wind = 0;
+    if (fx.vacuum) {
+        g_neo_streak = 0;
+        if (dbg_log_enabled() && (uint32_t)(h - g_vac_log_h) > DOA_FS_HZ) {
             g_vac_log_h = h;
             uint32_t lock = dbg_line_lock();
             dbg_puts("VAC f=");
-            put_f1(vac_f);
+            put_f1(fx.vac_f);
             dbg_puts("Hz blocks f0=");
-            put_f1(f0);
+            put_f1(fx.f0);
             dbg_puts("Hz\n");
             dbg_line_unlock(lock);
         }
         return;
     }
-    g_neo_f0 = f0;
-
-    load_raw_window(h);
-    (void)prepare_drone_band(active, &wind);
-
-    // Wind energy still gates the drone band. It is not a reported source.
-    (void)wind;
-    g_doa_wind = 0;
-
-    int n_band = 0;
-    float rms_sum = 0.0f;
-    for (int c = 0; c < 6; c++) {
-        if (!active[c]) continue;
-        n_band++;
-        rms_sum += sqrtf(g_energy[c] / (float)(DOA_CORR_HI - DOA_CORR_LO));
-    }
-    // One mic in the drone band is enough. The cube geometry is not required,
-    // so a tone on a scattered bench array still counts.
-    if (n_band < 1) return;
-    float lvl_db = 20.0f * log10f((rms_sum / (float)n_band + 1e-6f) / 32768.0f);
-
-    doa_fix_t primary = solve_tdoa(active);
-    bool geom = primary.ok && primary.conf >= DOA_DRONE_CONF_MIN && primary.el >= -50.0f;
-    if (!geom) {
-        drone_upsert(0.0f, 0.0f, 0.05f, lvl_db);
+    if (!fx.ok) {
+        g_neo_streak = 0;
         return;
     }
-
-    drone_upsert(primary.az, primary.el, primary.conf, primary.lvl_db);
-
-    cancel_direction(primary.dir, primary.ref);
-    bool active2[6];
-    int n2 = 0;
-    for (int c = 0; c < 6; c++) {
-        float rms = sqrtf(g_energy[c] / (float)(DOA_CORR_HI - DOA_CORR_LO));
-        active2[c] = rms > DOA_DRONE_RMS * 0.7f;
-        if (active2[c]) n2++;
+    // A single wild jump is not a new drone. Drop it and wait for agreement.
+    if (g_neo_have && (uint32_t)(h - g_neo_lock_h) < DOA_FS_HZ &&
+        ang_diff_deg(fx.az, g_neo_az) > NEO_JUMP_DEG) {
+        g_neo_streak = 0;
+        return;
     }
-    if (n2 >= 4) {
-        doa_fix_t secondary = solve_tdoa(active2);
-        float conf2 = secondary.conf * 0.85f;
-        if (secondary.ok && conf2 >= DOA_DRONE_CONF_MIN && secondary.el >= -50.0f &&
-            (ang_diff_deg(secondary.az, primary.az) +
-             fabsf(secondary.el - primary.el)) > DOA_GATE_DEG) {
-            drone_upsert(secondary.az, secondary.el, conf2, secondary.lvl_db);
-        }
+    if (g_neo_streak > 0 && (uint32_t)(h - g_neo_cand_h) < (DOA_FS_HZ / 2u) &&
+        ang_diff_deg(fx.az, g_neo_cand_az) > NEO_JUMP_DEG) {
+        g_neo_streak = 0;
     }
+    if (g_neo_streak < 255u) g_neo_streak++;
+    g_neo_cand_az = fx.az;
+    g_neo_cand_h = h;
+    if (g_neo_streak < NEO_STREAK_MIN) return;
+    g_neo_have = true;
+    g_neo_az = fx.az;
+    g_neo_lock_h = h;
+    drone_upsert(fx.az, fx.el, fx.conf, fx.lvl_db);
 }
 
 static void analyse_walker_onset(uint32_t h) {

@@ -248,6 +248,10 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   **v1.11.0:** DJI Neo 2 gate. Direction uses 400 Hz–2.5 kHz (blade-pass
   500–1400 Hz). A distant vacuum near 70–130 Hz, and a blade-rate that is
   only a harmonic of that tone, is logged as `VAC` and is not a drone.
+  **v1.12.0:** Neo 2 is reported only for a sharp blade line at 0.9–1.36 kHz
+  whose level and prominence match a real motor, and whose phase across the
+  cube fits one direction. Three agreeing windows are required. A vacuum
+  harmonic and a weak or jumping lock are not a drone.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB
