@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """Local drone DOA on the het68 detection cube, drawn in 3D.
 
-The array is the same octahedral cube as firmware (`doa.c`): one ICS-43434 at
-the centre of each face, cube standing on a vertex. This replaces a flat
-six-sided (hexagon) radar with that cube and places the detected drone on the
-direction-of-arrival ray.
+The array is the firmware cube (`doa.c`): one ICS-43434 at the centre of each
+face, cube standing on a vertex. The drone is drawn on the direction ray.
+
+Lags are GCC-PHAT, band-limited under each pair's grating frequency, then the
+same 3×3 TDOA solve as `doa.c`. That is the host-side delay estimator from
+the public het68_spectral analyzer (the published detection core; the private
+webflasher is deployed the same way). A source is labelled a drone only when
+a harmonic comb locks in the DJI Neo 2 blade-pass range, 500–1400 Hz.
 
 A single node measures direction only. The marker distance is a display radius
 (`--range`, default 1 m), not a measured range.
@@ -39,10 +43,19 @@ import numpy as np
 FS = 48000
 C_SOUND = 343.0
 N = 256
+COMB_N = 4096
 FILT_SETTLE = 48
 CONF_MIN = 0.28
 DRONE_RMS = 2.5
 WIND_RATIO = 0.38
+# Neo 2 blade-pass search from het68_spectral presets (two-blade hover estimate).
+F0_LO_HZ = 500.0
+F0_HI_HZ = 1400.0
+N_HARM = 8
+# Flat noise still scores about 6 dB because each harmonic takes the best of
+# three bins. A real comb in this window is well above that.
+COMB_MIN_DB = 9.0
+COMB_MIN_HARM = 3
 DEFAULT_EDGE_MM = 128
 DEFAULT_RANGE_M = 1.0
 
@@ -74,6 +87,9 @@ class Fix:
     conf: float = 0.0
     lvl_db: float = -120.0
     direction: np.ndarray | None = None
+    drone: bool = False
+    f0_hz: float = 0.0
+    comb_db: float = -200.0
 
 
 def max_lag(edge_mm: int) -> int:
@@ -138,34 +154,84 @@ def azel_from_direction(d: np.ndarray) -> tuple[float, float]:
 
 def _parabolic(y1: float, y2: float, y3: float) -> float:
     denom = y1 - 2.0 * y2 + y3
-    if abs(denom) < 1e-12:
+    if abs(denom) < 1e-20:
         return 0.0
     d = 0.5 * (y1 - y3) / denom
-    if -1.0 < d < 1.0:
-        return d
-    return 0.0
+    if d > 1.0:
+        return 1.0
+    if d < -1.0:
+        return -1.0
+    return d
 
 
-def xcorr_delay(a: np.ndarray, b: np.ndarray, eb: float, lo: int, hi: int, maxlag: int) -> tuple[float, float]:
-    best = -1e30
-    bestlag = 0
-    corr = np.empty(2 * maxlag + 1, dtype=np.float64)
-    aa = a[lo:hi]
-    for lag in range(-maxlag, maxlag + 1):
-        s = float(np.dot(aa, b[lo + lag : hi + lag]))
-        corr[lag + maxlag] = s
-        if s > best:
-            best = s
-            bestlag = lag
-    lagf = float(bestlag)
-    if -maxlag < bestlag < maxlag:
-        lagf += _parabolic(corr[bestlag + maxlag - 1], corr[bestlag + maxlag], corr[bestlag + maxlag + 1])
-    norm = math.sqrt(max(eb, 0.0) * float(np.dot(aa, aa))) + 1e-6
-    conf = best / norm
+def _next_pow2(n: int) -> int:
+    p = 1
+    while p < n:
+        p *= 2
+    return p
+
+
+def gcc_phat_delay(
+    a: np.ndarray,
+    b: np.ndarray,
+    maxlag: int,
+    f_lo: float,
+    f_hi: float,
+) -> tuple[float, float]:
+    """GCC-PHAT lag of b relative to a.
+
+    Positive lag means b is delayed, matching doa.c: the peak of conj(Xa)*Xb
+    sits at t_b - t_a. Frequencies outside [f_lo, f_hi] are zeroed so a pair
+    is not asked for a unique delay above its grating lobe. Returns
+    (lag_samples, confidence in 0..1). Confidence collapses when a second
+    peak is almost as strong — that is what spatial aliasing looks like.
+    """
+    if f_hi < f_lo + 80.0 or a.size < 32 or b.size != a.size:
+        return 0.0, 0.0
+    nfft = _next_pow2(a.size * 2)
+    aa = a - float(a.mean())
+    bb = b - float(b.mean())
+    xa = np.fft.rfft(aa, n=nfft)
+    xb = np.fft.rfft(bb, n=nfft)
+    cross = np.conj(xa) * xb
+    freqs = np.fft.rfftfreq(nfft, 1.0 / FS)
+    band = (freqs >= f_lo) & (freqs <= f_hi)
+    cross = np.where(band, cross, 0.0)
+    mag = np.abs(cross)
+    phat = np.zeros_like(cross)
+    good = mag > 1e-12
+    phat[good] = cross[good] / mag[good]
+    corr = np.fft.irfft(phat, n=nfft)
+    # numpy irfft divides by nfft; kiss_fftri (het68_spectral) does not, so the
+    # peak of an ideal linear-phase band is (2*active)/nfft rather than 2*active.
+    active = int(np.count_nonzero(band[1:-1])) if band.size > 2 else int(np.count_nonzero(band))
+    if active < 2:
+        return 0.0, 0.0
+    scale = nfft / (2.0 * active)
+    vals = np.empty(2 * maxlag + 1, dtype=np.float64)
+    for i, lag in enumerate(range(-maxlag, maxlag + 1)):
+        idx = lag if lag >= 0 else nfft + lag
+        vals[i] = float(corr[idx]) * scale
+    best = int(np.argmax(vals))
+    peak = float(vals[best])
+    frac = 0.0
+    if 0 < best < vals.size - 1:
+        frac = _parabolic(float(vals[best - 1]), peak, float(vals[best + 1]))
+    lagf = float(best - maxlag) + frac
+    second = -1e30
+    for i, v in enumerate(vals):
+        if abs(i - best) <= 3:
+            continue
+        if v > second:
+            second = float(v)
+    ratio = peak / second if second > 1e-6 else 8.0
+    conf = peak
     if conf < 0.0:
         conf = 0.0
     elif conf > 1.0:
         conf = 1.0
+    if ratio < 1.35:
+        conf *= max(0.0, (ratio - 1.0) / 0.35)
     return lagf, conf
 
 
@@ -203,19 +269,27 @@ def solve_tdoa(work: np.ndarray, energy: np.ndarray, active: np.ndarray, pos: np
     conf_sum = 0.0
     conf_n = 0
     eref = float(energy[ref])
+    aa = work[ref, lo:hi]
     for i in idx:
         i = int(i)
         if i == ref:
             continue
-        lag, conf = xcorr_delay(work[ref], work[i], float(energy[i]), lo, hi, maxlag)
+        baseline = float(np.linalg.norm(pos[i] - pos[ref]))
+        # c / (2 * baseline): above this a single tone no longer has one delay.
+        grating = c_sound / (2.0 * baseline) if baseline > 1e-6 else 0.0
+        f_hi = min(6000.0, grating * 0.95)
+        lag, conf = gcc_phat_delay(aa, work[i, lo:hi], maxlag, 800.0, f_hi)
+        if conf < 0.05:
+            continue
         row = pos[i] - pos[ref]
         # Same model as doa.c: (p_i - p_ref) · d = -(c/fs) * lag
         bb = -(c_sound / FS) * lag
-        w = conf
-        ata += w * np.outer(row, row)
-        atb += w * row * bb
+        ata += conf * np.outer(row, row)
+        atb += conf * row * bb
         conf_sum += conf
         conf_n += 1
+    if conf_n < 3:
+        return Fix(False)
     try:
         d = np.linalg.solve(ata, atb)
     except np.linalg.LinAlgError:
@@ -231,34 +305,153 @@ def solve_tdoa(work: np.ndarray, energy: np.ndarray, active: np.ndarray, pos: np
     return Fix(conf > 0.12, az, el, conf, lvl, d)
 
 
+def _interp_excess(excess: np.ndarray, bin_f: float) -> float:
+    if bin_f < 0.0 or bin_f >= excess.size - 1:
+        return -200.0
+    i0 = int(bin_f)
+    fr = bin_f - i0
+    return float(excess[i0] * (1.0 - fr) + excess[i0 + 1] * fr)
+
+
+def comb_lock(samples_1d: np.ndarray) -> tuple[float, float, int]:
+    """Blade-pass comb on one channel. Returns (f0_hz, salience_dB, n_harmonics).
+
+    Salience is the mean excess of the harmonics over a running-median floor,
+    the same idea as h68_f0_candidates: level and spectral tilt cancel, so a
+    distant machine scores like a close one. Harmonics are scored up to 6 kHz
+    even though f0 itself is searched only inside the Neo 2 gate.
+    """
+    x = np.asarray(samples_1d, dtype=np.float64)
+    if x.size < 2048:
+        return 0.0, -200.0, 0
+    x = x - float(x.mean())
+    mag = np.abs(np.fft.rfft(x * np.hanning(x.size)))
+    db = 20.0 * np.log10(mag + 1e-12)
+    half = 24
+    pad = np.pad(db, half, mode="edge")
+    windows = np.lib.stride_tricks.sliding_window_view(pad, 2 * half + 1)
+    excess = np.maximum(0.0, db - np.median(windows, axis=1))
+    bin_hz = FS / float(x.size)
+    k_lo = max(1, int(math.floor(F0_LO_HZ / bin_hz)))
+    k_hi = min(excess.size - 2, int(math.ceil(F0_HI_HZ / bin_hz)))
+    k_an = min(excess.size - 2, int(6000.0 / bin_hz))
+    if k_hi <= k_lo + 2:
+        return 0.0, -200.0, 0
+    step = 0.125
+    best_f0 = 0.0
+    best_sc = -200.0
+    best_n = 0
+    f0_bin = float(k_lo)
+    prev2 = -200.0
+    prev1 = -200.0
+    prev_n = 0
+    while f0_bin <= k_hi:
+        sc = 0.0
+        cnt = 0
+        for h in range(1, N_HARM + 1):
+            b = f0_bin * h
+            if b > k_an:
+                break
+            local = -200.0
+            for d in (-1.0, 0.0, 1.0):
+                v = _interp_excess(excess, b + d)
+                if v > local:
+                    local = v
+            if local > -199.0:
+                sc += local
+                cnt += 1
+        mean = sc / cnt if cnt else -200.0
+        if f0_bin > k_lo + 2 * step and prev1 > prev2 and prev1 >= mean and prev_n > 0 and prev1 > best_sc:
+            best_sc = prev1
+            best_f0 = (f0_bin - step) * bin_hz
+            best_n = prev_n
+        prev2, prev1, prev_n = prev1, mean, cnt
+        f0_bin += step
+    if best_n < 1:
+        return 0.0, -200.0, 0
+    # Octave check: a comb at 2*f0 also fits f0. Prefer the half when it explains
+    # the spectrum nearly as well and actually places harmonics.
+    half = best_f0 * 0.5
+    if half >= F0_LO_HZ:
+        half_bin = half / bin_hz
+        sc = 0.0
+        cnt = 0
+        for h in range(1, N_HARM + 1):
+            b = half_bin * h
+            if b > k_an:
+                break
+            local = -200.0
+            for d in (-1.0, 0.0, 1.0):
+                v = _interp_excess(excess, b + d)
+                if v > local:
+                    local = v
+            if local > -199.0:
+                sc += local
+                cnt += 1
+        half_sc = sc / cnt if cnt else -200.0
+        if cnt >= COMB_MIN_HARM and half_sc > best_sc - 1.5:
+            best_f0, best_sc, best_n = half, half_sc, cnt
+    return best_f0, best_sc, best_n
+
+
 def detect_window(samples: np.ndarray, edge_mm: int, c_sound: float = C_SOUND) -> Fix:
-    """samples: (6, N) int-like. Drone-band TDOA on the detection cube."""
+    """samples: (6, n) int-like, n >= 256. Drone-band TDOA on the detection cube.
+
+    Direction uses the last 256 samples, which is the firmware window. When at
+    least 2048 samples are available the loudest channel is also searched for
+    a Neo 2 harmonic comb; that is what sets Fix.drone.
+    """
+    x = samples.astype(np.float64)
+    if x.ndim != 2 or x.shape[0] != 6 or x.shape[1] < N:
+        raise ValueError(f"need (6, >= {N}) samples, got {getattr(x, 'shape', None)}")
     ml = max_lag(edge_mm)
     if ml + FILT_SETTLE >= N - ml:
         raise ValueError(f"edge {edge_mm} mm does not fit the {N}-sample window")
-    work, energy, active = prepare_drone(samples.astype(np.float64), ml)
-    return solve_tdoa(work, energy, active, mic_positions(edge_mm), ml, c_sound)
+    tail = x[:, -N:]
+    work, energy, active = prepare_drone(tail, ml)
+    fix = solve_tdoa(work, energy, active, mic_positions(edge_mm), ml, c_sound)
+    if x.shape[1] >= 2048:
+        c = int(np.argmax(np.sum(x * x, axis=1)))
+        y = biquad(biquad(x[c] - float(x[c].mean()), HPF800), LPF6000)
+        f0, score, nh = comb_lock(y)
+        fix.f0_hz = f0
+        fix.comb_db = score
+        fix.drone = bool(fix.ok and score >= COMB_MIN_DB and nh >= COMB_MIN_HARM)
+    return fix
 
 
-def synth_window(az: float, el: float, edge_mm: int, n: int = N, amp: float = 4000.0, seed: int = 1) -> np.ndarray:
-    """Broadband noise with fractional delays of a plane wave from az/el."""
+def synth_window(
+    az: float,
+    el: float,
+    edge_mm: int,
+    n: int = N,
+    amp: float = 4000.0,
+    seed: int = 1,
+    f0_hz: float = 0.0,
+) -> np.ndarray:
+    """Plane wave from az/el. f0_hz > 0 adds a two-blade style harmonic comb."""
     rng = np.random.default_rng(seed)
     src = rng.normal(0.0, 1.0, n + 64)
-    # Colour it a bit so the drone band has energy.
     src = np.convolve(src, [0.2, 0.6, 0.2], mode="same")
+    if f0_hz > 0.0:
+        t = np.arange(n + 64, dtype=np.float64) / FS
+        tonal = np.zeros(n + 64, dtype=np.float64)
+        for h in range(1, N_HARM + 1):
+            tonal += (0.55 ** (h - 1)) * np.sin(2.0 * math.pi * f0_hz * h * t)
+        src = 0.05 * src + tonal
     d = direction_from_azel(az, el)
     pos = mic_positions(edge_mm)
     out = np.zeros((6, n), dtype=np.float64)
+    idx = np.arange(n)
     for i in range(6):
         # τ = -(p · d) / c is negative when the mic faces the source (hears early).
         # y[n] = x[n - τ] so an early mic reads further ahead in the source buffer.
         tau = -float(np.dot(pos[i], d)) / C_SOUND * FS
         base = 32.0 - tau
-        i0 = int(math.floor(base))
-        frac = base - i0
-        for t in range(n):
-            j = i0 + t
-            out[i, t] = amp * ((1.0 - frac) * src[j] + frac * src[j + 1])
+        posf = base + idx
+        i0 = np.floor(posf).astype(np.int32)
+        frac = posf - i0
+        out[i] = amp * ((1.0 - frac) * src[i0] + frac * src[i0 + 1])
     return out
 
 
@@ -283,6 +476,28 @@ def self_test(edge_mm: int) -> None:
         if ang_err(fix.az, az) > 8.0 or abs(fix.el - el) > 8.0:
             raise SystemExit(f"miss az={az}->{fix.az:.1f} el={el}->{fix.el:.1f}")
         print(f"OK  az={az:6.1f}->{fix.az:6.1f}  el={el:6.1f}->{fix.el:6.1f}  conf={fix.conf:.2f}")
+    # Harmonic comb on a long window: a Neo-2-like rotor locks, noise does not.
+    comb_az, comb_el, f0 = 40.0, 12.0, 900.0
+    drone = detect_window(
+        synth_window(comb_az, comb_el, edge_mm, n=COMB_N, amp=6000.0, f0_hz=f0, seed=3),
+        edge_mm,
+    )
+    if not drone.drone or abs(drone.f0_hz - f0) > 40.0:
+        raise SystemExit(
+            f"comb miss f0={drone.f0_hz:.0f} score={drone.comb_db:.1f} drone={drone.drone}"
+        )
+    if ang_err(drone.az, comb_az) > 8.0 or abs(drone.el - comb_el) > 8.0:
+        raise SystemExit(f"comb direction az={drone.az:.1f} el={drone.el:.1f}")
+    noise = np.random.default_rng(7).normal(0.0, 400.0, (6, COMB_N))
+    quiet = detect_window(noise, edge_mm)
+    if quiet.drone or quiet.comb_db > drone.comb_db - 3.0:
+        raise SystemExit(
+            f"noise looked like a drone score={quiet.comb_db:.1f} vs {drone.comb_db:.1f}"
+        )
+    print(
+        f"OK  comb f0={drone.f0_hz:.0f} Hz  score={drone.comb_db:.1f} dB  "
+        f"az={drone.az:.1f} el={drone.el:.1f}  noise={quiet.comb_db:.1f} dB"
+    )
     print(f"self-test OK  edge={edge_mm} mm  vertices={len(verts)}  edges checked")
 
 
@@ -354,7 +569,9 @@ class CubeView:
         self._origin = origin
 
     def update(self, fix: Fix | None) -> None:
-        if fix is None or not fix.ok or fix.direction is None or fix.conf < CONF_MIN:
+        # A direction without a locked comb is not drawn: GCC-PHAT will invent
+        # a peak for noise, and the comb is what says it is a drone.
+        if fix is None or not fix.drone or fix.direction is None or fix.conf < CONF_MIN:
             self.drone.set_visible(False)
             self.ray.set_visible(False)
             for arm in self.arms:
@@ -371,8 +588,10 @@ class CubeView:
         for line, (dx, dy, dz) in zip(self.arms, offsets):
             line.set_data_3d([p[0], p[0] + dx], [p[1], p[1] + dy], [p[2], p[2] + dz])
             line.set_visible(True)
+        kind = "dron" if fix.drone else "směr"
+        f0 = f"   f0 {fix.f0_hz:.0f} Hz" if fix.drone else ""
         self.title.set_text(
-            f"dron   az {fix.az:5.1f}°   el {fix.el:5.1f}°   conf {fix.conf:.2f}   {fix.lvl_db:.0f} dB"
+            f"{kind}   az {fix.az:5.1f}°   el {fix.el:5.1f}°   conf {fix.conf:.2f}   {fix.lvl_db:.0f} dB{f0}"
             f"\npoloha na paprsku {self.range_m:.1f} m (jeden uzel neměří vzdálenost)"
         )
 
@@ -488,9 +707,32 @@ def iter_uart(port: str):
                 el = float(m.group(3))
                 conf = float(m.group(4)) if m.group(4) else 1.0
                 lvl = float(m.group(5)) if m.group(5) else -30.0
-                yield Fix(True, az, el, conf, lvl, direction_from_azel(az, el))
+                # The firmware already classified this line as a drone.
+                yield Fix(True, az, el, conf, lvl, direction_from_azel(az, el), drone=True)
     finally:
         ser.close()
+
+
+class StreamDetector:
+    """Keep the last COMB_N samples so the harmonic comb can lock on a live stream."""
+
+    def __init__(self, edge_mm: int):
+        self.edge_mm = edge_mm
+        self.buf = np.zeros((6, COMB_N), dtype=np.float64)
+        self.have = 0
+
+    def feed(self, frame: np.ndarray) -> Fix:
+        frame = np.asarray(frame, dtype=np.float64)
+        n = int(frame.shape[1])
+        if n >= COMB_N:
+            self.buf = frame[:, -COMB_N:]
+            self.have = COMB_N
+        else:
+            self.buf[:, :-n] = self.buf[:, n:]
+            self.buf[:, -n:] = frame
+            self.have = min(COMB_N, self.have + n)
+        window = self.buf[:, -self.have :] if self.have >= N else frame
+        return detect_window(window, self.edge_mm)
 
 
 def demo_frames(edge_mm: int):
@@ -499,7 +741,9 @@ def demo_frames(edge_mm: int):
         t = time.time() - t0
         az = (t * 40.0) % 360.0
         el = 15.0 * math.sin(t * 0.7)
-        samples = synth_window(az, el, edge_mm, seed=int(t * 5) % 10000 + 1)
+        samples = synth_window(
+            az, el, edge_mm, n=COMB_N, amp=6000.0, f0_hz=900.0, seed=int(t * 5) % 10000 + 1
+        )
         fix = detect_window(samples, edge_mm)
         yield fix
         time.sleep(0.15)
@@ -561,14 +805,16 @@ def main() -> None:
     elif args.demo or args.snapshot and not args.wav and not args.device:
         frames = demo_frames(args.edge_mm)
     elif args.wav:
-        frames = (detect_window(w, args.edge_mm) for w in iter_wav(args.wav))
+        det = StreamDetector(args.edge_mm)
+        frames = (det.feed(w) for w in iter_wav(args.wav))
     else:
         card = find_card()
         dev = args.device or (f"hw:{card},0" if card else None)
         if not dev:
             raise SystemExit("není Pico 6ch zvukovka. Použij --demo, --wav nebo --device.")
         print(f"capture {dev}")
-        frames = (detect_window(w, args.edge_mm) for w in iter_arecord(dev))
+        det = StreamDetector(args.edge_mm)
+        frames = (det.feed(w) for w in iter_arecord(dev))
 
     if args.snapshot and not os.environ.get("DISPLAY"):
         # One frame is enough for a headless snapshot.

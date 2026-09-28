@@ -428,8 +428,11 @@ device directly):
 ```
 
 Local 3D view of the detection cube (default edge **128 mm**, same geometry as
-`doa.c`). A single node draws the drone on the direction ray; the distance is
-the display radius, not a measured range. Build the matching firmware with
+`doa.c`). Direction is GCC-PHAT below each pair's grating frequency, then the
+firmware TDOA solve. A harmonic comb in the Neo 2 blade-pass band (500–1400 Hz,
+the host estimator from `het68_spectral`) is what labels the source a drone.
+A single node draws that drone on the direction ray; the distance is the
+display radius, not a measured range. Build the matching firmware with
 `HET68_DOA_EDGE_MM=128 ./build.sh`.
 
 ```bash
