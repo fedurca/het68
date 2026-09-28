@@ -43,7 +43,6 @@ FILT_SETTLE = 48
 CONF_MIN = 0.28
 DRONE_RMS = 2.5
 WIND_RATIO = 0.38
-CREST_MAX = 5.5
 DEFAULT_EDGE_MM = 128
 DEFAULT_RANGE_M = 1.0
 
@@ -177,8 +176,6 @@ def prepare_drone(window: np.ndarray, maxlag: int) -> tuple[np.ndarray, np.ndarr
     work = np.empty_like(window)
     energy = np.zeros(6, dtype=np.float64)
     active = np.zeros(6, dtype=bool)
-    crest_num = 0.0
-    crest_den = 0.0
     for c in range(6):
         x = window[c] - float(window[c].mean())
         wind = biquad(x, LPF250)
@@ -187,14 +184,10 @@ def prepare_drone(window: np.ndarray, maxlag: int) -> tuple[np.ndarray, np.ndarr
         sl = slice(FILT_SETTLE, None)
         e_bp = float(np.dot(y[sl], y[sl]))
         e_wind = float(np.dot(wind[sl], wind[sl]))
-        peak = float(np.max(np.abs(y[sl])))
         energy[c] = float(np.dot(y[lo:hi], y[lo:hi]))
         rms = math.sqrt(e_bp / (N - FILT_SETTLE))
+        # Same gate as current firmware: in-band energy, including a pure tone.
         active[c] = rms > DRONE_RMS and e_bp >= WIND_RATIO * (e_wind + 1e-6)
-        crest_num += peak
-        crest_den += rms + 1e-6
-    if crest_num / crest_den > CREST_MAX:
-        active[:] = False
     return work, energy, active
 
 
