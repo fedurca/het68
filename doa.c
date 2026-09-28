@@ -20,14 +20,15 @@
 
 // ---------------------------------------------------------------------------
 // Array geometry — cube standing on a vertex, mics at the six face centres.
-// Override edge:   HET68_DOA_EDGE_MM=512 ./build.sh
+// Override edge:   HET68_DOA_EDGE_MM=384 ./build.sh
 // Override height: HET68_DOA_HEIGHT_MM=1000 ./build.sh
-// Default 384 mm: sweet-spot for N=256 + filter settle (see array_cube_design.md).
+// Default 128 mm: longest baseline equals the edge, so a 2 kHz tone
+// (wavelength ~172 mm) is still inside one spatial period.
 // ---------------------------------------------------------------------------
 #ifdef HET68_DOA_EDGE_MM
 #define DOA_EDGE_MM     HET68_DOA_EDGE_MM
 #else
-#define DOA_EDGE_MM     384
+#define DOA_EDGE_MM     128
 #endif
 #define DOA_EDGE_M      (DOA_EDGE_MM * 0.001f)
 #define DOA_FACE_R      (DOA_EDGE_M * 0.5f)
@@ -68,6 +69,8 @@ void doa_set_c_sound_m_s(float c_m_s) {
 }
 
 float doa_c_sound_m_s(void) { return g_c_sound_m_s; }
+
+uint32_t doa_edge_mm(void) { return (uint32_t)DOA_EDGE_MM; }
 
 #if   DOA_MAXLAG <= 85
 #define DOA_N            256u

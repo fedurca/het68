@@ -861,13 +861,22 @@ void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts)
     if (dtr) cdc_banner_pending = true;
 }
 
+static void log_identity(void) {
+    dbg_print_banner();
+    uint32_t lock = dbg_line_lock();
+    dbg_puts("cube edge ");
+    dbg_putu32(doa_edge_mm());
+    dbg_puts(" mm\n");
+    dbg_line_unlock(lock);
+}
+
 // ---------------------------------------------------------------------------
 int main(void)
 {
     dbg_init();
     dbg_hb_set(true);
     dbg_log_set(true);
-    dbg_print_banner();
+    log_identity();
 
 #if HET68_USB_DIAG
     diag_build_lut();
@@ -968,14 +977,14 @@ int main(void)
     // From here, UART text is queued. dbg_poll() below drains it between USB
     // tasks so a heartbeat cannot mask IRQs or stall isochronous IN.
     dbg_tx_async(true);
-    dbg_print_banner();
+    log_identity();
 
     for (;;) {
         dbg_poll();
         tud_task();
         if (cdc_banner_pending) {
             cdc_banner_pending = false;
-            dbg_print_banner();
+            log_identity();
         }
 
 #if !HET68_USB_DIAG

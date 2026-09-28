@@ -73,7 +73,7 @@ jobs:
       - name: Build pico2 firmware
         env:
           PICO_BOARD: pico2
-          HET68_DOA_EDGE_MM: "384"
+          HET68_DOA_EDGE_MM: "128"
           CC: gcc
           CXX: g++
         run: ./build.sh
@@ -92,7 +92,7 @@ jobs:
       - name: Build Pico (RP2040) firmware
         env:
           PICO_BOARD: pico
-          HET68_DOA_EDGE_MM: "384"
+          HET68_DOA_EDGE_MM: "128"
           CC: gcc
           CXX: g++
         run: |
@@ -113,7 +113,7 @@ jobs:
       - name: Build Pico W (RP2040 + CYW43439) firmware
         env:
           PICO_BOARD: pico_w
-          HET68_DOA_EDGE_MM: "384"
+          HET68_DOA_EDGE_MM: "128"
           CC: gcc
           CXX: g++
         run: |
@@ -134,7 +134,7 @@ jobs:
       - name: Build Pico 2 W firmware (CYW43439 Wi-Fi/BT, BLE Remote ID)
         env:
           PICO_BOARD: pico2_w
-          HET68_DOA_EDGE_MM: "384"
+          HET68_DOA_EDGE_MM: "128"
           CC: gcc
           CXX: g++
         run: |
@@ -155,7 +155,7 @@ jobs:
       - name: Build Pico Plus 2 W firmware (BLE Remote ID)
         env:
           PICO_BOARD: pimoroni_pico_plus2_w_rp2350
-          HET68_DOA_EDGE_MM: "384"
+          HET68_DOA_EDGE_MM: "128"
           CC: gcc
           CXX: g++
         run: |

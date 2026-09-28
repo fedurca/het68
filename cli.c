@@ -22,6 +22,9 @@ static bool g_skip_lf;
 void cli_print_help(void) {
     dbg_print_banner();
     uint32_t lock = dbg_line_lock();
+    dbg_puts("cube edge ");
+    dbg_putu32(doa_edge_mm());
+    dbg_puts(" mm\n");
     dbg_puts("=== het68 CLI ");
 #ifdef HET68_VERSION_STR
     dbg_puts(HET68_VERSION_STR);

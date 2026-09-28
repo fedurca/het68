@@ -30,10 +30,10 @@ add_executable(pico_6mic_soundcard ${SRCS})
 # Version stamp (UART help / docs). Semver core for releases.
 string(TIMESTAMP HET68_BUILD_STAMP "%Y-%m-%d %H:%M:%S")
 add_compile_definitions(
-    HET68_VERSION_STR=\"1.9.0\"
+    HET68_VERSION_STR=\"1.10.0\"
     HET68_BUILD_STAMP=\"${HET68_BUILD_STAMP}\"
 )
-message(STATUS "het68: version 1.9.0  build ${HET68_BUILD_STAMP}")
+message(STATUS "het68: version 1.10.0  build ${HET68_BUILD_STAMP}")
 
 # Optional fixed acoustic-link node id (0..7). Default 0; also settable at
 # runtime via the LINK ID CLI command.
@@ -97,7 +97,7 @@ endif()
 
 # Acoustic array cube edge length in millimetres. Any integer edge is supported
 # (e.g. 50/100/128/150/200/256/384/512); DOA_MAXLAG and the comparison window
-# auto-derive from it in doa.c. Default (unset) is 384 mm.
+# auto-derive from it in doa.c. Default (unset) is 128 mm.
 #   HET68_DOA_EDGE_MM=512 ./build.sh
 if(DEFINED HET68_DOA_EDGE_MM)
     add_compile_definitions(HET68_DOA_EDGE_MM=${HET68_DOA_EDGE_MM})

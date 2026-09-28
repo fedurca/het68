@@ -242,6 +242,9 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   The same line is repeated when the USB serial port is opened. Enter in
   minicom submits a command. Debug is mirrored to the Pico USB CDC port as
   well as the probe UART.
+  **v1.10.0:** default detection cube edge is **128 mm** (was 384 mm). The
+  longest baseline is then one edge, so a 2 kHz tone stays inside a single
+  spatial period. `DOA_MAXLAG` still follows the edge.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB
@@ -270,11 +273,12 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
     cross-class gates). Still not a trained model.
   - Walker tracking assumes **one** walking entity at a time.
 
-* **Array geometry.** A cube standing on a vertex, **384 mm** edge (v1.5.0+).
+* **Array geometry.** A cube standing on a vertex, **128 mm** edge (v1.10.0+;
+  v1.5.0–v1.9.0 used 384 mm).
   Mics 1–3 are the three upper faces (mic 1 = north, then +120°, +240° azimuth,
   all at +35.26° elevation); mics 4–6 are the opposite lower faces (−35.26°
   elevation, azimuths interleaved by 60°). Select the edge at build time with any
-  integer size — `HET68_DOA_EDGE_MM=512 ./build.sh` (default **384 mm**);
+  integer size — `HET68_DOA_EDGE_MM=384 ./build.sh` (default **128 mm**);
   `DOA_MAXLAG` and the comparison window derive from it automatically. How to
   physically build the cube, what to build it from, and a full edge-length
   trade-off analysis (accuracy, speed, compute, memory) are in

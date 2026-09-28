@@ -9,6 +9,9 @@ void doa_start(void);
 void doa_set_c_sound_m_s(float c_m_s);
 float doa_c_sound_m_s(void);
 
+// Cube edge the TDOA model was built with (millimetres).
+uint32_t doa_edge_mm(void);
+
 extern volatile uint32_t g_doa_out;
 extern volatile uint32_t g_doa_nactive;
 extern volatile uint32_t g_doa_iter;
