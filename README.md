@@ -252,6 +252,11 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   whose level and prominence match a real motor, and whose phase across the
   cube fits one direction. Three agreeing windows are required. A vacuum
   harmonic and a weak or jumping lock are not a drone.
+  **v1.13.0:** one drone track. A fix is kept only when the phase fit is at
+  least 0.75, and the published azimuth and elevation are the median of the
+  last agreeing fixes. A noisy window holds the last bearing instead of
+  opening a second track. A distant hover (RMS about 60) still counts when
+  the blade line is sharp.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB

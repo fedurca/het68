@@ -121,12 +121,12 @@ uint32_t doa_edge_mm(void) { return (uint32_t)DOA_EDGE_MM; }
 #define NEO_F_HI            1360.0f
 #define NEO_F_STEP          20.0f
 #define NEO_NFREQ           24
-#define NEO_PROM_MIN        40.0f
-#define NEO_RMS_MIN         250.0f
-#define NEO_FIT_MIN         0.70f
-#define NEO_JUMP_DEG        40.0f
-#define NEO_STREAK_MIN      3u
-#define NEO_DRONE_TTL       6u
+#define NEO_PROM_MIN        50.0f
+#define NEO_RMS_MIN         60.0f
+#define NEO_FIT_MIN         0.75f
+#define NEO_HIST            6
+#define NEO_HOLD_DEG        18.0f
+#define NEO_DRONE_TTL       8u
 #define DOA_VEH_MIN_FRAMES  5u       // ~1.0 s continuous before vehicle entity
 #define DOA_VEH_GAP_FRAMES  3u
 #define DOA_VEH_RMS         6.5f
@@ -572,6 +572,7 @@ typedef struct { float re, im; } neo_phasor_t;
 
 typedef struct {
     bool ok;
+    bool tone;
     bool vacuum;
     float f0;
     float vac_f;
@@ -698,6 +699,7 @@ static neo2_fix_t neo2_measure(uint32_t h) {
     float prom = pw[best] / (neo_median(noise, nn) + 1e-12f);
     fx.f0 = fr[best];
     if (prom < NEO_PROM_MIN) return fx;
+    fx.tone = true;
 
     float vac_f = 85.0f, vac_p = 0.0f;
     for (float f = 70.0f; f <= 130.0f; f += 4.0f) {
@@ -707,6 +709,7 @@ static neo2_fix_t neo2_measure(uint32_t h) {
     fx.vac_f = vac_f;
     if (neo2_is_harmonic(fr[best], vac_f) && vac_p > 0.2f * pw[best]) {
         fx.vacuum = true;
+        fx.tone = false;
         return fx;
     }
 
@@ -766,12 +769,92 @@ static neo2_fix_t neo2_measure(uint32_t h) {
 
 static float g_neo_f0;
 static uint32_t g_vac_log_h;
-static uint8_t g_neo_streak;
-static float g_neo_cand_az;
-static uint32_t g_neo_cand_h;
-static bool g_neo_have;
-static float g_neo_az;
-static uint32_t g_neo_lock_h;
+static float g_neo_az_hist[NEO_HIST];
+static float g_neo_el_hist[NEO_HIST];
+static uint8_t g_neo_hist_n;
+static uint8_t g_neo_hist_i;
+
+static float neo_wrap360(float a) {
+    while (a < 0.0f) a += 360.0f;
+    while (a >= 360.0f) a -= 360.0f;
+    return a;
+}
+
+static float neo_circ_median(const float *az, int n) {
+    float sx = 0.0f, sy = 0.0f;
+    for (int i = 0; i < n; i++) {
+        float r = az[i] * ((float)M_PI / 180.0f);
+        sx += cosf(r);
+        sy += sinf(r);
+    }
+    float ref = atan2f(sy, sx) * (180.0f / (float)M_PI);
+    float d[NEO_HIST];
+    for (int i = 0; i < n; i++) {
+        float x = az[i] - ref;
+        if (x > 180.0f) x -= 360.0f;
+        if (x < -180.0f) x += 360.0f;
+        d[i] = x;
+    }
+    for (int i = 1; i < n; i++) {
+        float key = d[i];
+        int j = i - 1;
+        while (j >= 0 && d[j] > key) { d[j + 1] = d[j]; j--; }
+        d[j + 1] = key;
+    }
+    float med = (n & 1) ? d[n / 2] : 0.5f * (d[n / 2 - 1] + d[n / 2]);
+    return neo_wrap360(ref + med);
+}
+
+static float neo_median_el(const float *el, int n) {
+    float d[NEO_HIST];
+    for (int i = 0; i < n; i++) d[i] = el[i];
+    for (int i = 1; i < n; i++) {
+        float key = d[i];
+        int j = i - 1;
+        while (j >= 0 && d[j] > key) { d[j + 1] = d[j]; j--; }
+        d[j + 1] = key;
+    }
+    if (n & 1) return d[n / 2];
+    return 0.5f * (d[n / 2 - 1] + d[n / 2]);
+}
+
+// One drone. A new fix joins the history only when it agrees with the
+// fixes already there, and the published bearing is their median.
+static void neo_publish_stable(float az, float el, float conf, float lvl_db) {
+    if (g_neo_hist_n >= 3) {
+        float med = neo_circ_median(g_neo_az_hist, g_neo_hist_n);
+        if (ang_diff_deg(az, med) > NEO_HOLD_DEG) return;
+    }
+    g_neo_az_hist[g_neo_hist_i] = az;
+    g_neo_el_hist[g_neo_hist_i] = el;
+    g_neo_hist_i = (uint8_t)((g_neo_hist_i + 1u) % NEO_HIST);
+    if (g_neo_hist_n < NEO_HIST) g_neo_hist_n++;
+    if (g_neo_hist_n < 4u) return;
+
+    float paz = neo_circ_median(g_neo_az_hist, g_neo_hist_n);
+    float pel = neo_median_el(g_neo_el_hist, g_neo_hist_n);
+    g_drones[1].used = false;
+    track_t *t = &g_drones[0];
+    if (!t->used) {
+        t->az = paz;
+        t->el = pel;
+        t->conf = conf;
+        t->lvl_db = lvl_db;
+    } else {
+        float delta = paz - t->az;
+        if (delta > 180.0f) delta -= 360.0f;
+        if (delta < -180.0f) delta += 360.0f;
+        t->az = neo_wrap360(t->az + 0.20f * delta);
+        t->el = 0.80f * t->el + 0.20f * pel;
+        t->conf = 0.80f * t->conf + 0.20f * conf;
+        t->lvl_db = 0.80f * t->lvl_db + 0.20f * lvl_db;
+    }
+    t->used = true;
+    t->cls = CLS_DRONE;
+    t->age = 0;
+    t->entity_id = 0;
+    t->have_xy = false;
+}
 
 static void load_raw_window(uint32_t h) {
     uint32_t start = h - DOA_N;
@@ -1860,10 +1943,11 @@ static void report_tracks(void) {
 // ---------------------------------------------------------------------------
 static void analyse_drone(uint32_t h) {
     neo2_fix_t fx = neo2_measure(h);
-    g_neo_f0 = fx.f0;
+    if ((fx.tone || fx.ok) && fx.f0 > 0.0f) {
+        g_neo_f0 = (g_neo_f0 <= 0.0f) ? fx.f0 : (0.75f * g_neo_f0 + 0.25f * fx.f0);
+    }
     g_doa_wind = 0;
     if (fx.vacuum) {
-        g_neo_streak = 0;
         if (dbg_log_enabled() && (uint32_t)(h - g_vac_log_h) > DOA_FS_HZ) {
             g_vac_log_h = h;
             uint32_t lock = dbg_line_lock();
@@ -1876,28 +1960,11 @@ static void analyse_drone(uint32_t h) {
         }
         return;
     }
-    if (!fx.ok) {
-        g_neo_streak = 0;
-        return;
-    }
-    // A single wild jump is not a new drone. Drop it and wait for agreement.
-    if (g_neo_have && (uint32_t)(h - g_neo_lock_h) < DOA_FS_HZ &&
-        ang_diff_deg(fx.az, g_neo_az) > NEO_JUMP_DEG) {
-        g_neo_streak = 0;
-        return;
-    }
-    if (g_neo_streak > 0 && (uint32_t)(h - g_neo_cand_h) < (DOA_FS_HZ / 2u) &&
-        ang_diff_deg(fx.az, g_neo_cand_az) > NEO_JUMP_DEG) {
-        g_neo_streak = 0;
-    }
-    if (g_neo_streak < 255u) g_neo_streak++;
-    g_neo_cand_az = fx.az;
-    g_neo_cand_h = h;
-    if (g_neo_streak < NEO_STREAK_MIN) return;
-    g_neo_have = true;
-    g_neo_az = fx.az;
-    g_neo_lock_h = h;
-    drone_upsert(fx.az, fx.el, fx.conf, fx.lvl_db);
+    // Blade tone still present: keep the last bearing instead of ageing it out
+    // on a noisy window. A window that fails the phase fit does not move it.
+    if (fx.tone && g_drones[0].used) g_drones[0].age = 0;
+    if (!fx.ok) return;
+    neo_publish_stable(fx.az, fx.el, fx.conf, fx.lvl_db);
 }
 
 static void analyse_walker_onset(uint32_t h) {
