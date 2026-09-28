@@ -2,9 +2,9 @@
 // Walker, vehicle, bird and wind estimators remain in this file but are not run.
 //
 // core0 pushes each 6-channel frame via doa_ring_push() from the USB/I2S feed.
-// core1 reports a DJI Neo 2 only when a sharp 0.9–1.36 kHz blade line is
-// present and its inter-mic phase fits the 128 mm cube. A 70–130 Hz vacuum
-// whose harmonic lands on that line is rejected. Weak locks are not reported.
+// core1 reports a DJI Neo 2 when a sharp 0.9–1.36 kHz blade line is present.
+// Its direction comes from wideband SRP-PHAT and one reflection-aware track
+// (neo_srp.c), so ground and wall echoes do not become extra drones.
 // Entity signatures → entity_store; timed events → detection_log (after TIME SYNC).
 //
 // core1 must be launched with het68_launch_core1() (see core1_launch.c).
@@ -14,6 +14,7 @@
 #include "core1_launch.h"
 #include "debug_io.h"
 #include "remote_id.h"
+#include "neo_srp.h"
 #include "pico/stdlib.h"
 #include "hardware/sync.h"
 #include <math.h>
@@ -115,18 +116,8 @@ uint32_t doa_edge_mm(void) { return (uint32_t)DOA_EDGE_MM; }
 #define DOA_MAX_BIRD        2
 #define DOA_GATE_DEG        30.0f
 #define DOA_TRACK_TTL       12u
-// Neo 2 blade line measured on the clean 2026-09-28 circle (motors off: prominence
-// < 14 and RMS < 100; in flight the line sits near 1.0–1.2 kHz).
-#define NEO_F_LO            900.0f
-#define NEO_F_HI            1360.0f
-#define NEO_F_STEP          20.0f
-#define NEO_NFREQ           24
-#define NEO_PROM_MIN        50.0f
-#define NEO_RMS_MIN         60.0f
-#define NEO_FIT_MIN         0.75f
-#define NEO_HIST            6
-#define NEO_HOLD_DEG        18.0f
-#define NEO_DRONE_TTL       8u
+// Reported confidence reaches 1.0 at this SRP coherence.
+#define NEO_Q_FULL          0.30f
 #define DOA_VEH_MIN_FRAMES  5u       // ~1.0 s continuous before vehicle entity
 #define DOA_VEH_GAP_FRAMES  3u
 #define DOA_VEH_RMS         6.5f
@@ -138,7 +129,8 @@ uint32_t doa_edge_mm(void) { return (uint32_t)DOA_EDGE_MM; }
 #define DOA_BIRD_CREST_MIN  3.0f     // tonal / chirpy
 #define DOA_CLASS_MARGIN    0.45f    // min score gap to prefer a specific subclass
 
-#define DOA_RING_SZ         2048u
+// Holds a 1024-sample SRP frame plus ~60 ms of slack while core1 evaluates.
+#define DOA_RING_SZ         4096u
 #define DOA_RING_MASK       (DOA_RING_SZ - 1u)
 #if DOA_RING_SZ < 2u * DOA_N
 #error "DOA_RING_SZ too small for DOA_N: increase DOA_RING_SZ"
@@ -366,7 +358,7 @@ static void track_age_drones(void) {
     for (int i = 0; i < DOA_MAX_DRONE; i++) {
         if (!g_drones[i].used) continue;
         g_drones[i].age++;
-        if (g_drones[i].age > NEO_DRONE_TTL) g_drones[i].used = false;
+        if (g_drones[i].age > DOA_TRACK_TTL) g_drones[i].used = false;
     }
 }
 
@@ -568,293 +560,13 @@ typedef struct {
     int nactive;
 } doa_fix_t;
 
-typedef struct { float re, im; } neo_phasor_t;
-
-typedef struct {
-    bool ok;
-    bool tone;
-    bool vacuum;
-    float f0;
-    float vac_f;
-    float az, el, conf, lvl_db;
-} neo2_fix_t;
-
-// Complex Goertzel at freq_hz. Phase difference is the opposite of a DFT delay.
-static neo_phasor_t goertzel_phasor(const float *x, int n, float freq_hz) {
-    float k = roundf(freq_hz * (float)n / (float)DOA_FS_HZ);
-    if (k < 1.0f) k = 1.0f;
-    float w = 2.0f * (float)M_PI * k / (float)n;
-    float coeff = 2.0f * cosf(w);
-    float cw = cosf(w);
-    float sw = sinf(w);
-    float s1 = 0.0f, s2 = 0.0f;
-    for (int i = 0; i < n; i++) {
-        float s0 = x[i] + coeff * s1 - s2;
-        s2 = s1;
-        s1 = s0;
-    }
-    neo_phasor_t p;
-    p.re = s1 - s2 * cw;
-    p.im = s2 * sw;
-    return p;
-}
-
-static float neo_pow(neo_phasor_t p) {
-    return p.re * p.re + p.im * p.im;
-}
-
-static float neo_median(float *v, int n) {
-    for (int i = 1; i < n; i++) {
-        float key = v[i];
-        int j = i - 1;
-        while (j >= 0 && v[j] > key) {
-            v[j + 1] = v[j];
-            j--;
-        }
-        v[j + 1] = key;
-    }
-    if (n <= 0) return 0.0f;
-    if (n & 1) return v[n / 2];
-    return 0.5f * (v[n / 2 - 1] + v[n / 2]);
-}
-
-// True when f is an integer harmonic of f0 (the distant-vacuum comb).
-static bool neo2_is_harmonic(float f, float f0) {
-    if (f0 < 50.0f || f < f0 * 1.5f) return false;
-    float n = roundf(f / f0);
-    if (n < 2.0f || n > 24.0f) return false;
-    float err = fabsf(f - n * f0) / f;
-    return err < 0.035f;
-}
-
-static neo_phasor_t goertzel_ring(uint32_t start, int ch, float freq_hz) {
-    const int n = (int)DOA_RING_SZ;
-    float mean = 0.0f;
-    for (int i = 0; i < n; i++)
-        mean += (float)g_ring[(start + (uint32_t)i) & DOA_RING_MASK][ch];
-    mean /= (float)n;
-    float k = roundf(freq_hz * (float)n / (float)DOA_FS_HZ);
-    if (k < 1.0f) k = 1.0f;
-    float w = 2.0f * (float)M_PI * k / (float)n;
-    float coeff = 2.0f * cosf(w);
-    float s1 = 0.0f, s2 = 0.0f;
-    for (int i = 0; i < n; i++) {
-        float x = (float)g_ring[(start + (uint32_t)i) & DOA_RING_MASK][ch] - mean;
-        float s0 = x + coeff * s1 - s2;
-        s2 = s1;
-        s1 = s0;
-    }
-    neo_phasor_t p;
-    p.re = s1 - s2 * cosf(w);
-    p.im = s2 * sinf(w);
-    return p;
-}
-
-// Loudest mic, last 2048 samples. Pass only a sharp Neo 2 blade line
-// (0.9–1.36 kHz) with a plane-wave phase fit. A 70–130 Hz vacuum whose
-// harmonic sits on that line is rejected.
-static neo2_fix_t neo2_measure(uint32_t h) {
-    neo2_fix_t fx;
-    memset(&fx, 0, sizeof(fx));
-    static float buf[DOA_RING_SZ];
-    int loud = 0;
-    float loud_e = -1.0f;
-    uint32_t start = h - DOA_RING_SZ;
-    for (int c = 0; c < 6; c++) {
-        float e = 0.0f;
-        for (uint32_t n = 0; n < DOA_RING_SZ; n += 8u) {
-            float s = (float)g_ring[(start + n) & DOA_RING_MASK][c];
-            e += s * s;
-        }
-        if (e > loud_e) { loud_e = e; loud = c; }
-    }
-    float mean = 0.0f;
-    for (uint32_t n = 0; n < DOA_RING_SZ; n++) {
-        buf[n] = (float)g_ring[(start + n) & DOA_RING_MASK][loud];
-        mean += buf[n];
-    }
-    mean /= (float)DOA_RING_SZ;
-    float acc = 0.0f;
-    for (uint32_t n = 0; n < DOA_RING_SZ; n++) {
-        buf[n] -= mean;
-        acc += buf[n] * buf[n];
-    }
-    float rms = sqrtf(acc / (float)DOA_RING_SZ);
-    fx.lvl_db = 20.0f * log10f((rms + 1e-6f) / 32768.0f);
-    if (rms < NEO_RMS_MIN) return fx;
-
-    float pw[NEO_NFREQ];
-    float fr[NEO_NFREQ];
-    int best = 0;
-    for (int i = 0; i < NEO_NFREQ; i++) {
-        fr[i] = NEO_F_LO + NEO_F_STEP * (float)i;
-        pw[i] = neo_pow(goertzel_phasor(buf, (int)DOA_RING_SZ, fr[i]));
-        if (pw[i] > pw[best]) best = i;
-    }
-    float noise[NEO_NFREQ];
-    int nn = 0;
-    for (int i = 0; i < NEO_NFREQ; i++) {
-        if (fabsf(fr[i] - fr[best]) >= 60.0f) noise[nn++] = pw[i];
-    }
-    float prom = pw[best] / (neo_median(noise, nn) + 1e-12f);
-    fx.f0 = fr[best];
-    if (prom < NEO_PROM_MIN) return fx;
-    fx.tone = true;
-
-    float vac_f = 85.0f, vac_p = 0.0f;
-    for (float f = 70.0f; f <= 130.0f; f += 4.0f) {
-        float p = neo_pow(goertzel_phasor(buf, (int)DOA_RING_SZ, f));
-        if (p > vac_p) { vac_p = p; vac_f = f; }
-    }
-    fx.vac_f = vac_f;
-    if (neo2_is_harmonic(fr[best], vac_f) && vac_p > 0.2f * pw[best]) {
-        fx.vacuum = true;
-        fx.tone = false;
-        return fx;
-    }
-
-    neo_phasor_t ph[6];
-    float magv[6];
-    int ref = 0;
-    for (int c = 0; c < 6; c++) {
-        ph[c] = goertzel_ring(start, c, fr[best]);
-        magv[c] = neo_pow(ph[c]);
-        if (magv[c] > magv[ref]) ref = c;
-    }
-    float AtA[3][3] = {{0}};
-    float Atb[3] = {0};
-    float rows[5][3];
-    float bbs[5];
-    int npair = 0;
-    for (int i = 0; i < 6; i++) {
-        if (i == ref) continue;
-        float re = ph[i].re * ph[ref].re + ph[i].im * ph[ref].im;
-        float im = ph[i].im * ph[ref].re - ph[i].re * ph[ref].im;
-        float tau = atan2f(im, re) / (2.0f * (float)M_PI * fr[best]);
-        float bb = g_c_sound_m_s * tau;
-        rows[npair][0] = MIC_POS[i][0] - MIC_POS[ref][0];
-        rows[npair][1] = MIC_POS[i][1] - MIC_POS[ref][1];
-        rows[npair][2] = MIC_POS[i][2] - MIC_POS[ref][2];
-        bbs[npair] = bb;
-        for (int r = 0; r < 3; r++) {
-            for (int cc = 0; cc < 3; cc++) AtA[r][cc] += rows[npair][r] * rows[npair][cc];
-            Atb[r] += rows[npair][r] * bb;
-        }
-        npair++;
-    }
-    float d[3];
-    if (!solve3(AtA, Atb, d)) return fx;
-    float magd = sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
-    if (magd < 1e-6f) return fx;
-    d[0] /= magd; d[1] /= magd; d[2] /= magd;
-    float resid2 = 0.0f, span2 = 0.0f;
-    for (int i = 0; i < npair; i++) {
-        float pred = rows[i][0] * d[0] + rows[i][1] * d[1] + rows[i][2] * d[2];
-        float err = pred - bbs[i];
-        resid2 += err * err;
-        span2 += bbs[i] * bbs[i];
-    }
-    float fit = 1.0f - sqrtf(resid2 / (float)npair) /
-                         (sqrtf(span2 / (float)npair) + 1e-12f);
-    if (fit < NEO_FIT_MIN) return fx;
-
-    float az = atan2f(d[1], d[0]) * (180.0f / (float)M_PI);
-    if (az < 0.0f) az += 360.0f;
-    fx.az = az;
-    fx.el = asinf(d[2]) * (180.0f / (float)M_PI);
-    fx.conf = fit;
-    fx.ok = true;
-    return fx;
-}
-
+static const neo_ring_t k_neo_ring = { g_ring, DOA_RING_MASK };
+static uint32_t g_srp_pos;
+static uint32_t g_srp_drop;
+static uint32_t g_srp_eval_us;
 static float g_neo_f0;
+static float g_neo_q;
 static uint32_t g_vac_log_h;
-static float g_neo_az_hist[NEO_HIST];
-static float g_neo_el_hist[NEO_HIST];
-static uint8_t g_neo_hist_n;
-static uint8_t g_neo_hist_i;
-
-static float neo_wrap360(float a) {
-    while (a < 0.0f) a += 360.0f;
-    while (a >= 360.0f) a -= 360.0f;
-    return a;
-}
-
-static float neo_circ_median(const float *az, int n) {
-    float sx = 0.0f, sy = 0.0f;
-    for (int i = 0; i < n; i++) {
-        float r = az[i] * ((float)M_PI / 180.0f);
-        sx += cosf(r);
-        sy += sinf(r);
-    }
-    float ref = atan2f(sy, sx) * (180.0f / (float)M_PI);
-    float d[NEO_HIST];
-    for (int i = 0; i < n; i++) {
-        float x = az[i] - ref;
-        if (x > 180.0f) x -= 360.0f;
-        if (x < -180.0f) x += 360.0f;
-        d[i] = x;
-    }
-    for (int i = 1; i < n; i++) {
-        float key = d[i];
-        int j = i - 1;
-        while (j >= 0 && d[j] > key) { d[j + 1] = d[j]; j--; }
-        d[j + 1] = key;
-    }
-    float med = (n & 1) ? d[n / 2] : 0.5f * (d[n / 2 - 1] + d[n / 2]);
-    return neo_wrap360(ref + med);
-}
-
-static float neo_median_el(const float *el, int n) {
-    float d[NEO_HIST];
-    for (int i = 0; i < n; i++) d[i] = el[i];
-    for (int i = 1; i < n; i++) {
-        float key = d[i];
-        int j = i - 1;
-        while (j >= 0 && d[j] > key) { d[j + 1] = d[j]; j--; }
-        d[j + 1] = key;
-    }
-    if (n & 1) return d[n / 2];
-    return 0.5f * (d[n / 2 - 1] + d[n / 2]);
-}
-
-// One drone. A new fix joins the history only when it agrees with the
-// fixes already there, and the published bearing is their median.
-static void neo_publish_stable(float az, float el, float conf, float lvl_db) {
-    if (g_neo_hist_n >= 3) {
-        float med = neo_circ_median(g_neo_az_hist, g_neo_hist_n);
-        if (ang_diff_deg(az, med) > NEO_HOLD_DEG) return;
-    }
-    g_neo_az_hist[g_neo_hist_i] = az;
-    g_neo_el_hist[g_neo_hist_i] = el;
-    g_neo_hist_i = (uint8_t)((g_neo_hist_i + 1u) % NEO_HIST);
-    if (g_neo_hist_n < NEO_HIST) g_neo_hist_n++;
-    if (g_neo_hist_n < 4u) return;
-
-    float paz = neo_circ_median(g_neo_az_hist, g_neo_hist_n);
-    float pel = neo_median_el(g_neo_el_hist, g_neo_hist_n);
-    g_drones[1].used = false;
-    track_t *t = &g_drones[0];
-    if (!t->used) {
-        t->az = paz;
-        t->el = pel;
-        t->conf = conf;
-        t->lvl_db = lvl_db;
-    } else {
-        float delta = paz - t->az;
-        if (delta > 180.0f) delta -= 360.0f;
-        if (delta < -180.0f) delta += 360.0f;
-        t->az = neo_wrap360(t->az + 0.20f * delta);
-        t->el = 0.80f * t->el + 0.20f * pel;
-        t->conf = 0.80f * t->conf + 0.20f * conf;
-        t->lvl_db = 0.80f * t->lvl_db + 0.20f * lvl_db;
-    }
-    t->used = true;
-    t->cls = CLS_DRONE;
-    t->age = 0;
-    t->entity_id = 0;
-    t->have_xy = false;
-}
 
 static void load_raw_window(uint32_t h) {
     uint32_t start = h - DOA_N;
@@ -1925,7 +1637,8 @@ static void report_tracks(void) {
         dbg_puts(" lvl="); put_f1(g_drones[i].lvl_db);
         dbg_puts("dB f0=");
         put_f1(g_neo_f0);
-        dbg_puts("Hz");
+        dbg_puts("Hz q=");
+        put_f2(g_neo_q);
         dbg_puts(g_drones[i].conf < DOA_DRONE_CONF_MIN ? " pos=band\n" : " pos=tdoa\n");
     }
     report_rid_cmp();
@@ -1933,6 +1646,10 @@ static void report_tracks(void) {
     dbg_putu32(g_doa_ndrone);
     dbg_puts(" entity=");
     dbg_putu32(g_doa_entity_id);
+    dbg_puts(" eval_us=");
+    dbg_putu32(g_srp_eval_us);
+    dbg_puts(" drop=");
+    dbg_putu32(g_srp_drop);
     dbg_putc('\n');
     dbg_line_unlock(lock);
     g_doa_out++;
@@ -1942,29 +1659,41 @@ static void report_tracks(void) {
 // Analysis entry points
 // ---------------------------------------------------------------------------
 static void analyse_drone(uint32_t h) {
-    neo2_fix_t fx = neo2_measure(h);
-    if ((fx.tone || fx.ok) && fx.f0 > 0.0f) {
-        g_neo_f0 = (g_neo_f0 <= 0.0f) ? fx.f0 : (0.75f * g_neo_f0 + 0.25f * fx.f0);
+    neo_tone_t tn = neo_tone(&k_neo_ring, h);
+    if (tn.tone) {
+        g_neo_f0 = (g_neo_f0 <= 0.0f) ? tn.f0 : (0.75f * g_neo_f0 + 0.25f * tn.f0);
     }
     g_doa_wind = 0;
-    if (fx.vacuum) {
-        if (dbg_log_enabled() && (uint32_t)(h - g_vac_log_h) > DOA_FS_HZ) {
-            g_vac_log_h = h;
-            uint32_t lock = dbg_line_lock();
-            dbg_puts("VAC f=");
-            put_f1(fx.vac_f);
-            dbg_puts("Hz blocks f0=");
-            put_f1(fx.f0);
-            dbg_puts("Hz\n");
-            dbg_line_unlock(lock);
-        }
+    if (tn.vacuum && dbg_log_enabled() && (uint32_t)(h - g_vac_log_h) > DOA_FS_HZ) {
+        g_vac_log_h = h;
+        uint32_t lock = dbg_line_lock();
+        dbg_puts("VAC f=");
+        put_f1(tn.vac_f);
+        dbg_puts("Hz blocks f0=");
+        put_f1(tn.f0);
+        dbg_puts("Hz\n");
+        dbg_line_unlock(lock);
+    }
+
+    neo_track_t tr = neo_track_update(tn.tone, g_c_sound_m_s);
+    g_drones[1].used = false;
+    track_t *t = &g_drones[0];
+    if (!tr.active) {
+        t->used = false;
         return;
     }
-    // Blade tone still present: keep the last bearing instead of ageing it out
-    // on a noisy window. A window that fails the phase fit does not move it.
-    if (fx.tone && g_drones[0].used) g_drones[0].age = 0;
-    if (!fx.ok) return;
-    neo_publish_stable(fx.az, fx.el, fx.conf, fx.lvl_db);
+    if (!t->used) t->lvl_db = tn.lvl_db;
+    float conf = tr.q / NEO_Q_FULL;
+    t->az = tr.az;
+    t->el = tr.el;
+    t->conf = conf > 1.0f ? 1.0f : conf;
+    t->lvl_db = 0.8f * t->lvl_db + 0.2f * tn.lvl_db;
+    t->used = true;
+    t->cls = CLS_DRONE;
+    t->age = 0;
+    t->entity_id = 0;
+    t->have_xy = false;
+    g_neo_q = tr.q;
 }
 
 static void analyse_walker_onset(uint32_t h) {
@@ -2006,12 +1735,14 @@ static void doa_core1_main(void) {
 
     for (int i = 0; i < 6; i++)
         for (int k = 0; k < 3; k++) MIC_POS[i][k] = MIC_DIR[i][k] * DOA_FACE_R;
+    neo_srp_init(MIC_POS);
 
     g_cons = g_head;
     g_noise = 20.0f;
     g_env = 0.0f;
     g_last_onset_pos = g_cons;
     uint32_t last_drone = g_head;
+    g_srp_pos = g_head;
     memset(&g_bout, 0, sizeof(g_bout));
     memset(&g_walker, 0, sizeof(g_walker));
     memset(&g_veh, 0, sizeof(g_veh));
@@ -2025,10 +1756,24 @@ static void doa_core1_main(void) {
         g_doa_iter++;
         uint32_t h = g_head;
 
+        uint32_t behind = h - g_srp_pos;
+        if (behind >= NEO_SRP_N) {
+            // A flash save can stall core1; skip to the newest frame that is
+            // still whole in the ring.
+            if (behind > DOA_RING_SZ - NEO_SRP_N / 2u) {
+                g_srp_pos = h - NEO_SRP_N;
+                g_srp_drop++;
+            }
+            neo_srp_frame(&k_neo_ring, g_srp_pos);
+            g_srp_pos += NEO_SRP_HOP;
+            continue;
+        }
         if ((uint32_t)(h - last_drone) >= DOA_OUT_SAMPLES) {
             last_drone = h;
             track_age_drones();
+            uint32_t t0 = time_us_32();
             analyse_drone(h);
+            g_srp_eval_us = time_us_32() - t0;
             report_tracks();
         } else {
             tight_loop_contents();

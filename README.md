@@ -257,6 +257,15 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   last agreeing fixes. A noisy window holds the last bearing instead of
   opening a second track. A distant hover (RMS about 60) still counts when
   the blade line is sharp.
+  **v1.14.0:** direction from wideband SRP-PHAT (600 Hz–8 kHz, 0.25 s memory,
+  `neo_srp.c`) instead of the phase of the blade line. On one frequency the
+  direct sound and its echoes merge into one wrong bearing. Across the band the
+  ground reflection shows up as its own peak below the drone. The track
+  follows its own peak, never steps onto that ground image, and moves to
+  another peak only after 1 s of 1.4× stronger evidence. The vacuum veto now
+  needs a tonal 70–130 Hz hum at least as strong as the blade line, so
+  ordinary outdoor hum no longer drops a distant drone. `SRC` adds `q=`, the
+  SRP coherence of the tracked peak.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB
