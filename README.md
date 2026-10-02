@@ -307,6 +307,11 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   `/dev/serial/by-id/` path changes with the new string.
   **v1.20.0:** that same id is printed on the console identity line
   (`serial=<16 hex>`) and again by `STATUS`. It matches `SerialNumber` in dmesg.
+  **v1.21.0:** Neo 2 hover fix. A sharp blade line is reported even when
+  SRP-PHAT cannot lock (e.g. only one live mic in the capture, or a close
+  hover) via an energy/loudest-mic bearing (`pos=band`). The vacuum veto no
+  longer drops a high-prominence blade line that happens to sit near a
+  subharmonic of outdoor LF hum. Host check: `tools/neo_wav_check.c`.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB

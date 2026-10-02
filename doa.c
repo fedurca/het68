@@ -567,6 +567,46 @@ static uint32_t g_srp_eval_us;
 static float g_neo_f0;
 static float g_neo_q;
 static uint32_t g_vac_log_h;
+static uint8_t g_tone_hold;   // consecutive analyse ticks with a Neo blade line
+
+// Bearing from per-mic energy in the last tone window (works with 1+ live mics
+// when SRP-PHAT cannot lock — e.g. only mic1 in the capture, or a close hover).
+static bool energy_bearing(uint32_t h, float *az_out, float *el_out, float *conf_out) {
+    const uint32_t start = h - NEO_TONE_N;
+    float e[6];
+    float etot = 0.0f;
+    int nlive = 0;
+    for (int c = 0; c < 6; c++) {
+        float s = 0.0f;
+        for (uint32_t n = 0; n < NEO_TONE_N; n++) {
+            float x = (float)g_ring[(start + n) & DOA_RING_MASK][c];
+            s += x * x;
+        }
+        e[c] = s;
+        etot += s;
+        if (s > 1.0e6f) nlive++;   // ~RMS 22 on 2048 samples
+    }
+    if (etot < 1.0e6f) return false;
+
+    float wx = 0.0f, wy = 0.0f, wz = 0.0f;
+    for (int c = 0; c < 6; c++) {
+        float w = e[c] / etot;
+        wx += MIC_DIR[c][0] * w;
+        wy += MIC_DIR[c][1] * w;
+        wz += MIC_DIR[c][2] * w;
+    }
+    float norm = sqrtf(wx * wx + wy * wy + wz * wz);
+    if (norm < 1e-6f) return false;
+    wx /= norm; wy /= norm; wz /= norm;
+    float az = atan2f(wy, wx) * (180.0f / (float)M_PI);
+    if (az < 0.0f) az += 360.0f;
+    float el = asinf(fmaxf(-1.0f, fminf(1.0f, wz))) * (180.0f / (float)M_PI);
+    *az_out = az;
+    *el_out = el;
+    // One live mic → low conf (pos=band); several → still below a full SRP lock.
+    *conf_out = (nlive <= 1) ? 0.20f : 0.26f;
+    return true;
+}
 
 static void load_raw_window(uint32_t h) {
     uint32_t start = h - DOA_N;
@@ -1662,6 +1702,9 @@ static void analyse_drone(uint32_t h) {
     neo_tone_t tn = neo_tone(&k_neo_ring, h);
     if (tn.tone) {
         g_neo_f0 = (g_neo_f0 <= 0.0f) ? tn.f0 : (0.75f * g_neo_f0 + 0.25f * tn.f0);
+        if (g_tone_hold < 255u) g_tone_hold++;
+    } else if (g_tone_hold > 0u) {
+        g_tone_hold--;   // brief misses must not drop a hover lock
     }
     g_doa_wind = 0;
     if (tn.vacuum && dbg_log_enabled() && (uint32_t)(h - g_vac_log_h) > DOA_FS_HZ) {
@@ -1678,22 +1721,62 @@ static void analyse_drone(uint32_t h) {
     neo_track_t tr = neo_track_update(tn.tone, g_c_sound_m_s);
     g_drones[1].used = false;
     track_t *t = &g_drones[0];
-    if (!tr.active) {
-        t->used = false;
+
+    if (tr.active) {
+        if (!t->used) t->lvl_db = tn.lvl_db;
+        float conf = tr.q / NEO_Q_FULL;
+        t->az = tr.az;
+        t->el = tr.el;
+        t->conf = conf > 1.0f ? 1.0f : conf;
+        t->lvl_db = 0.8f * t->lvl_db + 0.2f * tn.lvl_db;
+        t->used = true;
+        t->cls = CLS_DRONE;
+        t->age = 0;
+        t->entity_id = 0;
+        t->have_xy = false;
+        g_neo_q = tr.q;
         return;
     }
-    if (!t->used) t->lvl_db = tn.lvl_db;
-    float conf = tr.q / NEO_Q_FULL;
-    t->az = tr.az;
-    t->el = tr.el;
-    t->conf = conf > 1.0f ? 1.0f : conf;
-    t->lvl_db = 0.8f * t->lvl_db + 0.2f * tn.lvl_db;
-    t->used = true;
-    t->cls = CLS_DRONE;
-    t->age = 0;
-    t->entity_id = 0;
-    t->have_xy = false;
-    g_neo_q = tr.q;
+
+    // Blade line recently present but SRP never locked (single live mic in
+    // the capture, very close hover, or spatial clutter). Still report the
+    // Neo so hover-in-place is not silent on UART / DET.
+    if (g_tone_hold >= 3u) {
+        float az = 0.0f, el = 35.0f, conf = 0.20f;
+        if (!energy_bearing(h, &az, &el, &conf)) {
+            // Loudest-mic look direction (mic1 = north = az 0).
+            int loud = 0;
+            float best_e = -1.0f;
+            const uint32_t start = h - NEO_TONE_N;
+            for (int c = 0; c < 6; c++) {
+                float s = 0.0f;
+                for (uint32_t n = 0; n < NEO_TONE_N; n++) {
+                    float x = (float)g_ring[(start + n) & DOA_RING_MASK][c];
+                    s += x * x;
+                }
+                if (s > best_e) { best_e = s; loud = c; }
+            }
+            float dx = MIC_DIR[loud][0], dy = MIC_DIR[loud][1], dz = MIC_DIR[loud][2];
+            az = atan2f(dy, dx) * (180.0f / (float)M_PI);
+            if (az < 0.0f) az += 360.0f;
+            el = asinf(fmaxf(-1.0f, fminf(1.0f, dz))) * (180.0f / (float)M_PI);
+            conf = 0.18f;
+        }
+        if (!t->used) t->lvl_db = tn.lvl_db;
+        t->az = az;
+        t->el = el;
+        t->conf = conf;
+        t->lvl_db = 0.8f * t->lvl_db + 0.2f * tn.lvl_db;
+        t->used = true;
+        t->cls = CLS_DRONE;
+        t->age = 0;
+        t->entity_id = 0;
+        t->have_xy = false;
+        g_neo_q = conf * NEO_Q_FULL;
+        return;
+    }
+
+    t->used = false;
 }
 
 static void analyse_walker_onset(uint32_t h) {
