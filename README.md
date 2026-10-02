@@ -305,6 +305,8 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   (`pico_get_unique_board_id_string`, 16 hex digits) instead of the fixed
   string `123654`. Audio and the detector are unchanged. The
   `/dev/serial/by-id/` path changes with the new string.
+  **v1.20.0:** that same id is printed on the console identity line
+  (`serial=<16 hex>`) and again by `STATUS`. It matches `SerialNumber` in dmesg.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB

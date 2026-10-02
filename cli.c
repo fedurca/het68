@@ -75,6 +75,9 @@ void cli_print_status(void) {
     dbg_puts("?");
 #endif
     dbg_puts(" ===\n");
+    dbg_puts("serial=");
+    dbg_puts_chip_serial();
+    dbg_putc('\n');
     dbg_line_unlock(lock);
 
     het68_time_info_uart();

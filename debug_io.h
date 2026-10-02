@@ -5,8 +5,10 @@
 // UART (GP0/GP1 via PICO_DEFAULT_UART_*_PIN) + optional USB CDC debug output.
 void dbg_init(void);
 
-// One line: version, build stamp, and whether HB/LOG debug is enabled.
+// One line: version, build stamp, HB/LOG, and the RP2350 OTP serial.
 void dbg_print_banner(void);
+// 16 hex digits, the same string the USB device descriptor reports.
+void dbg_puts_chip_serial(void);
 void dbg_putc(char c);
 void dbg_flush(void);
 void dbg_puts(const char *s);

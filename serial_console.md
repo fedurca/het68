@@ -36,6 +36,13 @@ mimo pásmo 2 kHz. Hlasitější událost zvedne všech šest kanálů naráz. �
 −240 dB je prázdný měřič (žádný vzorek nad 10⁻⁷ se do něj v tom okně nedostal),
 ne výpadek proudu, pokud `frames` dál rostou a `zeros_total` zůstává 0.
 
+## Sériové číslo
+
+První řádek po startu a po otevření USB CDC končí `serial=` a 16 hexadecimálními
+znaky. Je to totéž číslo, které Linux vypíše jako `SerialNumber` v dmesg:
+identifikátor z OTP čipu RP2350, ne pevný text. `STATUS` ho vypíše znovu na
+vlastním řádku.
+
 ## Proč ve výpisu chybí čas
 
 Řádek `[VU 2kHz]` hodiny nemá. Čas je jen na UART srdci Pica: `[123s]` jsou

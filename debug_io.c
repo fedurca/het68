@@ -14,6 +14,7 @@
 #include "tusb_config.h"
 #include "hardware/uart.h"
 #include "pico/stdlib.h"
+#include "pico/unique_id.h"
 #include "pico/multicore.h"
 
 // Mirror debug to USB CDC as a secondary channel. Off by default — see header.
@@ -51,6 +52,12 @@ void dbg_init(void) {
     g_tx_async = false;
 }
 
+void dbg_puts_chip_serial(void) {
+    char id[PICO_UNIQUE_BOARD_ID_SIZE_BYTES * 2u + 1u];
+    pico_get_unique_board_id_string(id, (uint)sizeof id);
+    dbg_puts(id[0] ? id : "?");
+}
+
 void dbg_print_banner(void) {
     uint32_t lock = dbg_line_lock();
     dbg_puts("het68 ");
@@ -73,6 +80,8 @@ void dbg_print_banner(void) {
     dbg_puts(g_hb_enabled ? "on" : "off");
     dbg_puts("  LOG=");
     dbg_puts(g_log_enabled ? "on" : "off");
+    dbg_puts("  serial=");
+    dbg_puts_chip_serial();
     dbg_putc('\n');
     dbg_line_unlock(lock);
 }
