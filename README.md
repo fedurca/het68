@@ -296,6 +296,10 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   **v1.17.0:** the USB channel map follows the detection cube:
   `TFC TRR TSL BC RLC RRC` (was the horizontal 5.1 map `FL FR FC LFE RL RR`).
   Channel 1 is still microphone 1. See the table under Audio format.
+  **v1.18.0:** [`serial_console.md`](serial_console.md) explains the spectro6
+  `[VU 2kHz]` listing, why that listing has no clock, the mic1–mic6 names, and
+  the UART commands plus heartbeat fields. The detector and USB audio are
+  unchanged.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB
