@@ -122,14 +122,17 @@ Use **pin 1 (white)** only on each analog port — one mic per socket.
 
 ### Data cable — shield socket per mic
 
-| Mic | USB ch | Shield socket | SD GPIO (pin 1 white) |
-|---|---|---|---|
-| 1 | 1 | **D16** | GP16 |
-| 2 | 2 | **D18** | GP18 |
-| 3 | 3 | **D20** | GP20 |
-| 4 | 4 | **A0** | GP26 |
-| 5 | 5 | **A1** | GP27 |
-| 6 | 6 | **A2** | GP28 |
+| Mic | USB ch | ALSA name | Direction | Shield socket | SD GPIO (pin 1 white) |
+|---|---|---|---|---|---|
+| 1 | 1 | TFC | north, +35° | **D16** | GP16 |
+| 2 | 2 | TRR | azimuth 120°, +35° | **D18** | GP18 |
+| 3 | 3 | TSL | azimuth 240°, +35° | **D20** | GP20 |
+| 4 | 4 | BC | azimuth 180°, −35° | **A0** | GP26 |
+| 5 | 5 | RLC | azimuth 300°, −35° | **A1** | GP27 |
+| 6 | 6 | RRC | azimuth 60°, −35° | **A2** | GP28 |
+
+`/proc/asound/cardN/stream0` prints `Channel map: TFC TRR TSL BC RLC RRC`.
+The names follow the UAC2 bitmap in bit order. They do not reorder samples.
 
 Breakout PCB: https://www.aliexpress.com/item/1005008956861273.html
 

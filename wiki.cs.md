@@ -18,7 +18,7 @@ het68 je USB audio firmware pro Raspberry Pi Pico 2 (RP2350):
 
 | Role | Co dělá |
 |---|---|
-| USB UAC2 zvukovka | 6kanálový vstup mikrofonů 48 kHz ze 3× stereo I2S (PIO + DMA + TinyUSB) |
+| USB UAC2 zvukovka | 6kanálový vstup mikrofonů 48 kHz ze 3× stereo I2S (PIO + DMA + TinyUSB). Mapa kanálů `TFC TRR TSL BC RLC RRC` (mik 1 = kanál 1 = sever) |
 | Akustický front-end | On-device DOA / klasifikace (dron, ptáci, vozidla, …) bez host PC |
 | Baro + rychlost zvuku | Grove DPS310 (GP2/GP3 I2C1) → vlhký vzduch \(c(T,p,\mathrm{RH})\) pro DOA i ranging |
 | Časová základna | `TIME` / `TIME INFO` se zdroji `uart`, `rid`, `acoustic` |

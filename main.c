@@ -34,6 +34,7 @@
 #include "dps310.h"
 #include "acoustic_link.h"
 #include "cli.h"
+#include "usb_audio_map.h"
 
 // Apply baro-derived speed of sound to DOA when a fresh sample exists.
 static void baro_update_sound_speed(void) {
@@ -647,10 +648,7 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport,
         dbg_ctrl_other++;
         static audio_desc_channel_cluster_t connector = {
             .bNrChannels = AUDIO_N_CHANNELS,
-            .bmChannelConfig = (audio_channel_config_t)(
-                AUDIO_CHANNEL_CONFIG_FRONT_LEFT | AUDIO_CHANNEL_CONFIG_FRONT_RIGHT |
-                AUDIO_CHANNEL_CONFIG_FRONT_CENTER | AUDIO_CHANNEL_CONFIG_LOW_FRQ_EFFECTS |
-                AUDIO_CHANNEL_CONFIG_BACK_LEFT | AUDIO_CHANNEL_CONFIG_BACK_RIGHT),
+            .bmChannelConfig = HET68_BM_CHANNEL_CONFIG,
             .iChannelNames = 0
         };
         return tud_control_xfer(rhport, p_request, &connector, sizeof(connector));

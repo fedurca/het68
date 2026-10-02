@@ -22,6 +22,23 @@ Per microphone (matching `MIC_DIR` in `doa.c`):
 - **Mics 4-6** — lower three faces, elevation **-35.26°**, azimuth interleaved by 60°
   (so each lower mic sits opposite an upper one).
 
+The USB descriptor names the same six channels, in microphone order. Linux
+prints them from the UAC2 bitmap in ascending bit order (`/proc/asound/cardN/stream0`):
+
+| USB ch | Mic | Name | Direction |
+|---|---|---|---|
+| 1 | 1 | TFC | north, +35.26° |
+| 2 | 2 | TRR | azimuth 120°, +35.26° |
+| 3 | 3 | TSL | azimuth 240°, +35.26° |
+| 4 | 4 | BC | azimuth 180°, −35.26° |
+| 5 | 5 | RLC | azimuth 300°, −35.26° |
+| 6 | 6 | RRC | azimuth 60°, −35.26° |
+
+`TRL` fits microphone 3 better than `TSL`, but that bit is below `TRR`, so it
+would be printed on channel 2. UAC2 has no bottom-front-left or
+bottom-front-right name, so channels 5 and 6 are `RLC` and `RRC`. The names
+do not change the sample order: USB channel 1 is still microphone 1.
+
 Position of each mic from the array centre:
 
 ```

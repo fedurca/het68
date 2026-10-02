@@ -20,6 +20,26 @@ samples into memory with DMA, and streams them to the host over USB Audio Class
 | Sample format | 24-bit signed, packed little-endian (`S24_3LE`, 3 bytes/sample) |
 | USB packet | 1 ms = 48 × 6 × 3 = 864 bytes (within the 1023-byte full-speed iso limit) |
 | Product string | `Pico 6ch Microphone 48k/24` |
+| Channel map | `TFC TRR TSL BC RLC RRC` |
+
+Linux prints that map from the UAC2 channel-config bitmap, in ascending bit
+order. USB channel 1 is still microphone 1. The names are the closest standard
+positions that keep this order (v1.17.0; earlier firmware reported a horizontal
+5.1 map, `FL FR FC LFE RL RR`):
+
+| USB ch | Mic | Name | Direction on the cube |
+|---|---|---|---|
+| 1 | 1 | TFC | north, +35° |
+| 2 | 2 | TRR | azimuth 120°, +35° |
+| 3 | 3 | TSL | azimuth 240°, +35° |
+| 4 | 4 | BC | azimuth 180°, −35° |
+| 5 | 5 | RLC | azimuth 300°, −35° |
+| 6 | 6 | RRC | azimuth 60°, −35° |
+
+`TRL` would describe microphone 3 more closely, but its bit is below `TRR`, so
+Linux would attach it to channel 2. UAC2 has no bottom-front-left or
+bottom-front-right position, so channels 5 and 6 use the next higher bits
+(`RLC`, `RRC`). The bitmap does not reorder samples.
 
 The host sees a standard 6-channel 48 kHz / 24-bit capture device and can record
 all six microphones simultaneously (e.g. with `arecord`, Audacity, Reaper, OBS).
@@ -273,6 +293,9 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   data interface is number 3, but the configuration claimed only three
   interfaces, so the host never opened the bulk endpoints. `TIME SYNC` on
   that port now reaches the CLI. Release builds keep the CDC mirror on.
+  **v1.17.0:** the USB channel map follows the detection cube:
+  `TFC TRR TSL BC RLC RRC` (was the horizontal 5.1 map `FL FR FC LFE RL RR`).
+  Channel 1 is still microphone 1. See the table under Audio format.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB
@@ -305,7 +328,9 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   v1.5.0–v1.9.0 used 384 mm).
   Mics 1–3 are the three upper faces (mic 1 = north, then +120°, +240° azimuth,
   all at +35.26° elevation); mics 4–6 are the opposite lower faces (−35.26°
-  elevation, azimuths interleaved by 60°). Select the edge at build time with any
+  elevation, azimuths interleaved by 60°). The USB channel map names those
+  positions `TFC TRR TSL BC RLC RRC` (see Audio format). Select the edge at
+  build time with any
   integer size — `HET68_DOA_EDGE_MM=384 ./build.sh` (default **128 mm**);
   `DOA_MAXLAG` and the comparison window derive from it automatically. How to
   physically build the cube, what to build it from, and a full edge-length

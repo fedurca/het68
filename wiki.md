@@ -19,7 +19,7 @@ het68 is Raspberry Pi Pico 2 USB audio firmware (RP2350):
 
 | Role | What it does |
 |---|---|
-| USB UAC2 sound card | 6-channel mic input at 48 kHz from 3× stereo I2S pairs (PIO + DMA + TinyUSB) |
+| USB UAC2 sound card | 6-channel mic input at 48 kHz from 3× stereo I2S pairs (PIO + DMA + TinyUSB). Channel map `TFC TRR TSL BC RLC RRC` (mic 1 = channel 1 = north) |
 | Acoustic front-end | On-device DOA / classify (drone, birds, vehicles, …) without a host PC |
 | Baro + speed of sound | Grove DPS310 (GP2/GP3 I2C1) → moist-air \(c(T,p,\mathrm{RH})\) for DOA and ranging |
 | Time base | `TIME` / `TIME INFO` with sources `uart`, `rid`, `acoustic` |
