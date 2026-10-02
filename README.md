@@ -269,6 +269,10 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   **v1.15.0:** releases and local builds are RP2350 only (Pico 2, Pico 2 W,
   Pico Plus 2 W). Pico and Pico W (RP2040, 264 KB RAM) are no longer built;
   the SRP tables do not fit there. The detector itself is unchanged from 1.14.0.
+  **v1.16.0:** the Pico's own USB serial port carries bytes again. The CDC
+  data interface is number 3, but the configuration claimed only three
+  interfaces, so the host never opened the bulk endpoints. `TIME SYNC` on
+  that port now reaches the CLI. Release builds keep the CDC mirror on.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB

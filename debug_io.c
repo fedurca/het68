@@ -207,10 +207,20 @@ void dbg_puthex32(uint32_t v) {
 }
 
 bool dbg_rx_available(void) {
-    return uart_is_readable(uart_default);
+    if (uart_is_readable(uart_default)) return true;
+#if HET68_DEBUG_CDC_ACTIVE
+    if (tud_cdc_connected() && tud_cdc_available()) return true;
+#endif
+    return false;
 }
 
 int dbg_getc(void) {
-    if (!uart_is_readable(uart_default)) return -1;
-    return (int)uart_getc(uart_default);
+    if (uart_is_readable(uart_default)) return (int)uart_getc(uart_default);
+#if HET68_DEBUG_CDC_ACTIVE
+    if (tud_cdc_connected() && tud_cdc_available()) {
+        uint8_t b = 0;
+        if (tud_cdc_read(&b, 1) == 1) return (int)b;
+    }
+#endif
+    return -1;
 }

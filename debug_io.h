@@ -14,7 +14,8 @@ void dbg_putu32(uint32_t v);
 void dbg_puthex8(uint8_t v);
 void dbg_puthex32(uint32_t v);
 
-// Non-blocking UART RX helpers (debug probe UART).
+// Non-blocking RX. Probe UART first, then the Pico USB CDC when debug CDC
+// is enabled. A command typed on either port reaches the CLI.
 bool dbg_rx_available(void);
 int dbg_getc(void);   // -1 if none
 
