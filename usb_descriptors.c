@@ -1,3 +1,4 @@
+#include "pico/unique_id.h"
 #include "tusb.h"
 #include "tusb_config.h"
 #include "usb_audio_map.h"
@@ -122,15 +123,27 @@ uint8_t const* tud_descriptor_configuration_cb(uint8_t index) {
 }
 
 // ---------- String descriptors ----------
+// Index 3 is iSerialNumber. The table slot is unused: the host is given the
+// RP2350 OTP id (16 hex digits), which the SDK reads before main().
+enum { HET68_STR_SERIAL = 3 };
+
 static char const* string_desc[] = {
   (const char[]){ 0x09, 0x04 },
   "het68",
   "Pico 6ch Microphone 48k/24",
-  "123654",
+  "",
   "het68 debug",
 };
 
+static char usb_chip_serial[PICO_UNIQUE_BOARD_ID_SIZE_BYTES * 2u + 1u];
 static uint16_t _desc_str[32];
+
+static const char *usb_serial_string(void) {
+  if (usb_chip_serial[0] == '\0') {
+    pico_get_unique_board_id_string(usb_chip_serial, (uint)sizeof usb_chip_serial);
+  }
+  return usb_chip_serial;
+}
 
 uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
   (void) langid;
@@ -140,7 +153,7 @@ uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
     chr_count = 1;
   } else {
     if (index >= (sizeof(string_desc)/sizeof(string_desc[0]))) return NULL;
-    const char* str = string_desc[index];
+    const char* str = (index == HET68_STR_SERIAL) ? usb_serial_string() : string_desc[index];
     chr_count = (uint8_t)strlen(str);
     if (chr_count > 31) chr_count = 31;
     for (uint8_t i = 0; i < chr_count; i++) _desc_str[1+i] = str[i];

@@ -20,6 +20,7 @@ samples into memory with DMA, and streams them to the host over USB Audio Class
 | Sample format | 24-bit signed, packed little-endian (`S24_3LE`, 3 bytes/sample) |
 | USB packet | 1 ms = 48 × 6 × 3 = 864 bytes (within the 1023-byte full-speed iso limit) |
 | Product string | `Pico 6ch Microphone 48k/24` |
+| Serial string | RP2350 OTP id, 16 hex digits |
 | Channel map | `TFC TRR TSL BC RLC RRC` |
 
 Linux prints that map from the UAC2 channel-config bitmap, in ascending bit
@@ -300,6 +301,10 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   `[VU 2kHz]` listing, why that listing has no clock, the mic1–mic6 names, and
   the UART commands plus heartbeat fields. The detector and USB audio are
   unchanged.
+  **v1.19.0:** the USB serial string is the chip's own id from RP2350 OTP
+  (`pico_get_unique_board_id_string`, 16 hex digits) instead of the fixed
+  string `123654`. Audio and the detector are unchanged. The
+  `/dev/serial/by-id/` path changes with the new string.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB
