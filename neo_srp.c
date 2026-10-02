@@ -55,13 +55,15 @@
 #define TONE_F_LO      900.0f
 #define TONE_F_STEP    20.0f
 #define TONE_NF        24
-#define TONE_PROM_MIN  50.0f
-#define TONE_RMS_MIN   60.0f
-// A 70–130 Hz hum is in most outdoor takes (82 Hz with motors off, 100 Hz
-// mains). It vetoes the line only when it is tonal, at least as strong as the
-// line, and the line sits on one of its harmonics.
-#define VAC_PROM_MIN   30.0f
-#define VAC_RATIO_MIN  1.0f
+#define TONE_PROM_MIN  40.0f   // hover can dip below the old 50
+#define TONE_RMS_MIN   50.0f   // close hover on one loud mic is still a Neo
+// A 70–130 Hz hum is common outdoors. A vacuum's blade-band energy is only a
+// weak harmonic of that hum. A real Neo blade line is sharp (high prom) even
+// when a motor/mains peak sits near a subharmonic — so require the LF tone to
+// dominate the blade bin and keep blade prominence modest before vetoing.
+#define VAC_PROM_MIN   40.0f
+#define VAC_RATIO_MIN  3.0f
+#define VAC_PROM_MAX   100.0f  // above this, treat as Neo blade, not vacuum
 
 static float s_sin[SRP_TAB];
 static uint16_t s_rev[NEO_SRP_N];
@@ -578,7 +580,8 @@ neo_tone_t neo_tone(const neo_ring_t *r, uint32_t h) {
         ctx[nctx++] = goertzel_pow(s_tone_buf, (int)NEO_TONE_N, f);
     }
     const float vprom = vac_p / (median_small(ctx, nctx) + 1e-12f);
-    if (vac_p >= VAC_RATIO_MIN * pw[best] && vprom >= VAC_PROM_MIN &&
+    if (prom < VAC_PROM_MAX &&
+        vac_p >= VAC_RATIO_MIN * pw[best] && vprom >= VAC_PROM_MIN &&
         is_harmonic(fr[best], vac_f)) {
         t.vacuum = true;
         return t;
