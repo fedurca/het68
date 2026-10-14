@@ -34,6 +34,7 @@
 #include "dps310.h"
 #include "acoustic_link.h"
 #include "cli.h"
+#include "hwmon.h"
 #include "usb_audio_map.h"
 
 // Apply baro-derived speed of sound to DOA when a fresh sample exists.
@@ -354,6 +355,14 @@ static void i2s_capture_init(uint32_t sample_rate) {
     dbg_puts(" dma0=");
     dbg_putu32((uint32_t)i2s_dma[0]);
     dbg_putc('\n');
+}
+
+void i2s_retune_for_sysclk(void) {
+    if (!i2s_started) return;
+    float div = (float)clock_get_hz(clk_sys) / (196.0f * (float)current_sample_rate);
+    pio_sm_set_clkdiv(pio0, I2S_CLK_SM, div);
+    for (uint i = 0; i < I2S_NUM_LINES; i++)
+        pio_sm_set_clkdiv(i2s_pio_line[i], i2s_sm[i], div);
 }
 
 // The RX SM captures 32 bits MSB-first per WS slot. Where the sample MSB lands
@@ -903,6 +912,7 @@ int main(void)
     // Piezo synchronisation beacon (PS1240 H-bridge on GP6/GP7).
     buzzer_init();
     dbg_puts("buzzer: PS1240 H-bridge GP6/GP7, 4kHz PN beacon\n");
+    hwmon_init();
 
 #if !HET68_USB_DIAG
     het68_time_init();
@@ -1013,6 +1023,7 @@ int main(void)
         baro_update_sound_speed();
         acoustic_link_poll();
 #endif
+        hwmon_poll();
         // Audio frames are produced in tud_audio_tx_done_pre_load_cb(), driven by
         // the USB IN cadence — nothing to pump from the main loop here.
 

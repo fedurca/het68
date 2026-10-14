@@ -1,18 +1,21 @@
 cmake_minimum_required(VERSION 3.13)
 
+# Only the Pimoroni Pico Plus 2 W (RP2350B, 16 MB flash, 8 MB PSRAM, CYW43).
+if(NOT PICO_BOARD)
+    set(PICO_BOARD pimoroni_pico_plus2_w_rp2350)
+endif()
+if(NOT PICO_BOARD STREQUAL "pimoroni_pico_plus2_w_rp2350")
+    message(FATAL_ERROR
+        "het68 builds only for pimoroni_pico_plus2_w_rp2350 "
+        "(Pimoroni Pico Plus 2 W). Got PICO_BOARD='${PICO_BOARD}'.")
+endif()
+
 # vendored SDK
 set(PICO_SDK_PATH ${CMAKE_CURRENT_LIST_DIR}/pico-sdk)
 include(${CMAKE_CURRENT_LIST_DIR}/pico-sdk/external/pico_sdk_import.cmake)
 
 project(pico_6mic_soundcard C CXX ASM)
 pico_sdk_init()
-
-# The wideband detector's static tables do not fit in RP2040 SRAM (264 KB).
-if(PICO_PLATFORM STREQUAL "rp2040")
-    message(FATAL_ERROR
-        "het68 requires RP2350 (Pico 2, Pico 2 W, or Pico Plus 2 W). "
-        "RP2040 (Pico / Pico W) is not supported.")
-endif()
 
 set(SRCS
     main.c
@@ -31,6 +34,7 @@ set(SRCS
     dps310.c
     acoustic_link.c
     node_store.c
+    hwmon.c
 )
 
 add_executable(pico_6mic_soundcard ${SRCS})
@@ -38,10 +42,10 @@ add_executable(pico_6mic_soundcard ${SRCS})
 # Version stamp (UART help / docs). Semver core for releases.
 string(TIMESTAMP HET68_BUILD_STAMP "%Y-%m-%d %H:%M:%S")
 add_compile_definitions(
-    HET68_VERSION_STR=\"1.21.0\"
+    HET68_VERSION_STR=\"1.22.0\"
     HET68_BUILD_STAMP=\"${HET68_BUILD_STAMP}\"
 )
-message(STATUS "het68: version 1.21.0  build ${HET68_BUILD_STAMP}")
+message(STATUS "het68: version 1.22.0  build ${HET68_BUILD_STAMP}")
 
 # Optional fixed acoustic-link node id (0..7). Default 0; also settable at
 # runtime via the LINK ID CLI command.
@@ -134,6 +138,7 @@ target_link_libraries(pico_6mic_soundcard
     hardware_clocks
     hardware_pwm
     hardware_i2c
+    hardware_adc
     tinyusb_device
     tinyusb_board
 )

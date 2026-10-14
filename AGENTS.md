@@ -31,10 +31,9 @@ Build command:
 
 Default target board:
 
-PICO_BOARD=pico2
+PICO_BOARD=pimoroni_pico_plus2_w_rp2350
 
-Also supported: pico2_w, pimoroni_pico_plus2_w_rp2350.
-Not supported: pico, pico_w (RP2040; the detector does not fit in 264 KB RAM).
+Only this board is supported (RP2350B, 16 MB flash, 8 MB PSRAM, Wi-Fi/BT).
 
 ## Flash/debug assumption
 

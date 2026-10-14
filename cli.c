@@ -1,5 +1,6 @@
 // cli.c — UART command-line interface for gallery + detection log + time/log.
 #include "cli.h"
+#include "hwmon.h"
 #include "debug_io.h"
 #include "entity_store.h"
 #include "detection_log.h"
@@ -57,8 +58,12 @@ void cli_print_help(void) {
     dbg_puts("LINK ID <0-7>        — set this node's acoustic id / CDMA code\n");
     dbg_puts("LINK BEACON          — send one beacon now (ranging/sync)\n");
     dbg_puts("LINK WIFI            — broadcast WIFI_WAKE (bulk sync / OTA)\n");
-    dbg_puts("RID LIST             — OpenDroneID BLE tracks (CYW43 boards)\n");
+    dbg_puts("RID LIST             — OpenDroneID BLE tracks\n");
     dbg_puts("RID ON | RID OFF     — enable/disable BLE Remote ID scan\n");
+    dbg_puts("HW                   — CPU, clock, VSYS, RAM, PSRAM\n");
+    dbg_puts("HW ON | HW OFF       — 1 Hz HW line on the UART\n");
+    dbg_puts("CLK                  — system clock (kHz)\n");
+    dbg_puts("CLK <kHz>            — set sysclk 48000..150000 (retunes I2S)\n");
     dbg_puts("Note: debug is on after reboot (HB ON, LOG ON). Enter submits a command.\n");
     dbg_puts("Note: DET timestamps after TIME SYNC (UART or RID System msg).\n");
     dbg_puts("Note: LOG ON prints CMP mic az/el vs RID GPS az/el (needs System origin).\n");
@@ -95,6 +100,9 @@ void cli_print_status(void) {
     if (entity_store_saving()) dbg_puts(" saving");
     dbg_putc('\n');
     drone_store_stats_uart();
+    dbg_line_unlock(lock);
+    hwmon_print();
+    lock = dbg_line_lock();
     dbg_puts("RID live=");
     dbg_putu32(remote_id_active_count());
     dbg_puts(" avail=");
@@ -417,6 +425,38 @@ static void handle_line(char *line) {
         } else {
             remote_id_set_enabled(false);
             dbg_puts("RID scan=off\n");
+        }
+        return;
+    }
+
+    if (strcmp(line, "HW") == 0) {
+        hwmon_print();
+        return;
+    }
+    if (strcmp(line, "HW ON") == 0) {
+        hwmon_set_uart(true);
+        dbg_puts("HW uart=on\n");
+        return;
+    }
+    if (strcmp(line, "HW OFF") == 0) {
+        hwmon_set_uart(false);
+        dbg_puts("HW uart=off\n");
+        return;
+    }
+    if (strcmp(line, "CLK") == 0) {
+        dbg_puts("CLK ");
+        dbg_putu32(hwmon_clk_khz());
+        dbg_puts(" kHz\n");
+        return;
+    }
+    if (strncmp(line, "CLK ", 4) == 0) {
+        uint32_t khz = parse_u32(line + 4);
+        if (hwmon_set_clk_khz(khz)) {
+            dbg_puts("CLK ok ");
+            dbg_putu32(hwmon_clk_khz());
+            dbg_puts(" kHz\n");
+        } else {
+            dbg_puts("CLK ERR: use 48000..150000 kHz\n");
         }
         return;
     }

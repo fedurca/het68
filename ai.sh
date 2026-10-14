@@ -189,7 +189,7 @@ Build command:
 
 Default target board:
 
-PICO_BOARD=pico2
+PICO_BOARD=pimoroni_pico_plus2_w_rp2350
 
 ## Flash/debug assumption
 

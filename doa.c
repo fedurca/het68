@@ -9,6 +9,7 @@
 //
 // core1 must be launched with het68_launch_core1() (see core1_launch.c).
 #include "doa.h"
+#include "hwmon.h"
 #include "entity_store.h"
 #include "detection_log.h"
 #include "core1_launch.h"
@@ -1812,6 +1813,7 @@ static bool doa_core1_verify(void) {
 }
 
 static void doa_core1_main(void) {
+    hwmon_dwt_on();
     // Allow the other core to lock us out during flash_safe_execute saves.
     entity_store_core_init();
     detection_log_core_init();
@@ -1836,6 +1838,7 @@ static void doa_core1_main(void) {
     het68_retired_classifiers();
 
     for (;;) {
+        hwmon_account();
         g_doa_iter++;
         uint32_t h = g_head;
 
@@ -1859,7 +1862,7 @@ static void doa_core1_main(void) {
             g_srp_eval_us = time_us_32() - t0;
             report_tracks();
         } else {
-            tight_loop_contents();
+            hwmon_idle_spin();
         }
     }
 }

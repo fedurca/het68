@@ -364,9 +364,8 @@ Pre-built firmware for each tagged release is published on GitHub Releases:
 **https://github.com/fedurca/het68/releases**
 
 Create a GitHub Release whose tag is SemVer core ([semver.org](https://semver.org/))
-— `x.y.z` or `vx.y.z` (e.g. `1.2.4` / `v1.2.4`) — and CI builds firmware for
-**pico2**, **pico2_w** (RP2350 + CYW43439 Wi‑Fi/BT), and
-**Pico Plus 2 W**. Pico and Pico W are not built. CI then
+— `x.y.z` or `vx.y.z` (e.g. `1.22.0` / `v1.22.0`) — and CI builds firmware for
+the **Pimoroni Pico Plus 2 W** only, then
 attaches `.uf2` / `.elf` assets plus **`SHA256SUMS.txt`** and **`SIGNING.txt`**
 (reserved for future detached signatures; see [`signing/README.md`](signing/README.md)).
 
@@ -389,32 +388,26 @@ See `BUILDING.md` for details.
 
 ### Target board
 
-The default board is `pico2` (Raspberry Pi Pico 2, RP2350A, 4 MB flash, no PSRAM).
-Select a different board with `PICO_BOARD`:
+The only supported board is the **Pimoroni Pico Plus 2 W**
+(`pimoroni_pico_plus2_w_rp2350`): RP2350B, 16 MB flash, 8 MB PSRAM, CYW43439
+Wi-Fi/BT. `./build.sh` selects it. Other Pico boards are rejected.
 
 ```bash
-./build.sh                                          # default: pico2
-PICO_BOARD=pico2_w ./build.sh                       # Pico 2 W: RP2350A + CYW43439 Wi-Fi/BT
-PICO_BOARD=pimoroni_pico_plus2_w_rp2350 ./build.sh  # 16 MB flash, 8 MB PSRAM, Wi-Fi/BT
+./build.sh
 ```
 
-| Board | `PICO_BOARD` | Notes |
-|---|---|---|
-| Pico 2 | `pico2` | RP2350A, 4 MB flash, no wireless |
-| **Pico 2 W** | **`pico2_w`** | RP2350A + **CYW43439** Wi‑Fi/BT (OpenDroneID) |
-| Pico Plus 2 W | `pimoroni_pico_plus2_w_rp2350` | RP2350B, 16 MB flash, 8 MB PSRAM, Wi‑Fi/BT |
+**v1.22.0** adds a UART hardware monitor (`HW` once a second, or `HW` / `CLK`
+on the CLI). `cpu0`/`cpu1` are the share of `clk_sys` cycles spent outside the
+core1 idle spin (M33 has no retired-instruction counter; DWT cycle count is the
+stand-in). `CLK <kHz>` sets the system clock between 48 and 150 MHz and retunes
+the I2S divider so the microphones stay at 48 kHz. `vsys` is measured on
+GPIO43; `iest`/`pest`/`e` are an energy **estimate** — this board has no
+current shunt. `psram` is the bump allocator on the 8 MB APS6404 at
+`0x11000000` (`hwmon_psram_alloc`).
 
-Pico and Pico W (RP2040) are not supported from v1.15.0. The detector's static
-tables need more than 264 KB of SRAM.
-
-The **Pimoroni Pico Plus 2 W** (RP2350B) is the recommended upgrade for multi-node
-work: 16 MB flash, 8 MB PSRAM (headroom for recording / on-device detection), and
-2.4 GHz Wi-Fi + Bluetooth for networking nodes. Official **Pico 2 W** is the
-drop-in wireless Pico 2 (same 4 MB flash, CYW43439). Boards whose LED lives on a
-wireless module do not define `PICO_DEFAULT_LED_PIN`, so the heartbeat LED is
-skipped there (the UART heartbeat still runs). Rationale, PSRAM sizing, power
-(all these boards are 3.3 V designs; USB needs 3.3 V `USB_OTP_VDD`, so a
-fully-1.8 V node is custom-hardware only), and alternatives are in
+Boards whose LED lives on the wireless module do not define
+`PICO_DEFAULT_LED_PIN`, so the heartbeat LED is skipped (the UART heartbeat
+still runs). Mechanical and power notes are in
 [`array_cube_design.md`](array_cube_design.md).
 
 ### TinyUSB / pico-sdk patches
