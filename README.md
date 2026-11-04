@@ -312,6 +312,10 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   hover) via an energy/loudest-mic bearing (`pos=band`). The vacuum veto no
   longer drops a high-prominence blade line that happens to sit near a
   subharmonic of outdoor LF hum. Host check: `tools/neo_wav_check.c`.
+  **v1.22.0:** the user LED blinks twice a second on every supported board,
+  including Pico 2 W and Pico Plus 2 W, where the LED is on the CYW43439.
+  That blink means the main loop is running. Audio and the detector are
+  unchanged.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB
@@ -410,9 +414,10 @@ tables need more than 264 KB of SRAM.
 The **Pimoroni Pico Plus 2 W** (RP2350B) is the recommended upgrade for multi-node
 work: 16 MB flash, 8 MB PSRAM (headroom for recording / on-device detection), and
 2.4 GHz Wi-Fi + Bluetooth for networking nodes. Official **Pico 2 W** is the
-drop-in wireless Pico 2 (same 4 MB flash, CYW43439). Boards whose LED lives on a
-wireless module do not define `PICO_DEFAULT_LED_PIN`, so the heartbeat LED is
-skipped there (the UART heartbeat still runs). Rationale, PSRAM sizing, power
+drop-in wireless Pico 2 (same 4 MB flash, CYW43439). On those boards the user
+LED is a CYW43439 GPIO, and the firmware blinks it twice a second once the
+radio is up. Pico 2 and Pico Plus 2 (no radio) blink GPIO 25 at the same rate.
+Rationale, PSRAM sizing, power
 (all these boards are 3.3 V designs; USB needs 3.3 V `USB_OTP_VDD`, so a
 fully-1.8 V node is custom-hardware only), and alternatives are in
 [`array_cube_design.md`](array_cube_design.md).

@@ -34,6 +34,10 @@ typedef struct {
 bool remote_id_init(void);
 bool remote_id_available(void);
 
+// User LED on the CYW43 module (Pico 2 W / Pico Plus 2 W). No-op until init
+// succeeds, and on boards whose LED is a plain GPIO.
+void remote_id_set_led(bool on);
+
 // Enable/disable scanning (default ON after successful init).
 void remote_id_set_enabled(bool on);
 bool remote_id_enabled(void);

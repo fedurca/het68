@@ -18,6 +18,7 @@
 
 bool remote_id_init(void) { return false; }
 bool remote_id_available(void) { return false; }
+void remote_id_set_led(bool on) { (void)on; }
 void remote_id_set_enabled(bool on) { (void)on; }
 bool remote_id_enabled(void) { return false; }
 void remote_id_poll(void) {}
@@ -60,6 +61,7 @@ static int32_t g_origin_lat_e7;
 static int32_t g_origin_lon_e7;
 static btstack_packet_callback_registration_t g_hci_cb;
 static volatile bool g_ready;
+static bool g_cyw43_up;
 static volatile bool g_enabled = true;
 static volatile bool g_scan_on;
 static uint32_t g_last_log_ms;
@@ -359,6 +361,7 @@ bool remote_id_init(void) {
         dbg_puts("RID: cyw43_arch_init FAILED\n");
         return false;
     }
+    g_cyw43_up = true;
 
     // BT stack is brought up inside cyw43_arch_init via btstack_cyw43_init.
     l2cap_init();
@@ -374,6 +377,11 @@ bool remote_id_init(void) {
 }
 
 bool remote_id_available(void) { return true; }
+
+void remote_id_set_led(bool on) {
+    if (!g_cyw43_up) return;
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, on);
+}
 
 void remote_id_set_enabled(bool on) {
     g_enabled = on;
