@@ -237,7 +237,8 @@ Akustická quality je záměrně nižší než UART/RID, aby přímý zdroj vyhr
 ### DOA / klasifikace
 
 Běží na stejném 48kHz streamu jako USB a chirp RX. Core1 skenuje celý 10,9 s
-PSRAM kruh (`longwin.c`) a na UART posílá `SRC class=drone|vehicle|speech az=…`.
+PSRAM kruh (`longwin.c`) a na UART posílá jedno `SRC class=drone|vehicle|speech az=…`
+pro dané okno (řeč nepřekryje starou stopu vozidla).
 DET log / entity persistence ovládá CLI (`DET`, `ENT`, `DRONE`, …). CMP řádky
 mohou slučovat akustické DOA s RID GPS.
 

@@ -199,18 +199,30 @@ void longwin_scan(const neo_ring_t *r, uint32_t head, uint32_t nframes,
     if (azm < 0.0f) azm += 360.0f;
     out->az = azm;
     out->el = esin / (float)loud;
-    // Concentration of bearings: 1 = all hops same az. Far-field equal-level
-    // tones make per-hop energy bearing wander; treat that span as unknown.
+    // R = 1: all loud hops share one bearing. A talker plus a gain-bias
+    // ghost, or a far-field equal-level tone, spreads R and inflates span.
     float R = nxy / (float)loud;
     float devs[LW_MAX_HOPS];
-    uint32_t nd = 0;
+    float jits[LW_MAX_HOPS];
+    uint32_t nd = 0, nj = 0;
+    int32_t prev = -1;
     for (uint32_t h = 0; h < nh; h++) {
         if (hop_rms[h] < thr) continue;
         devs[nd++] = ang_diff_deg(hop_az[h], azm);
+        if (prev >= 0) {
+            jits[nj++] = ang_diff_deg(hop_az[h], hop_az[(uint32_t)prev]);
+        }
+        prev = (int32_t)h;
     }
     sort256(devs, nd);
     float d90 = (nd > 0u) ? devs[(nd * 9u) / 10u] : 0.0f;
-    out->daz_deg = (R >= 0.40f) ? (2.0f * d90) : 0.0f;
+    float span = 2.0f * d90;
+    if (span > 180.0f) span = 180.0f;
+    out->daz_deg = span;
+    if (nj > 0u) {
+        sort256(jits, nj);
+        out->az_jitter = jits[nj / 2u];
+    }
     out->conf = clampf(0.35f * out->duty + 0.65f * R, 0.0f, 1.0f);
 
     // Envelope modulation on the hop-RMS series (fs ≈ 23.4 Hz).
@@ -236,11 +248,22 @@ void longwin_scan(const neo_ring_t *r, uint32_t head, uint32_t nframes,
         0.7f * score_below(out->daz_deg, 10.0f, 28.0f) +
         0.6f * score_below(out->low_r, 0.14f, 0.34f);
 
+    // Pass-by: moderate span AND smooth hop-to-hop az. A talker plus a
+    // gain-bias ghost has daz near 180° and must not look like a car.
+    float passby =
+        score_band(out->daz_deg, 12.0f, 22.0f, 75.0f, 120.0f) *
+        score_below(out->az_jitter, 6.0f, 20.0f);
+    float idle =
+        score_above(out->duty, 0.45f, 0.80f) *
+        score_above(out->low_r, 0.24f, 0.46f) *
+        score_below(out->daz_deg, 8.0f, 28.0f);
+
     out->s_vehicle =
-        1.9f * score_above(out->low_r, 0.20f, 0.42f) +
-        1.2f * score_above(out->duty, 0.28f, 0.75f) +
-        1.5f * score_above(out->daz_deg, 14.0f, 45.0f) +
-        0.8f * score_below(out->mod_syll, 0.09f, 0.26f) +
+        1.4f * score_above(out->low_r, 0.22f, 0.44f) +
+        1.1f * score_above(out->duty, 0.32f, 0.78f) +
+        1.8f * passby +
+        1.2f * idle +
+        1.0f * score_below(out->mod_syll, 0.08f, 0.22f) +
         0.5f * score_below(out->crest, 2.4f, 4.0f);
 
     out->s_speech =
@@ -253,7 +276,13 @@ void longwin_scan(const neo_ring_t *r, uint32_t head, uint32_t nframes,
 
 longwin_class_t longwin_pick(const longwin_t *s) {
     if (!s || s->loud < 6u) return LW_NONE;
-    const float a = s->s_drone, b = s->s_vehicle, c = s->s_speech;
+    float a = s->s_drone, b = s->s_vehicle, c = s->s_speech;
+    // Syllabic mid-band energy is speech, even with room rumble under it.
+    const bool speechy = (s->mod_syll >= 0.12f && s->sp_r >= 0.22f);
+    if (speechy) b *= 0.22f;
+    // Floor / hotter bottom mics pull energy-az below the horizon.
+    if (s->el < -28.0f) b *= 0.25f;
+
     float m = a;
     longwin_class_t w = LW_DRONE;
     if (b > m) { m = b; w = LW_VEHICLE; }
@@ -263,6 +292,9 @@ longwin_class_t longwin_pick(const longwin_t *s) {
     if (w != LW_VEHICLE && b > second) second = b;
     if (w != LW_SPEECH  && c > second) second = c;
     if (m < 1.55f) return LW_NONE;
-    if (m < second + 0.28f) return LW_NONE;
+    if (m < second + 0.32f) return LW_NONE;
+    if (w == LW_VEHICLE && c >= 1.15f && b < c + 0.85f) return LW_SPEECH;
+    if (w == LW_VEHICLE && s->duty < 0.24f && s->daz_deg < 16.0f) return LW_NONE;
+    if (w == LW_VEHICLE && s->el < -30.0f) return LW_NONE;
     return w;
 }

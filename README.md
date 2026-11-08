@@ -322,6 +322,11 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   Neo 2 still uses the blade-tone + SRP-PHAT tracker; vehicle and speech use
   band energy, syllabic envelope modulation, and azimuth travel. Host check:
   `tools/longwin_check.c`.
+  **v1.25.0:** speech no longer leaves a stale **vehicle** track. A talker
+  plus room rumble / hotter bottom mics used to score as a car (`daz` near
+  180°, `el` well below the horizon, TTL keeping `az=106°`). Vehicle now
+  needs a smooth pass-by or a loud idle, speech vetoes the car class, and
+  the 10 s window reports one scene class. Host check: `tools/longwin_check.c`.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB

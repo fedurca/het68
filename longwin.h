@@ -27,7 +27,8 @@ typedef struct {
     float el;
     float conf;
     float lvl_db;
-    float daz_deg;    // azimuth span of loud hops
+    float daz_deg;    // azimuth span of loud hops (0..180)
+    float az_jitter;  // median hop-to-hop |Δaz| of loud hops, deg
     float duty;       // fraction of hops above the noise floor
     float low_r;      // <~250 Hz
     float mid_r;      // ~300–1400 Hz (blade / engine mid)

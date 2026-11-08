@@ -442,6 +442,14 @@ static uint32_t track_count_vehicles(void) {
     return n;
 }
 
+static void tracks_clear_vehicles(void) {
+    memset(g_vehicles, 0, sizeof(g_vehicles));
+}
+
+static void tracks_clear_speech(void) {
+    memset(&g_speech, 0, sizeof(g_speech));
+}
+
 static void vehicle_upsert(src_class_t cls, float az, float el, float conf,
                            float lvl_db, uint32_t eid, float match, float mod_hz) {
     int i = track_find_vehicle(az, el);
@@ -1857,13 +1865,21 @@ static void analyse_longwin(uint32_t h) {
     if (n > DOA_RING_SZ) n = DOA_RING_SZ;
     longwin_scan(&k_neo_ring, h, n, MIC_DIR, &g_lw);
 
-    float paz = g_lw.az, pel = g_lw.el, pq = 0.0f;
-    if (neo_srp_peak(&paz, &pel, &pq) && pq >= 0.10f) {
-        g_src_pq = pq;
-    } else {
-        paz = g_lw.az;
-        pel = g_lw.el;
-        g_src_pq = pq;
+    // Energy-window bearing for speech/vehicle. SRP is the drone tracker and
+    // will happily hold a floor/gain-bias lobe that has nothing to do with
+    // the talker; only take it when it agrees with the loud-hop az.
+    float paz = g_lw.az, pel = g_lw.el;
+    g_src_pq = 0.0f;
+    {
+        float saz = paz, sel = pel, pq = 0.0f;
+        if (neo_srp_peak(&saz, &sel, &pq) && pq >= 0.10f) {
+            float d = ang_diff_deg(saz, g_lw.az) + fabsf(sel - g_lw.el);
+            if (d < 40.0f) {
+                paz = saz;
+                pel = sel;
+                g_src_pq = pq;
+            }
+        }
     }
 
     longwin_t sc = g_lw;
@@ -1881,14 +1897,19 @@ static void analyse_longwin(uint32_t h) {
         if (conf > 1.0f) conf = 1.0f;
     }
 
-    if (w == LW_VEHICLE) {
+    // One scene class for the 10 s window. TTL used to keep a stale car
+    // next to a moving talker (live log: vehicle stuck at 106°/-47°).
+    if (w != LW_VEHICLE) tracks_clear_vehicles();
+    if (w != LW_SPEECH) tracks_clear_speech();
+
+    if (w == LW_VEHICLE && pel >= -28.0f && conf >= 0.38f) {
         vehicle_upsert(CLS_VEHICLE, paz, pel, conf, g_lw.lvl_db,
                        0, 0.0f, g_lw.mod_slow);
-    }
-    if (w == LW_SPEECH) {
+    } else if (w == LW_VEHICLE) {
+        tracks_clear_vehicles();
+    } else if (w == LW_SPEECH) {
         speech_upsert(paz, pel, conf, g_lw.lvl_db);
-    }
-    if (w == LW_DRONE && !drone_live) {
+    } else if (w == LW_DRONE && !drone_live) {
         drone_upsert(paz, pel, conf, g_lw.lvl_db);
         g_neo_q = g_src_pq;
     }

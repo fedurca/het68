@@ -237,8 +237,8 @@ Acoustic quality is intentionally below UART/RID so a direct source wins.
 ### DOA / classify
 
 Runs on the same 48 kHz mic stream as USB and chirp RX. Core1 scans the full
-10.9 s PSRAM ring (`longwin.c`) and prints `SRC class=drone|vehicle|speech az=…`
-on UART. DET log / entity persistence are CLI-driven (`DET`, `ENT`, `DRONE`, …).
+10.9 s PSRAM ring (`longwin.c`) and prints one `SRC class=drone|vehicle|speech az=…`
+on UART for that window (speech vetoes a stale vehicle). DET log / entity persistence are CLI-driven (`DET`, `ENT`, `DRONE`, …).
 CMP lines can fuse acoustic DOA with RID GPS when both exist.
 
 ### Barometer and \(c\)
