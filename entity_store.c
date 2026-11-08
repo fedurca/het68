@@ -8,6 +8,7 @@
 // USB audio is idle (alt=0), then the new seq/CRC makes it the winner.
 #include "entity_store.h"
 #include "debug_io.h"
+#include "psram.h"
 #include "hardware/flash.h"
 #include "hardware/sync.h"
 #include "pico/flash.h"
@@ -315,6 +316,7 @@ void entity_store_poll(bool usb_audio_idle) {
             .len = FLASH_SECTOR_SIZE
         };
         int rc = flash_safe_execute(flash_erase_cb, &op, 200);
+        het68_psram_restore();
         if (rc != PICO_OK) return; // retry next idle poll
         g_phase = SAVE_PROG;
         g_prog_off = 0;
@@ -348,6 +350,7 @@ void entity_store_poll(bool usb_audio_idle) {
             .len = FLASH_PAGE_SIZE
         };
         int rc = flash_safe_execute(flash_prog_page_cb, &op, 200);
+        het68_psram_restore();
         if (rc != PICO_OK) return;
         g_prog_off += FLASH_PAGE_SIZE;
         // one page per poll

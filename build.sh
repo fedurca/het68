@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
 # build.sh — přepíše err_build.log a loguje úplně vše (configure + verbose build)
 #
-# Supported PICO_BOARD values (default: pico2). RP2040 (Pico / Pico W) is not
-# built: the detector does not fit in 264 KB RAM.
-#   pico2                             — Raspberry Pi Pico 2 (RP2350)
-#   pico2_w                           — Raspberry Pi Pico 2 W (RP2350 + CYW43439)
-#   pimoroni_pico_plus2_w_rp2350      — Pimoroni Pico Plus 2 W
+# Supported board (default and only):
+#   pimoroni_pico_plus2_w_rp2350      — Pimoroni Pico Plus 2 W (8 MB PSRAM)
 #
 # Example:
-#   PICO_BOARD=pico2_w ./build.sh
+#   ./build.sh
 
 set -Eeuo pipefail
 set -x
@@ -16,17 +13,18 @@ set -x
 # log do souboru i na konzoli (při každém běhu se přepíše)
 exec > >(tee err_build.log) 2>&1
 
-PICO_BOARD="${PICO_BOARD:-pico2}"
+PICO_BOARD="${PICO_BOARD:-pimoroni_pico_plus2_w_rp2350}"
 case "${PICO_BOARD}" in
-  pico|pico_w)
-    echo "PICO_BOARD='${PICO_BOARD}' is RP2040 and is no longer supported." >&2
-    echo "het68 requires RP2350: pico2, pico2_w, or pimoroni_pico_plus2_w_rp2350." >&2
+  pico|pico_w|pico2|pico2_w)
+    echo "PICO_BOARD='${PICO_BOARD}' is not supported." >&2
+    echo "het68 requires the Pimoroni Pico Plus 2 W (8 MB PSRAM)." >&2
+    echo "Use: PICO_BOARD=pimoroni_pico_plus2_w_rp2350 ./build.sh" >&2
     exit 1
     ;;
-  pico2|pico2_w|pimoroni_pico_plus2_w_rp2350) ;;
+  pimoroni_pico_plus2_w_rp2350) ;;
   *)
     echo "Unsupported PICO_BOARD='${PICO_BOARD}'." >&2
-    echo "Supported: pico2 pico2_w pimoroni_pico_plus2_w_rp2350" >&2
+    echo "Supported: pimoroni_pico_plus2_w_rp2350" >&2
     exit 1
     ;;
 esac
@@ -60,4 +58,3 @@ cmake "${CMAKE_ARGS[@]}"
 
 # build ve verbose režimu (funguje pro Ninja i Make)
 cmake --build build --parallel --verbose
-

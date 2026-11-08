@@ -20,10 +20,10 @@ het68 is Raspberry Pi Pico 2 USB audio firmware (RP2350):
 | Role | What it does |
 |---|---|
 | USB UAC2 sound card | 6-channel mic input at 48 kHz from 3× stereo I2S pairs (PIO + DMA + TinyUSB). Channel map `TFC TRR TSL BC RLC RRC` (mic 1 = channel 1 = north) |
-| Acoustic front-end | On-device DOA / classify (drone, birds, vehicles, …) without a host PC |
+| Acoustic front-end | On-device DOA / classify (drone, vehicle, speech over the 10 s PSRAM ring) without a host PC |
 | Baro + speed of sound | Grove DPS310 (GP2/GP3 I2C1) → moist-air \(c(T,p,\mathrm{RH})\) for DOA and ranging |
 | Time base | `TIME` / `TIME INFO` with sources `uart`, `rid`, `acoustic` |
-| Remote ID | BLE OpenDroneID scan on CYW43 boards |
+| Remote ID | BLE OpenDroneID scan on the Pico Plus 2 W |
 | Node link (“chirp”) | Neighbour discovery, coarse clock sync, mutual ranging over the 4 kHz piezo |
 
 Hard constraints ([`AGENTS.md`](AGENTS.md)): no `malloc`/`free` in the realtime
@@ -236,9 +236,10 @@ Acoustic quality is intentionally below UART/RID so a direct source wins.
 
 ### DOA / classify
 
-Runs on the same 48 kHz mic stream as USB and chirp RX. Classes and DET log /
-entity persistence are CLI-driven (`DET`, `ENT`, `DRONE`, …). CMP lines can fuse
-acoustic DOA with RID GPS when both exist.
+Runs on the same 48 kHz mic stream as USB and chirp RX. Core1 scans the full
+10.9 s PSRAM ring (`longwin.c`) and prints `SRC class=drone|vehicle|speech az=…`
+on UART. DET log / entity persistence are CLI-driven (`DET`, `ENT`, `DRONE`, …).
+CMP lines can fuse acoustic DOA with RID GPS when both exist.
 
 ### Barometer and \(c\)
 
@@ -247,15 +248,15 @@ and acoustic ranging so temperature/pressure/humidity track outdoor conditions.
 
 ### Remote ID
 
-On wireless boards, BLE ODID → tracks + optional time sync from System messages.
+On the Pico Plus 2 W, BLE ODID → tracks + optional time sync from System messages.
 Known-drone flash store and `STATUS` flash dump are separate from the chirp peer
 table (RAM-only `node_store`).
 
 ### Wi-Fi wake
 
-Acoustic `CTRL WIFI_WAKE` sets `acoustic_link_wifi_wake_pending()`. CYW43 boards
-compile the bring-up hook; non-wireless boards only log. Actual STA + OTA is
-application follow-up work (credentials + coexistence with BTstack).
+Acoustic `CTRL WIFI_WAKE` sets `acoustic_link_wifi_wake_pending()`. The Plus 2 W
+compiles the CYW43 bring-up hook. Actual STA + OTA is application follow-up
+work (credentials + coexistence with BTstack).
 
 ---
 

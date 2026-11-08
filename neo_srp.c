@@ -480,6 +480,20 @@ neo_track_t neo_track_update(bool tone, float c_sound_m_s) {
     return track_out(t);
 }
 
+bool neo_srp_peak(float *az, float *el, float *q) {
+    int l[MAX_LOBES];
+    const int nl = find_lobes(l);
+    if (nl <= 0) {
+        if (q) *q = 0.0f;
+        return false;
+    }
+    const int g = pick_upper(l, nl);
+    if (az) *az = grid_az(g);
+    if (el) *el = grid_el(g);
+    if (q) *q = s_q[g];
+    return true;
+}
+
 static float goertzel_pow(const float *x, int n, float f) {
     float k = roundf(f * (float)n / FS_HZ);
     if (k < 1.0f) k = 1.0f;

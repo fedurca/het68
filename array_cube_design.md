@@ -339,35 +339,20 @@ Adds to the electronics BOM in [`wiring_and_bom.md`](wiring_and_bom.md).
 
 ## 9. Node hardware — board options
 
-The default target is `pico2` (RP2350A, 4 MB flash, **no PSRAM**). For a networked
-multi-node build, or to add on-device recording/detection, move to an RP2350B board
-with flash + PSRAM + wireless. Build for it with `PICO_BOARD` (no source change):
-
-```bash
-PICO_BOARD=pimoroni_pico_plus2_w_rp2350 ./build.sh
-```
-
-Recommended and off-the-shelf candidates (all RP2350B, 16 MB flash + 8 MB PSRAM):
-
-- **Pimoroni Pico Plus 2 W** — **recommended.** Only one with **2.4 GHz Wi-Fi +
-  Bluetooth (RM2)**, which is what the multi-node plan needs. Pico footprint,
-  USB-C. SDK board: `pimoroni_pico_plus2_w_rp2350`. (Non-W variant
-  `pimoroni_pico_plus2_rp2350` if wireless is not needed.)
-- **SparkFun Pro Micro RP2350**, **Adafruit Metro RP2350 (w/ PSRAM)**,
-  **Olimex RP2350-PICO2-BB48R** — same memory, no wireless.
-- **Solder Party Stamp XL / Waveshare RP2350-PiZero** — PSRAM footprint unpopulated
-  (you solder your own), so not turnkey.
+The only supported board is the **Pimoroni Pico Plus 2 W** (RP2350B, 16 MB flash,
+**8 MB PSRAM**, 2.4 GHz Wi-Fi + Bluetooth). SDK board:
+`pimoroni_pico_plus2_w_rp2350`. `./build.sh` selects it by default.
 
 ### PSRAM sizing — 8 MB is enough
 
-The DOA path uses ~31 kB of the 520 kB SRAM (see §5.5), so **8 MB PSRAM is ample**
-for edge detection: ~9.7 s of raw 6-channel/48 k/24-bit look-back, large FFT /
-spectrogram buffers, or a 0.1-2 MB on-device classifier, many times over. The
-bottleneck for detection is compute (M33 @ 150 MHz), not capacity. **A custom 16 MB
-PSRAM board is not worth it** — 128 Mbit QSPI PSRAM is essentially unobtainium
-(would need an RP2354B with 2× 8 MB on both chip-selects, i.e. bespoke hardware).
-Note PSRAM is XIP-cached QSPI and slower than SRAM: use it for capacity (recording,
-models, batch spectral work), keep the realtime correlation loop in SRAM.
+The SRP tables stay in the 520 kB SRAM (see §5.5). The 6-channel look-back ring
+is **6 MiB in PSRAM** (524288 frames, ~10.9 s at 48 kHz, int16). That leaves
+~2 MB for later recording / classifiers. The bottleneck for detection is
+compute (M33 @ 150 MHz), not capacity. **A custom 16 MB PSRAM board is not
+worth it** — 128 Mbit QSPI PSRAM is essentially unobtainium (would need an
+RP2354B with 2× 8 MB on both chip-selects, i.e. bespoke hardware).
+Note PSRAM is XIP-cached QSPI and slower than SRAM: keep the realtime
+correlation loop in SRAM.
 
 ### Multi-node gains (why wireless matters)
 

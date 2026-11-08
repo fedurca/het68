@@ -225,9 +225,8 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   FAQ: [`wiki.md`](wiki.md) / [`wiki.cs.md`](wiki.cs.md). Protocol:
   [`chirp.md`](chirp.md) / [`chirp.cs.md`](chirp.cs.md).
 
-* **OpenDroneID / EU Direct Remote ID (v1.1.0+).** On CYW43 boards
-  (`PICO_BOARD=pico2_w`, `pimoroni_pico_plus2_w_rp2350`, or other Pico 2 W
-  variants) the
+* **OpenDroneID / EU Direct Remote ID (v1.1.0+).** On the Pimoroni Pico Plus 2 W
+  the
   firmware scans BLE advertisements for service UUID `0xFFFA` and parses ASTM
   F3411 Basic ID + Location + **System** messages (e.g. Dronetag / built-in RID).
   Tracks show up in the heartbeat as `rid=N`, via `RID LIST`, and as DET class
@@ -237,8 +236,8 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   reports sync **source / age / quality**; known drones (+ RID fields) persist
   in a flash ACID store (`DRONE LIST`); `STATUS` dumps all stored data and
   statistics (also printed on boot). **v1.2.1:** optional Grove **DPS310**
-  barometer on GP2/GP3 (`BARO`). Non-wireless `pico2` builds compile a stub
-  for RID. Flash end layout: DRONE / BT TLV / DET / ENT (two sectors each).
+  barometer on GP2/GP3 (`BARO`). Flash end layout: DRONE / BT TLV / DET / ENT
+  (two sectors each).
   **v1.2.5:** with `LOG ON`, UART prints `CMP` lines comparing microphone DOA
   az/el to RID GPS az/el (local ENU from System-message operator lat/lon).
   **v1.2.6:** documents the `CMP` field abbreviations (see below).
@@ -287,9 +286,9 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   needs a tonal 70–130 Hz hum at least as strong as the blade line, so
   ordinary outdoor hum no longer drops a distant drone. `SRC` adds `q=`, the
   SRP coherence of the tracked peak.
-  **v1.15.0:** releases and local builds are RP2350 only (Pico 2, Pico 2 W,
-  Pico Plus 2 W). Pico and Pico W (RP2040, 264 KB RAM) are no longer built;
-  the SRP tables do not fit there. The detector itself is unchanged from 1.14.0.
+  **v1.15.0:** releases and local builds are RP2350 only. Pico and Pico W
+  (RP2040, 264 KB RAM) are no longer built; the SRP tables do not fit there.
+  The detector itself is unchanged from 1.14.0.
   **v1.16.0:** the Pico's own USB serial port carries bytes again. The CDC
   data interface is number 3, but the configuration claimed only three
   interfaces, so the host never opened the bulk endpoints. `TIME SYNC` on
@@ -312,16 +311,25 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   hover) via an energy/loudest-mic bearing (`pos=band`). The vacuum veto no
   longer drops a high-prominence blade line that happens to sit near a
   subharmonic of outdoor LF hum. Host check: `tools/neo_wav_check.c`.
-  **v1.22.0:** the user LED blinks twice a second on every supported board,
-  including Pico 2 W and Pico Plus 2 W, where the LED is on the CYW43439.
-  That blink means the main loop is running. Audio and the detector are
-  unchanged.
+  **v1.22.0:** the user LED blinks twice a second. On Plus 2 W the LED is on
+  the CYW43439. That blink means the main loop is running. Audio and the
+  detector are unchanged.
+  **v1.23.0:** only the Pimoroni Pico Plus 2 W is built. The 6-channel DOA
+  ring moves into the 8 MB PSRAM (524288 frames, ~10.9 s at 48 kHz, 6 MiB).
+  The detector is unchanged; first-arrival reflection gating is later work.
+  **v1.24.0:** core1 classifies **drone / vehicle / speech** over that whole
+  10.9 s ring (`longwin.c`) and prints `SRC class=… az=…` for each live track.
+  Neo 2 still uses the blade-tone + SRP-PHAT tracker; vehicle and speech use
+  band energy, syllabic envelope modulation, and azimuth travel. Host check:
+  `tools/longwin_check.c`.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB
+  SRC class=vehicle id=0 az=12.0 el=-6.1 conf=0.5 lvl=-28.0dB daz=38.0 duty=0.71 pos=win
+  SRC class=speech id=0 az=310.2 el=4.0 conf=0.4 lvl=-36.5dB daz=8.0 duty=0.41 pos=srp
   CMP mic_id=0 mic_az=137.4 mic_el=22.8 | rid_id=UAV123 rid_az=140.1 rid_el=21.0 d_az=-2.7 d_el=1.8 rid_rng=85.0m
   DET id=3 class=drone first=1720000000 last=1720000012 occ=8 max_gap_ms=400 az=137.4 el=22.8
-  TRACKS drone=1 entity=0
+  TRACKS drone=1 vehicle=1 speech=1 entity=0
   ```
 
   `CMP` field meanings (mic = acoustic DOA, rid = OpenDroneID BLE GPS):
@@ -368,10 +376,9 @@ Pre-built firmware for each tagged release is published on GitHub Releases:
 **https://github.com/fedurca/het68/releases**
 
 Create a GitHub Release whose tag is SemVer core ([semver.org](https://semver.org/))
-— `x.y.z` or `vx.y.z` (e.g. `1.2.4` / `v1.2.4`) — and CI builds firmware for
-**pico2**, **pico2_w** (RP2350 + CYW43439 Wi‑Fi/BT), and
-**Pico Plus 2 W**. Pico and Pico W are not built. CI then
-attaches `.uf2` / `.elf` assets plus **`SHA256SUMS.txt`** and **`SIGNING.txt`**
+— `x.y.z` or `vx.y.z` (e.g. `1.2.4` / `v1.2.4`) — and CI builds firmware for the
+**Pimoroni Pico Plus 2 W** only. CI then attaches `.uf2` / `.elf` assets plus
+**`SHA256SUMS.txt`** and **`SIGNING.txt`**
 (reserved for future detached signatures; see [`signing/README.md`](signing/README.md)).
 
 ```bash
@@ -393,33 +400,15 @@ See `BUILDING.md` for details.
 
 ### Target board
 
-The default board is `pico2` (Raspberry Pi Pico 2, RP2350A, 4 MB flash, no PSRAM).
-Select a different board with `PICO_BOARD`:
+The only supported board is the **Pimoroni Pico Plus 2 W**
+(`PICO_BOARD=pimoroni_pico_plus2_w_rp2350`): RP2350B, 16 MB flash, **8 MB PSRAM**,
+CYW43439 Wi‑Fi/BT. `./build.sh` selects it by default.
 
-```bash
-./build.sh                                          # default: pico2
-PICO_BOARD=pico2_w ./build.sh                       # Pico 2 W: RP2350A + CYW43439 Wi-Fi/BT
-PICO_BOARD=pimoroni_pico_plus2_w_rp2350 ./build.sh  # 16 MB flash, 8 MB PSRAM, Wi-Fi/BT
-```
+The 6-channel DOA ring is 524288 frames (~10.9 s at 48 kHz, 6×int16 ≈ 6 MiB)
+in that PSRAM. Pico, Pico W, Pico 2 and Pico 2 W are not built.
 
-| Board | `PICO_BOARD` | Notes |
-|---|---|---|
-| Pico 2 | `pico2` | RP2350A, 4 MB flash, no wireless |
-| **Pico 2 W** | **`pico2_w`** | RP2350A + **CYW43439** Wi‑Fi/BT (OpenDroneID) |
-| Pico Plus 2 W | `pimoroni_pico_plus2_w_rp2350` | RP2350B, 16 MB flash, 8 MB PSRAM, Wi‑Fi/BT |
-
-Pico and Pico W (RP2040) are not supported from v1.15.0. The detector's static
-tables need more than 264 KB of SRAM.
-
-The **Pimoroni Pico Plus 2 W** (RP2350B) is the recommended upgrade for multi-node
-work: 16 MB flash, 8 MB PSRAM (headroom for recording / on-device detection), and
-2.4 GHz Wi-Fi + Bluetooth for networking nodes. Official **Pico 2 W** is the
-drop-in wireless Pico 2 (same 4 MB flash, CYW43439). On those boards the user
-LED is a CYW43439 GPIO, and the firmware blinks it twice a second once the
-radio is up. Pico 2 and Pico Plus 2 (no radio) blink GPIO 25 at the same rate.
-Rationale, PSRAM sizing, power
-(all these boards are 3.3 V designs; USB needs 3.3 V `USB_OTP_VDD`, so a
-fully-1.8 V node is custom-hardware only), and alternatives are in
+The user LED is a CYW43439 GPIO and blinks twice a second once the radio is
+up. Rationale, PSRAM sizing and power are in
 [`array_cube_design.md`](array_cube_design.md).
 
 ### TinyUSB / pico-sdk patches
@@ -464,8 +453,8 @@ see `PATCHES.md` for upstream-overlap notes (some fixes may already be merged).
 ./build.sh
 ```
 
-This produces `build/pico_6mic_soundcard.uf2` (and `.elf`). The default board is
-`PICO_BOARD=pico2`.
+This produces `build/pico_6mic_soundcard.uf2` (and `.elf`) for
+`PICO_BOARD=pimoroni_pico_plus2_w_rp2350`.
 
 * **Bench test without microphones** — build the diagnostic firmware, which
   bypasses I2S and streams a simulated 1 kHz tone on all channels:

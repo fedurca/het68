@@ -40,5 +40,7 @@ void neo_srp_frame(const neo_ring_t *r, uint32_t start);
 neo_tone_t neo_tone(const neo_ring_t *r, uint32_t h);
 // Evaluate the direction map and step the tracker (call every 0.2 s).
 neo_track_t neo_track_update(bool tone, float c_sound_m_s);
+// Strongest SRP lobe after the last neo_track_update() / srp_map, pick_upper applied.
+bool neo_srp_peak(float *az, float *el, float *q);
 
 #endif

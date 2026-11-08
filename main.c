@@ -35,6 +35,7 @@
 #include "acoustic_link.h"
 #include "cli.h"
 #include "usb_audio_map.h"
+#include "psram.h"
 
 // Apply baro-derived speed of sound to DOA when a fresh sample exists.
 static void baro_update_sound_speed(void) {
@@ -795,7 +796,8 @@ static void dbg_heartbeat(uint32_t hb_count)
 #if !HET68_USB_DIAG
     {
         extern volatile uint32_t g_doa_out, g_doa_nactive, g_doa_iter;
-        extern volatile uint32_t g_doa_ndrone, g_doa_entity_id;
+        extern volatile uint32_t g_doa_ndrone, g_doa_nvehicle, g_doa_nspeech;
+        extern volatile uint32_t g_doa_entity_id;
         dbg_puts(" doa(out/act/iter)=");
         dbg_putu32(g_doa_out);
         dbg_putc('/');
@@ -804,6 +806,10 @@ static void dbg_heartbeat(uint32_t hb_count)
         dbg_putu32(g_doa_iter);
         dbg_puts(" drone=");
         dbg_putu32(g_doa_ndrone);
+        dbg_puts(" vehicle=");
+        dbg_putu32(g_doa_nvehicle);
+        dbg_puts(" speech=");
+        dbg_putu32(g_doa_nspeech);
         dbg_puts(" entity=");
         dbg_putu32(g_doa_entity_id);
         dbg_puts(" det=");
@@ -915,6 +921,12 @@ int main(void)
     detection_log_init();
     drone_store_core_init();
     drone_store_init();
+
+    if (!het68_psram_init()) {
+        dbg_puts("PSRAM: init FAILED (need 8 MB on CS1 / GPIO 47)\n");
+        het68_beacon("PSRAM", 0, 0);
+    }
+    dbg_puts("PSRAM: 8 MB OK, DOA ring 524288 frames (~10.9 s)\n");
 
     // Direction-of-arrival on core1 (het68_launch_core1 resets core1 after SWD flash).
     doa_start();

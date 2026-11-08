@@ -2,7 +2,7 @@
 
 ## Project
 
-This is a Raspberry Pi Pico 2 USB audio firmware project (RP2350 only).
+This is a Raspberry Pi Pico 2 USB audio firmware project (RP2350B only).
 
 Goal:
 - 6-channel USB audio input
@@ -10,6 +10,7 @@ Goal:
 - I2S RX via PIO
 - DMA transfer into memory
 - TinyUSB USB Audio device
+- 6 MiB DOA ring in the 8 MB PSRAM
 
 ## Hard rules
 
@@ -29,12 +30,11 @@ Build command:
 
 ./build.sh
 
-Default target board:
+Default and only target board:
 
-PICO_BOARD=pico2
+PICO_BOARD=pimoroni_pico_plus2_w_rp2350
 
-Also supported: pico2_w, pimoroni_pico_plus2_w_rp2350.
-Not supported: pico, pico_w (RP2040; the detector does not fit in 264 KB RAM).
+Not supported: pico, pico_w (RP2040), pico2, pico2_w (no 8 MB PSRAM).
 
 ## Flash/debug assumption
 

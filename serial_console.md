@@ -117,7 +117,7 @@ Srdce jde třikrát za sekundu, když je `HB ON`.
 | `usb` | odeslané USB audio snímky |
 | `bcn` | vyslané akustické beacony |
 | `doa(out/act/iter)` | vydané směry / aktivní okna / iterace |
-| `drone entity det rid` | počty dronu, entity, detekcí a RID stop |
+| `drone vehicle speech entity det rid` | počty živých stop, entity, detekcí a RID |
 | `time=ok` / `time=unsynced` | unixový čas je / není nastavený |
 | `baro` | tlak, jen když DPS310 odpovídá |
 | `flash=dirty` / `flash=saving` | čeká zápis do flash / zápis běží |

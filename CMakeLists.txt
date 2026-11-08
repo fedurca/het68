@@ -8,10 +8,16 @@ project(pico_6mic_soundcard C CXX ASM)
 pico_sdk_init()
 
 # The wideband detector's static tables do not fit in RP2040 SRAM (264 KB).
+# The 6 MiB DOA ring lives in the 8 MB PSRAM on Pico Plus 2 W only.
 if(PICO_PLATFORM STREQUAL "rp2040")
     message(FATAL_ERROR
-        "het68 requires RP2350 (Pico 2, Pico 2 W, or Pico Plus 2 W). "
+        "het68 requires the Pimoroni Pico Plus 2 W (RP2350B + 8 MB PSRAM). "
         "RP2040 (Pico / Pico W) is not supported.")
+endif()
+if(NOT PICO_BOARD STREQUAL "pimoroni_pico_plus2_w_rp2350")
+    message(FATAL_ERROR
+        "het68 supports only PICO_BOARD=pimoroni_pico_plus2_w_rp2350 "
+        "(Pimoroni Pico Plus 2 W, 8 MB PSRAM).")
 endif()
 
 set(SRCS
@@ -22,6 +28,7 @@ set(SRCS
     core1_launch.c
     doa.c
     neo_srp.c
+    longwin.c
     entity_store.c
     detection_log.c
     het68_time.c
@@ -31,6 +38,7 @@ set(SRCS
     dps310.c
     acoustic_link.c
     node_store.c
+    psram.c
 )
 
 add_executable(pico_6mic_soundcard ${SRCS})
@@ -38,10 +46,10 @@ add_executable(pico_6mic_soundcard ${SRCS})
 # Version stamp (UART help / docs). Semver core for releases.
 string(TIMESTAMP HET68_BUILD_STAMP "%Y-%m-%d %H:%M:%S")
 add_compile_definitions(
-    HET68_VERSION_STR=\"1.22.0\"
+    HET68_VERSION_STR=\"1.24.0\"
     HET68_BUILD_STAMP=\"${HET68_BUILD_STAMP}\"
 )
-message(STATUS "het68: version 1.22.0  build ${HET68_BUILD_STAMP}")
+message(STATUS "het68: version 1.24.0  build ${HET68_BUILD_STAMP}")
 
 # Optional fixed acoustic-link node id (0..7). Default 0; also settable at
 # runtime via the LINK ID CLI command.
@@ -138,7 +146,7 @@ target_link_libraries(pico_6mic_soundcard
     tinyusb_board
 )
 
-# OpenDroneID BLE scanner on CYW43 boards (Pico 2 W / Pico Plus 2 W).
+# OpenDroneID BLE scanner on the Plus 2 W CYW43 radio.
 # Flash end layout (4 KiB sectors): DRONE[-8,-7], BT[-6,-5], DET[-4,-3], ENT[-2,-1].
 # Relocate BTstack TLV so it does not collide with DRONE/DET/ENT ACID slots.
 if (PICO_CYW43_SUPPORTED)

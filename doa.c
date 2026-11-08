@@ -1,10 +1,10 @@
-// doa.c — 3D DOA on core1. Only drones are classified and logged.
-// Walker, vehicle, bird and wind estimators remain in this file but are not run.
+// doa.c — 3D DOA on core1. Drone, vehicle and speech over the 10 s PSRAM ring.
+// Walker / bird / wind estimators remain in this file but are not run.
 //
 // core0 pushes each 6-channel frame via doa_ring_push() from the USB/I2S feed.
-// core1 reports a DJI Neo 2 when a sharp 0.9–1.36 kHz blade line is present.
-// Its direction comes from wideband SRP-PHAT and one reflection-aware track
-// (neo_srp.c), so ground and wall echoes do not become extra drones.
+// Neo 2: sharp 0.9–1.36 kHz blade line + wideband SRP-PHAT (neo_srp.c).
+// Scene class (drone / vehicle / speech) uses longwin.c over the full 10.9 s
+// ring; UART SRC lines carry class + azimuth.
 // Entity signatures → entity_store; timed events → detection_log (after TIME SYNC).
 //
 // core1 must be launched with het68_launch_core1() (see core1_launch.c).
@@ -15,6 +15,8 @@
 #include "debug_io.h"
 #include "remote_id.h"
 #include "neo_srp.h"
+#include "longwin.h"
+#include "psram.h"
 #include "pico/stdlib.h"
 #include "hardware/sync.h"
 #include <math.h>
@@ -129,14 +131,18 @@ uint32_t doa_edge_mm(void) { return (uint32_t)DOA_EDGE_MM; }
 #define DOA_BIRD_CREST_MIN  3.0f     // tonal / chirpy
 #define DOA_CLASS_MARGIN    0.45f    // min score gap to prefer a specific subclass
 
-// Holds a 1024-sample SRP frame plus ~60 ms of slack while core1 evaluates.
-#define DOA_RING_SZ         4096u
+// 2^19 frames in PSRAM: ~10.9 s at 48 kHz, 6×int16 ≈ 6 MiB of the 8 MB chip.
+#define DOA_RING_SZ         524288u
 #define DOA_RING_MASK       (DOA_RING_SZ - 1u)
 #if DOA_RING_SZ < 2u * DOA_N
 #error "DOA_RING_SZ too small for DOA_N: increase DOA_RING_SZ"
 #endif
+#if (DOA_RING_SZ * 6u * 2u) > HET68_PSRAM_BYTES
+#error "DOA ring does not fit in 8 MB PSRAM"
+#endif
 
-static volatile int16_t  g_ring[DOA_RING_SZ][6];
+static volatile int16_t (*const g_ring)[6] =
+    (volatile int16_t (*)[6])(uintptr_t)HET68_PSRAM_BASE;
 static volatile uint32_t g_head;
 
 volatile uint32_t g_doa_out;
@@ -146,6 +152,7 @@ volatile uint32_t g_doa_ndrone;
 volatile uint32_t g_doa_nwalker;
 volatile uint32_t g_doa_nvehicle;
 volatile uint32_t g_doa_nbird;
+volatile uint32_t g_doa_nspeech;
 volatile uint32_t g_doa_entity_id;
 volatile uint32_t g_doa_wind;
 volatile float    g_doa_wind_az;
@@ -285,11 +292,15 @@ typedef enum {
     CLS_EV       = ENT_EV,
     CLS_BIRD     = ENT_BIRD,
     CLS_SONGBIRD = ENT_SONGBIRD,
-    CLS_CORVID   = ENT_CORVID
+    CLS_CORVID   = ENT_CORVID,
+    CLS_VEHICLE  = 10,
+    CLS_SPEECH   = 11
 } src_class_t;
 
 static const char *class_name(src_class_t c) {
     if (c == CLS_DRONE) return "drone";
+    if (c == CLS_VEHICLE) return "vehicle";
+    if (c == CLS_SPEECH) return "speech";
     if (c == CLS_NONE) return "none";
     return entity_class_name((entity_class_t)c);
 }
@@ -297,6 +308,8 @@ static const char *class_name(src_class_t c) {
 static det_class_t det_from_src(src_class_t c) {
     switch (c) {
         case CLS_DRONE:    return DET_DRONE;
+        case CLS_VEHICLE:  return DET_VEHICLE;
+        case CLS_SPEECH:   return DET_HUMAN;
         case CLS_HUMAN:    return DET_HUMAN;
         case CLS_CAT:      return DET_CAT;
         case CLS_DOG:      return DET_DOG;
@@ -329,6 +342,9 @@ static track_t g_drones[DOA_MAX_DRONE];
 static track_t g_vehicles[DOA_MAX_VEHICLE];
 static track_t g_birds[DOA_MAX_BIRD];
 static track_t g_walker;                 // single walking entity
+static track_t g_speech;                 // one speech source
+static longwin_t g_lw;
+static float g_src_pq;                   // last ungated SRP peak coherence
 
 static float ang_diff_deg(float a, float b) {
     float d = fabsf(a - b);
@@ -366,6 +382,31 @@ static uint32_t track_count_drones(void) {
     uint32_t n = 0;
     for (int i = 0; i < DOA_MAX_DRONE; i++) if (g_drones[i].used) n++;
     return n;
+}
+
+static void track_age_speech(void) {
+    if (!g_speech.used) return;
+    g_speech.age++;
+    if (g_speech.age > DOA_TRACK_TTL) g_speech.used = false;
+}
+
+static void speech_upsert(float az, float el, float conf, float lvl_db) {
+    if (g_speech.used) {
+        g_speech.az = 0.7f * g_speech.az + 0.3f * az;
+        g_speech.el = 0.7f * g_speech.el + 0.3f * el;
+        g_speech.conf = 0.6f * g_speech.conf + 0.4f * conf;
+        g_speech.lvl_db = 0.6f * g_speech.lvl_db + 0.4f * lvl_db;
+    } else {
+        g_speech.az = az;
+        g_speech.el = el;
+        g_speech.conf = conf;
+        g_speech.lvl_db = lvl_db;
+    }
+    g_speech.used = true;
+    g_speech.cls = CLS_SPEECH;
+    g_speech.age = 0;
+    g_speech.entity_id = 0;
+    g_speech.have_xy = false;
 }
 
 static int track_find_vehicle(float az, float el) {
@@ -1647,43 +1688,75 @@ static void report_rid_cmp(void) {
     }
 }
 
+static void emit_src(const track_t *t, uint32_t id, const char *pos) {
+    dbg_puts("SRC class=");
+    dbg_puts(class_name(t->cls));
+    dbg_puts(" id=");
+    dbg_putu32(id);
+    dbg_puts(" az="); put_f1(t->az);
+    dbg_puts(" el="); put_f1(t->el);
+    dbg_puts(" conf="); put_f1(t->conf);
+    dbg_puts(" lvl="); put_f1(t->lvl_db);
+    dbg_puts("dB");
+    if (t->cls == CLS_DRONE) {
+        dbg_puts(" f0=");
+        put_f1(g_neo_f0);
+        dbg_puts("Hz q=");
+        put_f2(g_neo_q);
+    } else {
+        dbg_puts(" daz=");
+        put_f1(g_lw.daz_deg);
+        dbg_puts(" duty=");
+        put_f2(g_lw.duty);
+    }
+    dbg_puts(" pos=");
+    dbg_puts(pos);
+    dbg_putc('\n');
+}
+
+static void observe_track(const track_t *t) {
+    if (!t->used) return;
+    det_class_t d = det_from_src(t->cls);
+    if (d == DET_NONE) return;
+    (void)detection_log_observe(d, t->entity_id, t->az, t->el, t->lvl_db, t->conf);
+}
+
 static void report_tracks(void) {
     g_doa_ndrone = track_count_drones();
+    g_doa_nvehicle = track_count_vehicles();
+    g_doa_nspeech = g_speech.used ? 1u : 0u;
     g_doa_nwalker = 0;
-    g_doa_nvehicle = 0;
     g_doa_nbird = 0;
     g_doa_wind = 0;
 
-    // Persist live drone tracks into DET log (only after TIME SYNC — see detection_log).
-    for (int i = 0; i < DOA_MAX_DRONE; i++) {
-        if (!g_drones[i].used) continue;
-        (void)detection_log_observe(DET_DRONE, 0, g_drones[i].az, g_drones[i].el,
-                                    g_drones[i].lvl_db, g_drones[i].conf);
-    }
+    for (int i = 0; i < DOA_MAX_DRONE; i++) observe_track(&g_drones[i]);
+    for (int i = 0; i < DOA_MAX_VEHICLE; i++) observe_track(&g_vehicles[i]);
+    observe_track(&g_speech);
 
     if (!dbg_log_enabled()) {
         g_doa_out++;
         return;
     }
 
+    const char *pos_lw = (g_src_pq >= 0.10f) ? "srp" : "win";
     uint32_t lock = dbg_line_lock();
     for (int i = 0; i < DOA_MAX_DRONE; i++) {
         if (!g_drones[i].used) continue;
-        dbg_puts("SRC class=drone id=");
-        dbg_putu32((uint32_t)i);
-        dbg_puts(" az="); put_f1(g_drones[i].az);
-        dbg_puts(" el="); put_f1(g_drones[i].el);
-        dbg_puts(" conf="); put_f1(g_drones[i].conf);
-        dbg_puts(" lvl="); put_f1(g_drones[i].lvl_db);
-        dbg_puts("dB f0=");
-        put_f1(g_neo_f0);
-        dbg_puts("Hz q=");
-        put_f2(g_neo_q);
-        dbg_puts(g_drones[i].conf < DOA_DRONE_CONF_MIN ? " pos=band\n" : " pos=tdoa\n");
+        const char *pos = g_drones[i].conf < DOA_DRONE_CONF_MIN ? "band" : "tdoa";
+        emit_src(&g_drones[i], (uint32_t)i, pos);
     }
+    for (int i = 0; i < DOA_MAX_VEHICLE; i++) {
+        if (!g_vehicles[i].used) continue;
+        emit_src(&g_vehicles[i], (uint32_t)i, pos_lw);
+    }
+    if (g_speech.used) emit_src(&g_speech, 0, pos_lw);
     report_rid_cmp();
     dbg_puts("TRACKS drone=");
     dbg_putu32(g_doa_ndrone);
+    dbg_puts(" vehicle=");
+    dbg_putu32(g_doa_nvehicle);
+    dbg_puts(" speech=");
+    dbg_putu32(g_doa_nspeech);
     dbg_puts(" entity=");
     dbg_putu32(g_doa_entity_id);
     dbg_puts(" eval_us=");
@@ -1779,6 +1852,48 @@ static void analyse_drone(uint32_t h) {
     t->used = false;
 }
 
+static void analyse_longwin(uint32_t h) {
+    uint32_t n = h;
+    if (n > DOA_RING_SZ) n = DOA_RING_SZ;
+    longwin_scan(&k_neo_ring, h, n, MIC_DIR, &g_lw);
+
+    float paz = g_lw.az, pel = g_lw.el, pq = 0.0f;
+    if (neo_srp_peak(&paz, &pel, &pq) && pq >= 0.10f) {
+        g_src_pq = pq;
+    } else {
+        paz = g_lw.az;
+        pel = g_lw.el;
+        g_src_pq = pq;
+    }
+
+    longwin_t sc = g_lw;
+    if (g_tone_hold >= 3u) sc.s_drone += 2.5f;
+    if (g_drones[0].used) sc.s_drone += 1.2f * g_drones[0].conf;
+    longwin_class_t w = longwin_pick(&sc);
+
+    const bool drone_live = g_drones[0].used;
+    if (drone_live && (w == LW_SPEECH || w == LW_VEHICLE)) w = LW_NONE;
+
+    float conf = g_lw.conf;
+    if (g_src_pq >= 0.10f) {
+        float cq = g_src_pq / NEO_Q_FULL;
+        if (cq > conf) conf = cq;
+        if (conf > 1.0f) conf = 1.0f;
+    }
+
+    if (w == LW_VEHICLE) {
+        vehicle_upsert(CLS_VEHICLE, paz, pel, conf, g_lw.lvl_db,
+                       0, 0.0f, g_lw.mod_slow);
+    }
+    if (w == LW_SPEECH) {
+        speech_upsert(paz, pel, conf, g_lw.lvl_db);
+    }
+    if (w == LW_DRONE && !drone_live) {
+        drone_upsert(paz, pel, conf, g_lw.lvl_db);
+        g_neo_q = g_src_pq;
+    }
+}
+
 static void analyse_walker_onset(uint32_t h) {
     bool active[6];
     load_raw_window(h);
@@ -1832,6 +1947,8 @@ static void doa_core1_main(void) {
     memset(&g_bird, 0, sizeof(g_bird));
     memset(g_vehicles, 0, sizeof(g_vehicles));
     memset(g_birds, 0, sizeof(g_birds));
+    memset(&g_speech, 0, sizeof(g_speech));
+    memset(&g_lw, 0, sizeof(g_lw));
     g_doa_wind = 0;
     het68_retired_classifiers();
 
@@ -1854,8 +1971,11 @@ static void doa_core1_main(void) {
         if ((uint32_t)(h - last_drone) >= DOA_OUT_SAMPLES) {
             last_drone = h;
             track_age_drones();
+            track_age_vehicles();
+            track_age_speech();
             uint32_t t0 = time_us_32();
             analyse_drone(h);
+            analyse_longwin(h);
             g_srp_eval_us = time_us_32() - t0;
             report_tracks();
         } else {

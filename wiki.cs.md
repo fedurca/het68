@@ -19,10 +19,10 @@ het68 je USB audio firmware pro Raspberry Pi Pico 2 (RP2350):
 | Role | Co dělá |
 |---|---|
 | USB UAC2 zvukovka | 6kanálový vstup mikrofonů 48 kHz ze 3× stereo I2S (PIO + DMA + TinyUSB). Mapa kanálů `TFC TRR TSL BC RLC RRC` (mik 1 = kanál 1 = sever) |
-| Akustický front-end | On-device DOA / klasifikace (dron, ptáci, vozidla, …) bez host PC |
+| Akustický front-end | On-device DOA / klasifikace (dron, vozidlo, řeč přes 10 s PSRAM kruh) bez host PC |
 | Baro + rychlost zvuku | Grove DPS310 (GP2/GP3 I2C1) → vlhký vzduch \(c(T,p,\mathrm{RH})\) pro DOA i ranging |
 | Časová základna | `TIME` / `TIME INFO` se zdroji `uart`, `rid`, `acoustic` |
-| Remote ID | BLE OpenDroneID sken na deskách s CYW43 |
+| Remote ID | BLE OpenDroneID sken na Pico Plus 2 W |
 | Node link („chirp“) | Objev sousedů, hrubá sync hodin, vzájemný ranging přes piezo 4 kHz |
 
 Tvrdá omezení ([`AGENTS.md`](AGENTS.md)): žádné `malloc`/`free` v realtime
@@ -236,9 +236,10 @@ Akustická quality je záměrně nižší než UART/RID, aby přímý zdroj vyhr
 
 ### DOA / klasifikace
 
-Běží na stejném 48kHz streamu jako USB a chirp RX. Třídy a DET log / entity
-persistence ovládá CLI (`DET`, `ENT`, `DRONE`, …). CMP řádky mohou slučovat
-akustické DOA s RID GPS.
+Běží na stejném 48kHz streamu jako USB a chirp RX. Core1 skenuje celý 10,9 s
+PSRAM kruh (`longwin.c`) a na UART posílá `SRC class=drone|vehicle|speech az=…`.
+DET log / entity persistence ovládá CLI (`DET`, `ENT`, `DRONE`, …). CMP řádky
+mohou slučovat akustické DOA s RID GPS.
 
 ### Barometr a \(c\)
 
@@ -247,15 +248,15 @@ akustický ranging, aby \(T/p/\mathrm{RH}\) odpovídaly podmínkám venku.
 
 ### Remote ID
 
-Na wireless deskách BLE ODID → tracky + volitelná sync času ze System zpráv.
+Na Pico Plus 2 W BLE ODID → tracky + volitelná sync času ze System zpráv.
 Flash store známých dronů a dump ve `STATUS` je oddělený od chirp peer tabulky
 (RAM-only `node_store`).
 
 ### Wi-Fi wake
 
-Akustický `CTRL WIFI_WAKE` nastaví `acoustic_link_wifi_wake_pending()`. Desky
-CYW43 kompilují bring-up hook; bez Wi-Fi jen logují. Skutečné STA + OTA je
-následná aplikační práce (credentials + koexistence s BTstack).
+Akustický `CTRL WIFI_WAKE` nastaví `acoustic_link_wifi_wake_pending()`. Plus 2 W
+kompiluje CYW43 bring-up hook. Skutečné STA + OTA je následná aplikační práce
+(credentials + koexistence s BTstack).
 
 ---
 

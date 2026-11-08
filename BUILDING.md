@@ -20,15 +20,12 @@ This checks out **Pico SDK 2.2.0** (TinyUSB 0.18.0) and initializes the
 ./build.sh
 ```
 
-`build.sh` configures and builds for `PICO_BOARD=pico2` (RP2350) by default and
-produces `build/pico_6mic_soundcard.uf2` and `.elf`. Other boards:
+`build.sh` configures and builds for `PICO_BOARD=pimoroni_pico_plus2_w_rp2350`
+(Pimoroni Pico Plus 2 W, 8 MB PSRAM) and produces
+`build/pico_6mic_soundcard.uf2` and `.elf`. That is the only supported board.
 
-```bash
-PICO_BOARD=pico2_w ./build.sh                       # Pico 2 W (CYW43439 Wi-Fi/BT)
-PICO_BOARD=pimoroni_pico_plus2_w_rp2350 ./build.sh  # Pico Plus 2 W
-```
-
-Pico and Pico W (RP2040) are rejected. The detector does not fit in 264 KB RAM.
+Pico, Pico W (RP2040), Pico 2 and Pico 2 W are rejected: the 6 MiB DOA ring
+needs the 8 MB PSRAM.
 
 Pass `HET68_USB_DIAG=ON ./build.sh` to build the diagnostic firmware (simulated
 1 kHz tone, no I2S).
@@ -38,9 +35,8 @@ Pass `HET68_USB_DIAG=ON ./build.sh` to build the diagnostic firmware (simulated
 Publishing a GitHub Release with a SemVer core tag (`x.y.z` or `vx.y.z`, see
 [semver.org](https://semver.org/)) triggers
 [`.github/workflows/release.yml`](.github/workflows/release.yml): it fetches the
-SDK, builds **pico2**, **pico2_w**, and **Pico Plus 2 W** (RP2350 only),
-and uploads `.uf2` / `.elf` assets to that release (then moves the floating git
-tag `latest`).
+SDK, builds **Pico Plus 2 W** only, and uploads `.uf2` / `.elf` assets to that
+release (then moves the floating git tag `latest`).
 
 - Releases page: https://github.com/fedurca/het68/releases
 - Example tags: `1.0.0`, `v1.0.0` (pre-release suffixes like `-rc.1` are not
@@ -50,13 +46,13 @@ tag `latest`).
 
 ```bash
 rm -rf build
-cmake -S . -B build -G "Unix Makefiles"
+cmake -S . -B build -G "Unix Makefiles" -DPICO_BOARD=pimoroni_pico_plus2_w_rp2350
 cmake --build build -j
 ```
 
 ## Manual CMake (Ninja, optional)
 
 ```bash
-cmake -S . -B build -G Ninja
+cmake -S . -B build -G Ninja -DPICO_BOARD=pimoroni_pico_plus2_w_rp2350
 cmake --build build -j
 ```

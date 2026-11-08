@@ -1,6 +1,6 @@
 // remote_id.h — OpenDroneID / EU Direct Remote ID BLE scanner (ASTM F3411).
 //
-// Active only on CYW43 boards (Wi-Fi/BT). On pico2 builds all APIs are stubs.
+// Active on the Pimoroni Pico Plus 2 W (CYW43 Wi-Fi/BT).
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
