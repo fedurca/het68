@@ -85,9 +85,15 @@ jobs:
           set -Eeuo pipefail
           test -f build/pico_6mic_soundcard.uf2
           test -f build/pico_6mic_soundcard.elf
+          test -f build/het68_detect.bin
           mkdir -p dist
+          # Platform image (USB/I2S/CLI + Secure loader). Device H68P signing is off-CI.
+          cp -v build/pico_6mic_soundcard.uf2 "dist/het68-${VERSION}-platform-pico-plus2-w.uf2"
+          cp -v build/pico_6mic_soundcard.elf "dist/het68-${VERSION}-platform-pico-plus2-w.elf"
+          # Keep legacy asset names for existing downloaders.
           cp -v build/pico_6mic_soundcard.uf2 "dist/het68-${VERSION}-pico-plus2-w.uf2"
           cp -v build/pico_6mic_soundcard.elf "dist/het68-${VERSION}-pico-plus2-w.elf"
+          cp -v build/het68_detect.bin "dist/het68-${VERSION}-detect-stub.bin"
           ls -la dist/
 
       - name: Generate checksums (and signature placeholders)
@@ -97,7 +103,7 @@ jobs:
           set -Eeuo pipefail
           cd dist
           # Integrity digests for every firmware binary in this release.
-          sha256sum het68-"${VERSION}"-*.uf2 het68-"${VERSION}"-*.elf | sort -k2 > SHA256SUMS.txt
+          sha256sum het68-"${VERSION}"-*.uf2 het68-"${VERSION}"-*.elf het68-"${VERSION}"-*.bin 2>/dev/null | sort -k2 > SHA256SUMS.txt
           # Space for future detached signatures (minisign / signify / cosign).
           # When signing is enabled in CI, replace these stubs with real .sig/.minisig
           # files and stop uploading the .unsigned placeholders.
@@ -127,6 +133,9 @@ jobs:
           files: |
             dist/het68-${{ steps.semver.outputs.version }}-pico-plus2-w.uf2
             dist/het68-${{ steps.semver.outputs.version }}-pico-plus2-w.elf
+            dist/het68-${{ steps.semver.outputs.version }}-platform-pico-plus2-w.uf2
+            dist/het68-${{ steps.semver.outputs.version }}-platform-pico-plus2-w.elf
+            dist/het68-${{ steps.semver.outputs.version }}-detect-stub.bin
             dist/SHA256SUMS.txt
             dist/SIGNING.txt
           fail_on_unmatched_files: true

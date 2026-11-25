@@ -36,6 +36,7 @@
 #include "cli.h"
 #include "usb_audio_map.h"
 #include "psram.h"
+#include "het68_secure.h"
 
 // Apply baro-derived speed of sound to DOA when a fresh sample exists.
 static void baro_update_sound_speed(void) {
@@ -928,9 +929,12 @@ int main(void)
     }
     dbg_puts("PSRAM: 8 MB OK, DOA ring 524288 frames (~10.9 s)\n");
 
-    // Direction-of-arrival on core1 (het68_launch_core1 resets core1 after SWD flash).
-    doa_start();
-    dbg_puts("DOA: DJI Neo 2, wideband SRP-PHAT, echo-aware track\n");
+    // TrustZone bring-up + H68P gate, then Core1 detection (builtin or external).
+    if (het68_secure_start())
+        dbg_puts("DOA: Core1 detection running (H68P/TZ path)\n");
+    else
+        dbg_puts("DOA: Core1 detection NOT started (see DET PLUGIN STATUS)\n");
+    het68_plugin_status_uart();
 
     // OpenDroneID BLE scanner (no-op stub on non-CYW43 boards).
     if (remote_id_init())
@@ -1011,6 +1015,9 @@ int main(void)
             detection_log_poll(usb_idle);
         if (!entity_store_saving() && !detection_log_saving())
             drone_store_poll(usb_idle);
+        if (!entity_store_saving() && !detection_log_saving() && !drone_store_saving())
+            het68_plugin_flash_poll(usb_idle);
+        het68_mailbox_pull_to_ns();
 
         while (dbg_rx_available()) {
             int ch = dbg_getc();

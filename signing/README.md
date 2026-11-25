@@ -7,20 +7,47 @@ downloads:
 sha256sum -c SHA256SUMS.txt
 ```
 
-## Future electronic signatures
+## H68P detection plugins (device-bound)
 
-Signing is not enabled yet. The release workflow already reserves space for
-detached signatures without changing the firmware image format.
+Detection plugins use the **H68P** container (`h68p.h`): OTP serial in the
+header, SHA-256 of the payload, ECDSA secp256k1 signature (same curve as RP2350
+secure boot).
 
-Planned layout (when a signing key is configured in CI secrets):
+```bash
+./scripts/gen_dev_keys.sh
+./build.sh
+./scripts/sign_plugin.py \
+  --payload build/het68_detect.bin \
+  --serial <16 hex from UART serial=> \
+  --key signing/dev_secp256k1.pem \
+  --out build/device.h68p
+```
+
+Upload via CLI `DET PLUGIN WRITE` (see `docs/secure-boot-lab.md`).
+
+Private keys (`signing/*.pem`) are gitignored. The firmware embeds the lab
+public key in `h68p_pubkey.c`.
+
+## Platform secure boot
+
+Platform images are sealed/signed with the same secp256k1 key family:
+
+```bash
+./scripts/gen_dev_keys.sh
+./build.sh
+./scripts/seal_platform.sh build/pico_6mic_soundcard.elf
+```
+
+Then follow the OTP checklist in `docs/secure-boot-lab.md` /
+`scripts/otp_lab_enable.sh`. **OTP writes are irreversible**; keep debug
+enabled for lab (do not burn debug-disable).
+
+## Host checksum signatures (releases)
 
 | Asset | Purpose |
 |-------|---------|
 | `SHA256SUMS.txt` | SHA-256 digests of all firmware binaries |
-| `SHA256SUMS.txt.sig` / `.minisig` | Detached signature over the checksum file |
-| `het68-<ver>-<board>.uf2.sig` | Optional per-image detached signature |
+| `SHA256SUMS.txt.sig` / `.minisig` | Detached signature over the checksum file (planned) |
 
-Candidates: [minisign](https://jedisct1.github.io/minisign/), OpenBSD `signify`,
-or [cosign](https://github.com/sigstore/cosign) (keyless or key-based).
-
-Until then, treat `SHA256SUMS.txt` as integrity-only (not authenticity).
+Until release detached signatures are published, treat `SHA256SUMS.txt` as
+integrity-only for GitHub Release assets.

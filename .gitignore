@@ -52,3 +52,11 @@ gh_token
 .aider.tags.cache*
 .aider.repo.map*
 .aider.bootstrap.prompt.md
+
+# Lab signing private keys + local device-signed plugins
+signing/*.pem
+signing/*_priv*
+*.h68p
+build/*.h68p
+scripts/__pycache__/
+**/__pycache__/

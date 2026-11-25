@@ -327,6 +327,9 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   180°, `el` well below the horizon, TTL keeping `az=106°`). Vehicle now
   needs a smooth pass-by or a loud idle, speech vetoes the car class, and
   the 10 s window reports one scene class. Host check: `tools/longwin_check.c`.
+  **v1.26.0:** TrustZone / H68P path — platform + per-device signed detection
+  plugin (`docs/secure-boot-lab.md`). Lab keeps builtin DOA until
+  `HET68_PLUGIN_EXTERNAL`; CLI `DET PLUGIN STATUS|ERASE|WRITE`; debug stays on.
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB

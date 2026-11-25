@@ -10,12 +10,14 @@
 #include "remote_id.h"
 #include "acoustic_link.h"
 #include "node_store.h"
+#include "het68_secure.h"
 #include <string.h>
 
 static char g_buf[192];
 static uint32_t g_len;
 static bool g_ent_import;
 static bool g_det_import;
+static bool g_plugin_import;
 static bool g_help_shown;
 static bool g_skip_lf;
 
@@ -59,6 +61,9 @@ void cli_print_help(void) {
     dbg_puts("LINK WIFI            — broadcast WIFI_WAKE (bulk sync / OTA)\n");
     dbg_puts("RID LIST             — OpenDroneID BLE tracks (CYW43 boards)\n");
     dbg_puts("RID ON | RID OFF     — enable/disable BLE Remote ID scan\n");
+    dbg_puts("DET PLUGIN STATUS    — H68P slot / serial / Core1 gate\n");
+    dbg_puts("DET PLUGIN ERASE     — erase both H68P flash slots\n");
+    dbg_puts("DET PLUGIN WRITE     — upload H68PHEX lines, then DET PLUGIN END\n");
     dbg_puts("Note: debug is on after reboot (HB ON, LOG ON). Enter submits a command.\n");
     dbg_puts("Note: DET timestamps after TIME SYNC (UART or RID System msg).\n");
     dbg_puts("Note: LOG ON prints CMP mic az/el vs RID GPS az/el (needs System origin).\n");
@@ -147,6 +152,7 @@ void cli_print_status(void) {
 
     dps310_dump_uart();
     acoustic_link_status_uart();
+    het68_plugin_status_uart();
     entity_store_dump_uart();
     detection_log_list_uart();
     drone_store_list_uart();
@@ -162,6 +168,7 @@ void cli_init(void) {
     g_len = 0;
     g_ent_import = false;
     g_det_import = false;
+    g_plugin_import = false;
     g_help_shown = false;
 }
 
@@ -203,6 +210,19 @@ static void handle_line(char *line) {
         } else if (!detection_log_import_hex_line(line)) {
             dbg_puts("DET IMPORT ERR: bad hex line\n");
             g_det_import = false;
+        }
+        return;
+    }
+    if (g_plugin_import) {
+        if (strcmp(line, "DET PLUGIN END") == 0 || strcmp(line, "H68P END") == 0) {
+            bool programmed = false;
+            if (het68_plugin_import_end(&programmed))
+                dbg_puts("DET PLUGIN WRITE OK (flash when USB idle)\n");
+            g_plugin_import = false;
+        } else if (!het68_plugin_import_hex_line(line)) {
+            dbg_puts("DET PLUGIN WRITE ERR: bad hex line\n");
+            het68_plugin_import_abort();
+            g_plugin_import = false;
         }
         return;
     }
@@ -303,6 +323,26 @@ static void handle_line(char *line) {
     if (strcmp(line, "DET CLEAR") == 0 || strcmp(line, "DET DELETE ALL") == 0) {
         detection_log_clear();
         dbg_puts("DET CLEAR OK\n");
+        return;
+    }
+    if (strcmp(line, "DET PLUGIN") == 0 || strcmp(line, "DET PLUGIN STATUS") == 0) {
+        het68_plugin_status_uart();
+        return;
+    }
+    if (strcmp(line, "DET PLUGIN ERASE") == 0) {
+        if (het68_plugin_erase_slots())
+            dbg_puts("DET PLUGIN ERASE queued (USB idle)\n");
+        else
+            dbg_puts("DET PLUGIN ERASE ERR: busy\n");
+        return;
+    }
+    if (strcmp(line, "DET PLUGIN WRITE") == 0 || strcmp(line, "DET PLUGIN IMPORT") == 0) {
+        if (het68_plugin_import_begin()) {
+            g_plugin_import = true;
+            dbg_puts("DET PLUGIN WRITE: send H68PHEX <hex> lines, then DET PLUGIN END\n");
+        } else {
+            dbg_puts("DET PLUGIN WRITE ERR: busy\n");
+        }
         return;
     }
 

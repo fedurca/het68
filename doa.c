@@ -9,6 +9,7 @@
 //
 // core1 must be launched with het68_launch_core1() (see core1_launch.c).
 #include "doa.h"
+#include "het68_secure.h"
 #include "entity_store.h"
 #include "detection_log.h"
 #include "core1_launch.h"
@@ -159,6 +160,8 @@ volatile float    g_doa_wind_az;
 volatile float    g_doa_wind_el;
 volatile float    g_doa_wind_db;
 
+// Core0 (NS) writes the 6 MiB PSRAM ring; Core1 Secure may read NS memory.
+// No NSC on the sample path — keep this IRQ/USB-hot path allocation-free.
 void doa_ring_push(const int16_t s6[6]) {
     uint32_t h = g_head;
     int16_t *slot = (int16_t *)g_ring[h & DOA_RING_MASK];
@@ -1743,6 +1746,7 @@ static void report_tracks(void) {
 
     if (!dbg_log_enabled()) {
         g_doa_out++;
+        het68_mailbox_publish();
         return;
     }
 
@@ -1774,6 +1778,7 @@ static void report_tracks(void) {
     dbg_putc('\n');
     dbg_line_unlock(lock);
     g_doa_out++;
+    het68_mailbox_publish();
 }
 
 // ---------------------------------------------------------------------------
