@@ -7,7 +7,7 @@ Usage:
       --serial 0011223344556677 \\
       --key signing/dev_secp256k1.pem \\
       --out build/het68_detect-<serial>.h68p \\
-      [--entry-off 1] [--bss-size 0] [--rollback 1]
+      [--entry-off 0] [--bss-size 0] [--rollback 1]
 
 Requires: pip install ecdsa  (secp256k1)
 """
@@ -95,8 +95,8 @@ def main() -> int:
     ap.add_argument("--serial", required=True, help="16 hex OTP digits")
     ap.add_argument("--key", required=True, type=Path, help="secp256k1 PEM private key")
     ap.add_argument("--out", required=True, type=Path)
-    ap.add_argument("--entry-off", type=lambda x: int(x, 0), default=1,
-                    help="Thumb entry offset into payload (default 1 = odd Thumb)")
+    ap.add_argument("--entry-off", type=lambda x: int(x, 0), default=0,
+                    help="byte offset of Thumb entry in payload (even; loader ORs Thumb bit)")
     ap.add_argument("--bss-size", type=lambda x: int(x, 0), default=0)
     ap.add_argument("--rollback", type=lambda x: int(x, 0), default=1)
     ap.add_argument("--pub-out", type=Path, default=None,
@@ -108,8 +108,9 @@ def main() -> int:
         raise SystemExit("empty payload")
     if len(payload) > (512 * 1024 - HEADER_SIZE - 64):
         raise SystemExit("payload too large for 512 KiB H68P slot")
-    if args.entry_off >= len(payload) or (args.entry_off & 1) == 0:
-        raise SystemExit("entry-off must be odd Thumb offset within payload")
+    # Firmware stores a byte offset (even); Core1 entry sets the Thumb bit itself.
+    if args.entry_off >= len(payload) or (args.entry_off & 1) != 0:
+        raise SystemExit("entry-off must be an even byte offset within payload")
 
     serial = parse_serial(args.serial)
     sk = SigningKey.from_pem(args.key.read_text())

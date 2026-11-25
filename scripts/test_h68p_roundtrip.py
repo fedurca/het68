@@ -74,7 +74,7 @@ def main() -> int:
     pub64 = pub_bin.read_bytes()
     assert len(pub64) == 64
 
-    payload = b"\x00\xbf" + b"H68Pstub"
+    payload = b"\x00\xbf" + b"H68Pstub"  # even entry at 0
     serial_ok = bytes.fromhex("0011223344556677")
     serial_bad = bytes.fromhex("ffffffffffffffff")
 
@@ -83,13 +83,24 @@ def main() -> int:
         raw = td / "payload.bin"
         raw.write_bytes(payload)
         out = td / "out.h68p"
+        # Odd entry-off must be rejected (matches firmware h68p_parse).
+        odd = subprocess.run([
+            sys.executable, str(ROOT / "scripts" / "sign_plugin.py"),
+            "--payload", str(raw),
+            "--serial", serial_ok.hex(),
+            "--key", str(key),
+            "--out", str(td / "odd.h68p"),
+            "--entry-off", "1",
+        ], capture_output=True, text=True)
+        assert odd.returncode != 0, "odd entry-off should fail"
+
         subprocess.check_call([
             sys.executable, str(ROOT / "scripts" / "sign_plugin.py"),
             "--payload", str(raw),
             "--serial", serial_ok.hex(),
             "--key", str(key),
             "--out", str(out),
-            "--entry-off", "1",
+            "--entry-off", "0",
             "--rollback", "3",
         ])
         blob = out.read_bytes()
@@ -97,7 +108,7 @@ def main() -> int:
             "<IIIIIIII8s32sI", blob, 0
         )
         assert magic == H68P_MAGIC and ver == 1 and abi == 1
-        assert code == len(payload) and entry == 1 and rb == 3
+        assert code == len(payload) and entry == 0 and (entry & 1) == 0 and rb == 3
         assert serial == serial_ok
         assert psha == hashlib.sha256(payload).digest()
         assert verify_blob(blob, serial_ok, pub64) == "ok"
@@ -106,7 +117,7 @@ def main() -> int:
         bad = bytearray(blob)
         bad[-1] ^= 0x01
         assert verify_blob(bytes(bad), serial_ok, pub64) == "sig"
-        print("H68P round-trip OK; wrong-serial reject OK; bad-sig reject OK")
+        print("H68P round-trip OK; even entry-off OK; wrong-serial/bad-sig reject OK")
     return 0
 
 

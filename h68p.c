@@ -185,12 +185,9 @@ h68p_status_t h68p_check_signature(const h68p_view_t *v,
     sha256_update(&ctx, v->payload, v->hdr->code_size);
     sha256_final(&ctx, digest);
 
-    // New micro-ecc API: uncompressed key is 0x04 || X || Y.
-    uint8_t pub[65];
-    pub[0] = 0x04;
-    memcpy(pub + 1, pub64, H68P_PUBKEY_LEN);
-
-    if (!h68p_uECC_verify(pub, digest, H68P_HASH_LEN, v->sig, h68p_uECC_secp256k1()))
+    // micro-ecc expects uncompressed public key as raw X||Y (64 bytes), not
+    // SEC1 0x04||X||Y — see uECC_make_key / uECC_verify docs.
+    if (!h68p_uECC_verify(pub64, digest, H68P_HASH_LEN, v->sig, h68p_uECC_secp256k1()))
         return H68P_ERR_SIG;
     return H68P_OK;
 }

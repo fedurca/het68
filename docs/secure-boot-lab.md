@@ -44,8 +44,10 @@ Never commit `*.pem`. Rotating the lab key requires regenerating `h68p_pubkey.c`
   --serial <16hex> \
   --key signing/dev_secp256k1.pem \
   --out build/het68_detect-<serial>.h68p \
-  --entry-off 1
+  --entry-off 0
 ```
+
+`entry_off` is an even byte offset into the payload; the Secure loader sets the Thumb bit when forming the Core1 function pointer.
 
 Upload on device (USB audio idle / alt=0):
 

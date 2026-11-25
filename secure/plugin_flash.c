@@ -161,7 +161,9 @@ void het68_plugin_flash_poll(bool usb_idle) {
     if (g_phase == PF_ERASE) {
         if (g_erase_all) {
             flash_op_t op = { .off = slot_off(g_prog_slot), .len = HET68_PLUGIN_SLOT_BYTES };
-            if (flash_safe_execute(flash_erase_cb, &op, 200) != PICO_OK) return;
+            int rc = flash_safe_execute(flash_erase_cb, &op, 200);
+            het68_psram_restore(); // bootrom may clobber QMI CS1 / PSRAM window
+            if (rc != PICO_OK) return;
             if (g_prog_slot == 0u) {
                 g_prog_slot = 1u;
                 return; // erase slot1 next poll
@@ -172,7 +174,9 @@ void het68_plugin_flash_poll(bool usb_idle) {
             return;
         }
         flash_op_t op = { .off = slot_off(g_prog_slot), .len = HET68_PLUGIN_SLOT_BYTES };
-        if (flash_safe_execute(flash_erase_cb, &op, 200) != PICO_OK) return;
+        int rc = flash_safe_execute(flash_erase_cb, &op, 200);
+        het68_psram_restore();
+        if (rc != PICO_OK) return;
         g_phase = PF_PROG;
         g_prog_off = 0;
         return;
@@ -191,7 +195,9 @@ void het68_plugin_flash_poll(bool usb_idle) {
             .src = plugin_stage() + g_prog_off,
             .len = FLASH_PAGE_SIZE
         };
-        if (flash_safe_execute(flash_prog_page_cb, &op, 200) != PICO_OK) return;
+        int rc = flash_safe_execute(flash_prog_page_cb, &op, 200);
+        het68_psram_restore();
+        if (rc != PICO_OK) return;
         g_prog_off += FLASH_PAGE_SIZE;
     }
 }
