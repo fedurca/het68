@@ -68,7 +68,7 @@ add_executable(pico_6mic_soundcard ${SRCS})
 # Version stamp (UART help / docs). Semver core for releases.
 string(TIMESTAMP HET68_BUILD_STAMP "%Y-%m-%d %H:%M:%S")
 add_compile_definitions(
-    HET68_VERSION_STR=\"1.26.0\"
+    HET68_VERSION_STR=\"1.26.1\"
     HET68_BUILD_STAMP=\"${HET68_BUILD_STAMP}\"
 )
 message(STATUS "het68: version 1.26.0  build ${HET68_BUILD_STAMP}")

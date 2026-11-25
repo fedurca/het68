@@ -9,6 +9,8 @@ sha256sum -c SHA256SUMS.txt
 
 ## H68P detection plugins (device-bound)
 
+Full description of the trusted blob: [`docs/h68p.md`](../docs/h68p.md).
+
 Detection plugins use the **H68P** container (`h68p.h`): OTP serial in the
 header, SHA-256 of the payload, ECDSA secp256k1 signature (same curve as RP2350
 secure boot).

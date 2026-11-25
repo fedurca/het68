@@ -192,7 +192,10 @@ BOM and module layout: `wiring_and_bom.md`.
 
 ## Drone detection (DOA + sync beacon)
 
-Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
+Alongside the USB sound card the firmware runs an autonomous acoustic front-end.
+From **v1.26** the platform can also carry a separate **trusted detection blob**
+(H68P: OTP serial + secp256k1) — format, flash slots, and upload:
+[`docs/h68p.md`](docs/h68p.md).
 
 * **Drone-only DOA with CLI + DET log (v1.6.0).**
   core1 classifies drones only. The low-frequency wind energy still gates the
@@ -328,8 +331,12 @@ Alongside the USB sound card the firmware runs an autonomous acoustic front-end:
   needs a smooth pass-by or a loud idle, speech vetoes the car class, and
   the 10 s window reports one scene class. Host check: `tools/longwin_check.c`.
   **v1.26.0:** TrustZone / H68P path — platform + per-device signed detection
-  plugin (`docs/secure-boot-lab.md`). Lab keeps builtin DOA until
-  `HET68_PLUGIN_EXTERNAL`; CLI `DET PLUGIN STATUS|ERASE|WRITE`; debug stays on.
+  plugin. Lab keeps builtin DOA until `HET68_PLUGIN_EXTERNAL`; CLI
+  `DET PLUGIN STATUS|ERASE|WRITE`; debug stays on. Trusted blob format:
+  [`docs/h68p.md`](docs/h68p.md); lab secure boot:
+  [`docs/secure-boot-lab.md`](docs/secure-boot-lab.md).
+  **v1.26.1:** Document the H68P trusted detection blob in
+  [`docs/h68p.md`](docs/h68p.md) (linked from this README).
 
   ```
   SRC class=drone id=0 az=137.4 el=22.8 conf=0.7 lvl=-31.2dB

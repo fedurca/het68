@@ -1,5 +1,8 @@
 # Secure boot + H68P lab notes (het68 1.26+)
 
+H68P container, flash slots, sign/upload, and runtime modes:
+**[h68p.md](h68p.md)** (trusted detection blob).
+
 ## Split firmware
 
 | Part | What | Binding |
